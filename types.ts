@@ -248,6 +248,55 @@ export interface RecoveryRequest {
   status: 'PENDING' | 'RESOLVED';
 }
 
+export type AiProviderType = 'OPENAI' | 'GROQ' | 'GEMINI' | 'ANTHROPIC' | 'DEEPSEEK' | 'MISTRAL' | 'CUSTOM';
+
+export interface AiKey {
+    id: string;
+    key: string;
+    usage: number; // Token count or call count
+    limit: number;
+    status: 'ACTIVE' | 'EXHAUSTED' | 'REVOKED';
+    lastUsed: string;
+}
+
+export interface AiModelConfig {
+    id: string; // e.g., 'gpt-4'
+    name: string; // Display name
+    costPerInputToken?: number;
+    costPerOutputToken?: number;
+    enabled: boolean;
+}
+
+export interface AiProviderConfig {
+    id: string;
+    name: string;
+    type: AiProviderType;
+    baseUrl?: string; // For custom/local
+    models: AiModelConfig[];
+    keys: AiKey[];
+    enabled: boolean;
+    isLocal?: boolean; // Tier D
+}
+
+export type AiTask = 'NOTES_ENGINE' | 'MCQ_ENGINE' | 'CHAT_ENGINE' | 'ANALYSIS_ENGINE' | 'PILOT_ENGINE';
+
+export interface AiMapping {
+    task: AiTask;
+    primaryProviderId: string;
+    primaryModelId: string;
+    secondaryProviderId?: string;
+    secondaryModelId?: string;
+    tertiaryProviderId?: string;
+    tertiaryModelId?: string;
+}
+
+export interface AiOsConfig {
+    providers: AiProviderConfig[];
+    mappings: AiMapping[];
+    globalEnabled: boolean;
+    safetyLock: boolean;
+}
+
 export interface StartupConfig {
     enabled: boolean;
     duration: number; // Seconds
@@ -462,6 +511,7 @@ export interface SystemSettings {
       BASIC: string[];
       ULTRA: string[];
   };
+  aiOsConfig?: AiOsConfig;
 }
 
 export interface ContentInfoItem {

@@ -16,6 +16,7 @@ import { CustomAlert } from './CustomDialogs';
 import { AdminAiAssistant } from './AdminAiAssistant';
 import { UniversalChat } from './UniversalChat';
 import { ChallengeCreator20 } from './admin/ChallengeCreator20';
+import { AiControlTower } from './admin/AiControlTower';
 // @ts-ignore
 import JSZip from 'jszip';
 import { Document, Page, pdfjs } from 'react-pdf';
@@ -85,7 +86,8 @@ type AdminTab =
   | 'AI_STUDIO'
   | 'AI_NOTES_MANAGER'
   | 'BLOGGER_HUB'
-  | 'CONFIG_GATING';
+  | 'CONFIG_GATING'
+  | 'AI_CONTROL_TOWER';
 
 interface ContentConfig {
     freeLink?: string;
@@ -2628,7 +2630,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                   {(hasPermission('MANAGE_SYLLABUS') || currentUser?.role === 'ADMIN') && <DashboardCard icon={Book} label="Subjects" onClick={() => setActiveTab('SUBJECTS_MGR')} color="emerald" />}
                   {(hasPermission('VIEW_DEMANDS') || currentUser?.role === 'ADMIN') && <DashboardCard icon={Megaphone} label="Demands" onClick={() => setActiveTab('DEMAND')} color="orange" count={demands.length} />}
                   {(hasPermission('APPROVE_LOGIN_REQS') || currentUser?.role === 'ADMIN') && <DashboardCard icon={Key} label="Login Reqs" onClick={() => setActiveTab('ACCESS')} color="purple" count={recoveryRequests.filter(r => r.status === 'PENDING').length} />}
-                  
+                  {(currentUser?.role === 'ADMIN') && <DashboardCard icon={BrainCircuit} label="AI Control Tower" onClick={() => setActiveTab('AI_CONTROL_TOWER')} color="indigo" />}
                   <div className="col-span-2 sm:col-span-3 md:col-span-4 lg:col-span-6 h-px bg-slate-100 my-2"></div>
                   
                   {(hasPermission('MANAGE_CONTENT') || currentUser?.role === 'ADMIN') && (
@@ -9526,6 +9528,16 @@ Capital of India?       Mumbai  Delhi   Kolkata Chennai 2       Delhi is the cap
                       </tbody>
                   </table>
               </div>
+          </div>
+      )}
+
+      {activeTab === 'AI_CONTROL_TOWER' && (
+          <div className="animate-in slide-in-from-right">
+              <div className="flex items-center gap-4 mb-6 px-6 pt-6">
+                  <button onClick={() => setActiveTab('DASHBOARD')} className="bg-slate-100 p-2 rounded-full hover:bg-slate-200"><ArrowLeft size={20} /></button>
+                  <h3 className="text-xl font-black text-slate-800">Back to Dashboard</h3>
+              </div>
+              <AiControlTower settings={localSettings} onUpdateSettings={(s) => { setLocalSettings(s); if(onUpdateSettings) onUpdateSettings(s); }} />
           </div>
       )}
 

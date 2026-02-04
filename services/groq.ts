@@ -4,6 +4,7 @@ import { STATIC_SYLLABUS } from "../constants";
 import { getChapterData, getCustomSyllabus, incrementApiUsage, getApiUsage, rtdb, getSystemSettings } from "../firebase";
 import { ref, get } from "firebase/database";
 import { storage } from "../utils/storage";
+import { aiManager } from './AiOs';
 
 // GROQ API CALL HELPER
 export const callGroqApi = async (messages: any[], model: string = "llama-3.1-8b-instant") => {
@@ -491,17 +492,20 @@ export const fetchLessonContent = async (
 ): Promise<LessonContent> => {
   
   let customInstruction = "";
-  let modelName = "llama-3.1-8b-instant";
+  // let modelName = "llama-3.1-8b-instant"; // Handled by AI OS
   let promptNotes = "";
   let promptNotesPremium = "";
   let promptMCQ = "";
+
+  let settings: SystemSettings = {} as any;
 
   try {
       const stored = localStorage.getItem('nst_system_settings');
       if (stored) {
           const s = JSON.parse(stored) as SystemSettings;
+          settings = s;
           if (s.aiInstruction) customInstruction = `IMPORTANT INSTRUCTION: ${s.aiInstruction}`;
-          if (s.aiModel) modelName = s.aiModel; // Allow override, but default is Llama3
+          // if (s.aiModel) modelName = s.aiModel; // Allow override, but default is Llama3
           
           // ... (Prompt loading logic same as Gemini) ...
            if (syllabusMode === 'COMPETITION') {
@@ -652,13 +656,11 @@ export const fetchLessonContent = async (
           if (data.length > effectiveCount) data = data.slice(0, effectiveCount);
 
       } else {
-          data = await executeWithRotation(async () => {
-              const content = await callGroqApi([
-                  { role: "system", content: mcqSystemPrompt },
-                  { role: "user", content: prompt }
-              ], modelName);
-              return JSON.parse(cleanJson(content || '[]'));
-          }, usageType);
+          const content = await aiManager.execute('MCQ_ENGINE', [
+              { role: "system", content: mcqSystemPrompt },
+              { role: "user", content: prompt }
+          ], settings, usageType);
+          data = JSON.parse(cleanJson(content || '[]'));
       }
 
       let hindiMcqData = undefined;
@@ -745,18 +747,16 @@ export const fetchLessonContent = async (
           }
       }
 
-      const text = await executeWithRotation(async () => {
-          if (onStream) {
-               return await callGroqApiStream([
-                  { role: "system", content: "You are an expert teacher. Provide high quality, well-formatted markdown content." },
-                  { role: "user", content: prompt }
-               ], onStream, modelName);
-          }
-          return await callGroqApi([
+      const text = await aiManager.execute(
+          'NOTES_ENGINE',
+          [
               { role: "system", content: "You are an expert teacher. Provide high quality, well-formatted markdown content." },
               { role: "user", content: prompt }
-          ], modelName);
-      }, usageType);
+          ],
+          settings,
+          usageType,
+          onStream
+      );
 
       let hindiText = undefined;
       if (language === 'English') {
@@ -790,9 +790,7 @@ export const fetchLessonContent = async (
        [Short 200-300 word Summary Here]
        `;
        
-       const rawText = await executeWithRotation(async () => {
-          return await callGroqApi([{ role: "user", content: prompt }], modelName);
-       }, usageType);
+       const rawText = await aiManager.execute('NOTES_ENGINE', [{ role: "user", content: prompt }], settings, usageType);
        
        let premiumText = "";
        let freeText = "";
@@ -873,9 +871,13 @@ export const generateCustomNotes = async (userTopic: string, adminPrompt: string
     
     Ensure the content is well-structured with headings and bullet points.`;
 
-    return await executeWithRotation(async () => {
-        return await callGroqApi([{ role: "user", content: prompt }], modelName);
-    }, 'STUDENT');
+    let settings = {} as any;
+    try {
+        const s = localStorage.getItem('nst_system_settings');
+        if(s) settings = JSON.parse(s);
+    } catch(e){}
+
+    return await aiManager.execute('NOTES_ENGINE', [{ role: "user", content: prompt }], settings, 'STUDENT');
 };
 
 export const generateUltraAnalysis = async (
@@ -890,11 +892,9 @@ export const generateUltraAnalysis = async (
     },
     settings?: SystemSettings
 ): Promise<string> => {
-    let modelName = "llama-3.1-8b-instant";
     let customInstruction = "";
     
     if (settings) {
-        if (settings.aiModel) modelName = settings.aiModel;
         if (settings.aiInstruction) customInstruction = settings.aiInstruction;
     }
 
@@ -960,11 +960,12 @@ export const generateUltraAnalysis = async (
     Ensure the response is valid JSON. Do not wrap in markdown code blocks.
     `;
 
-    return await executeWithRotation(async () => {
-        const content = await callGroqApi([
-            { role: "system", content: "You are a data analyst. Return only valid JSON." },
-            { role: "user", content: prompt }
-        ], modelName);
-        return cleanJson(content || "{}");
-    }, 'STUDENT');
+    const finalSettings = settings || (localStorage.getItem('nst_system_settings') ? JSON.parse(localStorage.getItem('nst_system_settings')!) : {});
+
+    const content = await aiManager.execute('ANALYSIS_ENGINE', [
+        { role: "system", content: "You are a data analyst. Return only valid JSON." },
+        { role: "user", content: prompt }
+    ], finalSettings, 'STUDENT');
+
+    return cleanJson(content || "{}");
 };

@@ -437,13 +437,15 @@ export const getSecureKeys = async () => {
     }
 };
 
-export const incrementApiUsage = async (keyIndex: number, type: 'PILOT' | 'STUDENT') => {
+export const incrementApiUsage = async (keyId: string | number, type: 'PILOT' | 'STUDENT') => {
     try {
         const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
         const docRef = doc(db, "admin_stats", `api_usage_${date}`);
         
+        const safeKey = String(keyId).replace(/[.#$/\[\]]/g, '_'); // Sanitize for Firebase paths
+
         const updates: any = {
-            [`key_${keyIndex}`]: increment(1),
+            [`key_${safeKey}`]: increment(1),
             total: increment(1)
         };
         
