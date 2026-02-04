@@ -1,5 +1,5 @@
 import { UniversalAnalysisLog } from '../types';
-import { executeWithRotation, translateToHindi, callGroqApi } from './groq';
+import { executeCanonical } from './ai/router';
 import { saveSystemSettings } from '../firebase';
 
 export const generateMorningInsight = async (logs: UniversalAnalysisLog[], settings: any, onSave: (banner: any) => void): Promise<string> => {
@@ -39,9 +39,10 @@ export const generateMorningInsight = async (logs: UniversalAnalysisLog[], setti
     `;
 
     try {
-        const result = await executeWithRotation(async () => {
-            const content = await callGroqApi([{ role: "user", content: prompt }], "llama-3.1-8b-instant");
-            return content || "";
+        const result = await executeCanonical({
+            canonicalModel: 'ANALYSIS_ENGINE',
+            prompt: prompt,
+            systemPrompt: "You are an AI Mentor for students."
         });
 
         // Parse JSON
