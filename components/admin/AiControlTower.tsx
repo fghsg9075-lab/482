@@ -7,7 +7,8 @@ import {
     AIKey, AIModelConfig, AIProviderConfig, AICanonicalMapping,
     AILog, CanonicalModel, AIProviderType
 } from '../../services/ai/types';
-import { RefreshCw, Plus, Trash2, CheckCircle, XCircle, Activity, Server, Key, Brain } from 'lucide-react';
+import { DEFAULT_PROVIDERS, DEFAULT_MODELS, DEFAULT_MAPPINGS_FULL } from '../../services/ai/defaults';
+import { RefreshCw, Plus, Trash2, CheckCircle, XCircle, Activity, Server, Key, Brain, RotateCcw } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -62,6 +63,26 @@ export const AiControlTower: React.FC = () => {
         setModels(m);
         setKeys(k);
         setMappings(map);
+        setLoading(false);
+    };
+
+    const handleResetDefaults = async () => {
+        if (!confirm("Reset AI Brain? This will overwrite providers and models (keys will be safe).")) return;
+        setLoading(true);
+        try {
+            // Providers
+            for (const p of DEFAULT_PROVIDERS) await saveAIProvider(p);
+            // Models
+            for (const m of DEFAULT_MODELS) await saveAIModel(m);
+            // Mappings
+            for (const map of DEFAULT_MAPPINGS_FULL) await saveCanonicalMapping(map);
+
+            await refreshData();
+            alert("AI Brain Initialized with Factory Defaults!");
+        } catch(e) {
+            console.error(e);
+            alert("Error initializing defaults.");
+        }
         setLoading(false);
     };
 
@@ -356,13 +377,22 @@ export const AiControlTower: React.FC = () => {
                     </h2>
                     <p className="text-sm opacity-50 mt-1">Managed AI Operating System (Zone C)</p>
                 </div>
-                <button
-                    onClick={refreshData}
-                    className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors"
-                    title="Refresh Data"
-                >
-                    <RefreshCw size={20} className={cn(loading && "animate-spin")} />
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={handleResetDefaults}
+                        className="flex items-center gap-2 px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors text-xs font-bold uppercase tracking-wider border border-red-500/20"
+                        title="Reset / Initialize Defaults"
+                    >
+                        <RotateCcw size={16} /> Load Defaults
+                    </button>
+                    <button
+                        onClick={refreshData}
+                        className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors"
+                        title="Refresh Data"
+                    >
+                        <RefreshCw size={20} className={cn(loading && "animate-spin")} />
+                    </button>
+                </div>
             </div>
 
             {/* TABS */}

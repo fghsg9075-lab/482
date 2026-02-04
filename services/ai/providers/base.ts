@@ -8,6 +8,7 @@ export interface AIRequestOptions {
     maxTokens?: number;
     jsonMode?: boolean;
     tools?: any[]; // Tool definitions
+    baseUrl?: string; // For generic providers (OpenRouter, DeepSeek, etc.)
 }
 
 export interface AIResponse {
