@@ -44,11 +44,16 @@ export const toggleAIModel = async (modelId: string, isEnabled: boolean) => {
 };
 
 // --- KEYS (Stored Securely in Firestore, Usage in RTDB for speed) ---
-export const saveAIKey = async (key: AIKey) => {
+export const saveAIKey = async (key: AIKey): Promise<boolean> => {
     try {
+        console.log("Saving AI Key:", key);
         // Changed from ai_secure to ai_config to ensure visibility/permissions match other config
-        await setDoc(doc(db, "ai_config", "keys", "list", key.id), key);
-    } catch (e) { console.error("Error saving key:", e); }
+        await setDoc(doc(db, "ai_config", "keys", "list", key.id), sanitizeForFirestore(key));
+        return true;
+    } catch (e) {
+        console.error("Error saving key:", e);
+        return false;
+    }
 };
 
 export const getAIKeys = async (providerId?: AIProviderType): Promise<AIKey[]> => {

@@ -426,9 +426,14 @@ export const AiControlTower: React.FC = () => {
                 lastUsed: new Date().toISOString(),
                 status: 'ACTIVE'
             };
-            await saveAIKey(keyObj);
-            setNewKey({ key: '', provider: 'openai', name: '' });
-            refreshData();
+            const success = await saveAIKey(keyObj);
+            if (success) {
+                alert("API Key Saved Successfully!");
+                setNewKey({ key: '', provider: 'openai', name: '' });
+                refreshData();
+            } else {
+                alert("Failed to save API Key. Check console for details.");
+            }
         };
 
         return (
