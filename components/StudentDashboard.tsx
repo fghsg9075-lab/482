@@ -467,7 +467,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
 
       setAiGenerating(true);
       try {
-          const notes = await generateCustomNotes(aiTopic, settings?.aiNotesPrompt || '', settings?.aiModel);
+          const notes = await generateCustomNotes(aiTopic, settings?.aiNotesPrompt || '');
           setAiResult(notes);
           
           // Increment Usage

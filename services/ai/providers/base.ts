@@ -28,5 +28,7 @@ export abstract class BaseAIProvider {
     abstract generateContent(apiKey: string, options: AIRequestOptions): Promise<AIResponse>;
 
     // Optional stream support
-    abstract generateContentStream?(apiKey: string, options: AIRequestOptions, onChunk: (text: string) => void): Promise<string>;
+    async generateContentStream(apiKey: string, options: AIRequestOptions, onChunk: (text: string) => void): Promise<string> {
+        throw new Error("Streaming not supported by this provider");
+    }
 }

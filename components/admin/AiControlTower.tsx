@@ -1,26 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import {
     getAIKeys, getAIModels, getAIProviders, getCanonicalMappings,
-    saveAIKey, saveAIModel, saveCanonicalMapping, saveAIProvider, subscribeToAILogs
+    saveAIKey, saveAIModel, saveCanonicalMapping, saveAIProvider, subscribeToAILogs,
+    toggleAIModel, toggleAIProvider
 } from '../../services/ai/db';
 import {
     AIKey, AIModelConfig, AIProviderConfig, AICanonicalMapping,
     AILog, CanonicalModel, AIProviderType
 } from '../../services/ai/types';
 import { DEFAULT_PROVIDERS, DEFAULT_MODELS, DEFAULT_MAPPINGS_FULL } from '../../services/ai/defaults';
-import { RefreshCw, Plus, Trash2, CheckCircle, XCircle, Activity, Server, Key, Brain, RotateCcw } from 'lucide-react';
+import { RefreshCw, Plus, Trash2, CheckCircle, XCircle, Activity, Server, Key, Brain, RotateCcw, Save, AlertTriangle, Play, Pause } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 const cn = (...inputs: (string | undefined | null | false)[]) => twMerge(clsx(inputs));
 
-// --- SUB COMPONENTS (Moved Outside) ---
+// --- SUB COMPONENTS ---
 
-const StatusCard = ({ title, value, sub, color }: any) => (
-    <div className={cn("p-4 rounded-xl border border-white/10 bg-white/5", color)}>
-        <div className="text-sm opacity-70">{title}</div>
-        <div className="text-2xl font-bold mt-1">{value}</div>
-        {sub && <div className="text-xs mt-1 opacity-50">{sub}</div>}
+const StatusCard = ({ title, value, sub, color, icon: Icon }: any) => (
+    <div className="p-4 rounded-xl border border-white/10 bg-gradient-to-br from-white/5 to-transparent relative overflow-hidden group hover:border-white/20 transition-all">
+        <div className={cn("absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity", color)}>
+            {Icon && <Icon size={40} />}
+        </div>
+        <div className="text-sm opacity-70 font-medium tracking-wide uppercase">{title}</div>
+        <div className="text-3xl font-bold mt-2 tracking-tight">{value}</div>
+        {sub && <div className="text-xs mt-1 opacity-50 font-mono">{sub}</div>}
     </div>
 );
 
@@ -28,8 +32,10 @@ const TabButton = ({ id, label, icon: Icon, activeTab, setActiveTab }: any) => (
     <button
         onClick={() => setActiveTab(id)}
         className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded-lg transition-all",
-            activeTab === id ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "bg-white/5 hover:bg-white/10 text-gray-300"
+            "flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all text-sm font-medium border border-transparent",
+            activeTab === id
+                ? "bg-blue-600/20 text-blue-400 border-blue-500/30"
+                : "hover:bg-white/5 text-gray-400 hover:text-white"
         )}
     >
         <Icon size={16} />
@@ -37,8 +43,26 @@ const TabButton = ({ id, label, icon: Icon, activeTab, setActiveTab }: any) => (
     </button>
 );
 
+const TableHeader = ({ children }: { children: React.ReactNode }) => (
+    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider bg-black/20 border-b border-white/5 first:rounded-tl-lg last:rounded-tr-lg">
+        {children}
+    </th>
+);
+
+const TableRow = ({ children, className }: { children: React.ReactNode, className?: string }) => (
+    <tr className={cn("hover:bg-white/5 transition-colors border-b border-white/5 last:border-0", className)}>
+        {children}
+    </tr>
+);
+
+const TableCell = ({ children, className }: { children: React.ReactNode, className?: string }) => (
+    <td className={cn("px-4 py-3 text-sm whitespace-nowrap", className)}>
+        {children}
+    </td>
+);
+
 export const AiControlTower: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<'STATUS' | 'MAPPING' | 'KEYS' | 'LOGS'>('STATUS');
+    const [activeTab, setActiveTab] = useState<'STATUS' | 'PROVIDERS' | 'MODELS' | 'MAPPING' | 'KEYS' | 'LOGS'>('STATUS');
 
     // Data State
     const [providers, setProviders] = useState<AIProviderConfig[]>([]);
@@ -47,27 +71,49 @@ export const AiControlTower: React.FC = () => {
     const [mappings, setMappings] = useState<Record<string, AICanonicalMapping>>({});
     const [logs, setLogs] = useState<AILog[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isUsingDefaults, setIsUsingDefaults] = useState(false);
 
-    // Form State (Moved up to avoid Hook violation in renderKeys)
-    const [newKey, setNewKey] = useState({ key: '', provider: 'gemini', name: '' });
+    // Form State
+    const [newKey, setNewKey] = useState({ key: '', provider: 'openai', name: '' });
 
     const refreshData = async () => {
         setLoading(true);
-        const [p, m, k, map] = await Promise.all([
-            getAIProviders(),
-            getAIModels(),
-            getAIKeys(),
-            getCanonicalMappings()
-        ]);
-        setProviders(p);
-        setModels(m);
-        setKeys(k);
-        setMappings(map);
+        try {
+            let [p, m, k, map] = await Promise.all([
+                getAIProviders(),
+                getAIModels(),
+                getAIKeys(),
+                getCanonicalMappings()
+            ]);
+
+            // Auto-Seed View with Defaults if DB is empty
+            if (p.length === 0) {
+                console.log("AI System: No config found in DB, loading defaults for display.");
+                p = DEFAULT_PROVIDERS;
+                m = DEFAULT_MODELS;
+                // Convert list to map
+                const mapObj: Record<string, AICanonicalMapping> = {};
+                DEFAULT_MAPPINGS_FULL.forEach(mapping => {
+                    mapObj[mapping.canonicalModel] = mapping;
+                });
+                map = mapObj;
+                setIsUsingDefaults(true);
+            } else {
+                setIsUsingDefaults(false);
+            }
+
+            setProviders(p);
+            setModels(m);
+            setKeys(k);
+            setMappings(map);
+        } catch (error) {
+            console.error("Failed to load AI data:", error);
+        }
         setLoading(false);
     };
 
-    const handleResetDefaults = async () => {
-        if (!confirm("Reset AI Brain? This will overwrite providers and models (keys will be safe).")) return;
+    const handleInitializeDatabase = async () => {
+        if (!confirm("Initialize AI Database with Factory Defaults? This will save all currently visible providers and models to the database.")) return;
         setLoading(true);
         try {
             // Providers
@@ -78,12 +124,21 @@ export const AiControlTower: React.FC = () => {
             for (const map of DEFAULT_MAPPINGS_FULL) await saveCanonicalMapping(map);
 
             await refreshData();
-            alert("AI Brain Initialized with Factory Defaults!");
+            alert("AI Brain Successfully Initialized!");
         } catch(e) {
             console.error(e);
             alert("Error initializing defaults.");
         }
         setLoading(false);
+    };
+
+    const handleToggleProvider = async (id: AIProviderType, current: boolean) => {
+        if (isUsingDefaults) {
+             alert("Please initialize the database first.");
+             return;
+        }
+        await toggleAIProvider(id, !current);
+        refreshData();
     };
 
     useEffect(() => {
@@ -95,93 +150,186 @@ export const AiControlTower: React.FC = () => {
     // --- TAB CONTENT ---
 
     const renderStatus = () => {
-        const totalCalls = logs.length; // Just recent logs for now
+        const totalCalls = logs.length;
         const failedCalls = logs.filter(l => l.status === 'FAILURE').length;
-        const successRate = totalCalls > 0 ? Math.round(((totalCalls - failedCalls) / totalCalls) * 100) : 100;
+        const successRate = totalCalls > 0 ? ((totalCalls - failedCalls) / totalCalls) * 100 : 100;
+        const activeKeyCount = keys.filter(k => k.status === 'ACTIVE').length;
 
         return (
-            <div className="space-y-6">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <StatusCard title="Active Providers" value={providers.filter(p => p.isEnabled).length} sub={`${providers.length} configured`} color="text-blue-400" />
-                    <StatusCard title="Total Keys" value={keys.length} sub={`${keys.filter(k => k.status === 'ACTIVE').length} active`} color="text-green-400" />
-                    <StatusCard title="Success Rate" value={`${successRate}%`} sub="Last 50 calls" color={successRate > 90 ? "text-green-400" : "text-red-400"} />
-                    <StatusCard title="Total Models" value={models.length} sub={`${models.filter(m => m.isEnabled).length} enabled`} color="text-purple-400" />
+            <div className="space-y-6 animate-in fade-in duration-500">
+                {isUsingDefaults && (
+                    <div className="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-xl flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <AlertTriangle className="text-yellow-500" />
+                            <div>
+                                <h3 className="font-bold text-yellow-500">System Running in View-Only Mode</h3>
+                                <p className="text-sm opacity-70">Configuration is loaded from code defaults. Initialize database to enable editing.</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleInitializeDatabase}
+                            className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2"
+                        >
+                            <Save size={16} /> Initialize Database
+                        </button>
+                    </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatusCard title="AI Providers" value={providers.length} sub={`${providers.filter(p => p.isEnabled).length} Active`} color="text-blue-400" icon={Server} />
+                    <StatusCard title="Model Registry" value={models.length} sub="Across all tiers" color="text-purple-400" icon={Brain} />
+                    <StatusCard title="API Keys" value={keys.length} sub={`${activeKeyCount} Operational`} color="text-green-400" icon={Key} />
+                    <StatusCard title="Health Score" value={`${Math.round(successRate)}%`} sub={`${logs.length} Transactions`} color={successRate > 90 ? "text-green-400" : "text-red-400"} icon={Activity} />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                     <div className="bg-gray-900/50 p-6 rounded-xl border border-white/10">
-                        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                            <Activity size={20} className="text-blue-400"/> Live Activity
+                <div className="bg-gray-900/50 rounded-xl border border-white/10 overflow-hidden">
+                    <div className="p-4 border-b border-white/5 flex justify-between items-center">
+                        <h3 className="font-bold flex items-center gap-2">
+                            <Activity size={18} className="text-blue-400"/> System Pulse
                         </h3>
-                        <div className="space-y-3">
-                            {logs.slice(0, 5).map(log => (
-                                <div key={log.id} className="flex justify-between items-center text-sm p-2 bg-white/5 rounded">
-                                    <div className="flex flex-col">
-                                        <span className="font-mono text-xs opacity-50">{log.timestamp.split('T')[1].split('.')[0]}</span>
-                                        <span className={cn("font-bold", log.status === 'SUCCESS' ? "text-green-400" : "text-red-400")}>
-                                            {log.canonicalModel}
-                                        </span>
-                                    </div>
-                                    <div className="text-right">
-                                        <div className="text-xs">{log.modelId}</div>
-                                        <div className="text-xs opacity-50">{log.latencyMs}ms</div>
-                                    </div>
-                                </div>
-                            ))}
-                            {logs.length === 0 && <div className="text-center opacity-50 py-4">No recent activity</div>}
-                        </div>
-                     </div>
-
-                     <div className="bg-gray-900/50 p-6 rounded-xl border border-white/10">
-                        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                            <Server size={20} className="text-purple-400"/> Provider Health
-                        </h3>
-                        <div className="space-y-3">
-                            {providers.map(p => {
-                                const pKeys = keys.filter(k => k.providerId === p.id);
-                                const activeKeys = pKeys.filter(k => k.status === 'ACTIVE').length;
-                                return (
-                                    <div key={p.id} className="flex justify-between items-center p-3 bg-white/5 rounded border border-white/5">
-                                        <div className="flex items-center gap-3">
-                                            <div className={cn("w-2 h-2 rounded-full", p.isEnabled ? "bg-green-500" : "bg-red-500")} />
-                                            <span className="font-medium">{p.name}</span>
-                                        </div>
-                                        <div className="flex gap-4 text-xs opacity-70">
-                                            <span>{pKeys.length} Keys ({activeKeys} Active)</span>
-                                            <span>{p.isEnabled ? 'ON' : 'OFF'}</span>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                             {providers.length === 0 && (
-                                 <button
-                                    onClick={async () => {
-                                        await saveAIProvider({id: 'gemini', name: 'Google Gemini', isEnabled: true});
-                                        await saveAIProvider({id: 'groq', name: 'Groq', isEnabled: true});
-
-                                        // Default Models
-                                        await saveAIModel({id: 'gemini-1.5-flash', providerId: 'gemini', name: 'Gemini 1.5 Flash', isEnabled: true, costPer1k: 0.0001, contextWindow: 1000000});
-                                        await saveAIModel({id: 'llama-3.1-8b-instant', providerId: 'groq', name: 'Llama 3.1 8B (Groq)', isEnabled: true, costPer1k: 0.00005, contextWindow: 8192});
-                                        await saveAIModel({id: 'llama-3.2-90b-vision-preview', providerId: 'groq', name: 'Llama 3.2 90B Vision', isEnabled: true, costPer1k: 0.0001, contextWindow: 128000});
-
-                                        refreshData();
-                                    }}
-                                    className="w-full py-2 bg-blue-600/20 text-blue-400 rounded hover:bg-blue-600/30 text-sm"
-                                 >
-                                    Initialize Defaults
-                                 </button>
-                             )}
-                        </div>
-                     </div>
+                        <span className="text-xs opacity-50 font-mono">Realtime</span>
+                    </div>
+                    <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+                        <table className="w-full text-sm">
+                            <thead className="sticky top-0 bg-[#0F172A] z-10">
+                                <tr>
+                                    <TableHeader>Time</TableHeader>
+                                    <TableHeader>Canonical Route</TableHeader>
+                                    <TableHeader>Resolved Model</TableHeader>
+                                    <TableHeader>Latency</TableHeader>
+                                    <TableHeader>Status</TableHeader>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {logs.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={5} className="p-8 text-center opacity-30">No activity recorded yet</td>
+                                    </tr>
+                                ) : logs.slice(0, 20).map(log => (
+                                    <TableRow key={log.id}>
+                                        <TableCell><span className="opacity-50 font-mono">{new Date(log.timestamp).toLocaleTimeString()}</span></TableCell>
+                                        <TableCell><span className="font-bold text-yellow-400">{log.canonicalModel}</span></TableCell>
+                                        <TableCell><span className="text-blue-300 font-mono text-xs">{log.modelId}</span></TableCell>
+                                        <TableCell>{log.latencyMs}ms</TableCell>
+                                        <TableCell>
+                                            <span className={cn(
+                                                "px-2 py-0.5 rounded text-[10px] font-bold",
+                                                log.status === 'SUCCESS' ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
+                                            )}>
+                                                {log.status}
+                                            </span>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         );
     };
 
+    const renderProviders = () => (
+        <div className="space-y-4">
+             <div className="bg-gray-900/50 rounded-xl border border-white/10 overflow-hidden">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr>
+                            <TableHeader>Provider</TableHeader>
+                            <TableHeader>Base URL</TableHeader>
+                            <TableHeader>Configured Keys</TableHeader>
+                            <TableHeader>Status</TableHeader>
+                            <TableHeader>Actions</TableHeader>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {providers.map(p => {
+                            const keyCount = keys.filter(k => k.providerId === p.id).length;
+                            return (
+                                <TableRow key={p.id}>
+                                    <TableCell>
+                                        <div className="flex items-center gap-3">
+                                            {p.icon && <img src={p.icon} className="w-6 h-6 rounded bg-white/10 p-0.5" alt="" />}
+                                            <span className="font-medium">{p.name}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell><span className="font-mono text-xs opacity-50">{p.baseUrl || 'Default'}</span></TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2">
+                                            <Key size={12} className={keyCount > 0 ? "text-green-400" : "text-gray-600"} />
+                                            <span>{keyCount}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <span className={cn("px-2 py-1 rounded text-xs font-bold", p.isEnabled ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400")}>
+                                            {p.isEnabled ? 'ONLINE' : 'OFFLINE'}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell>
+                                        <button
+                                            onClick={() => handleToggleProvider(p.id, p.isEnabled)}
+                                            disabled={isUsingDefaults}
+                                            className={cn("p-1.5 rounded hover:bg-white/10 transition-colors", isUsingDefaults && "opacity-30 cursor-not-allowed")}
+                                        >
+                                            {p.isEnabled ? <Pause size={16} /> : <Play size={16} />}
+                                        </button>
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+
+    const renderModels = () => (
+        <div className="space-y-4">
+            <div className="bg-gray-900/50 rounded-xl border border-white/10 overflow-hidden">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr>
+                            <TableHeader>Model ID</TableHeader>
+                            <TableHeader>Provider</TableHeader>
+                            <TableHeader>Context Window</TableHeader>
+                            <TableHeader>Priority</TableHeader>
+                            <TableHeader>Status</TableHeader>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {models.map(m => (
+                            <TableRow key={m.id}>
+                                <TableCell><span className="font-bold">{m.name}</span> <div className="text-xs opacity-50 font-mono">{m.modelId}</div></TableCell>
+                                <TableCell>
+                                    <span className="px-2 py-1 rounded bg-white/5 text-xs uppercase tracking-wide opacity-70">
+                                        {m.providerId}
+                                    </span>
+                                </TableCell>
+                                <TableCell>{(m.contextWindow / 1000).toFixed(0)}k tokens</TableCell>
+                                <TableCell>
+                                    <div className="flex items-center gap-1">
+                                        <span className="text-xs opacity-50">Tier</span>
+                                        <span className="font-bold text-blue-400">{m.priority || 1}</span>
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                     <span className={cn("px-2 py-1 rounded text-xs font-bold", m.isEnabled ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400")}>
+                                            {m.isEnabled ? 'Active' : 'Disabled'}
+                                    </span>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+
     const renderMappings = () => {
         const engines: CanonicalModel[] = ['NOTES_ENGINE', 'MCQ_ENGINE', 'CHAT_ENGINE', 'ANALYSIS_ENGINE', 'VISION_ENGINE'];
 
         const updateMapping = (engine: CanonicalModel, primary: string, fallbacks: string[]) => {
+            if (isUsingDefaults) return alert("Initialize database to edit mappings.");
             const newMapping: AICanonicalMapping = { canonicalModel: engine, primaryModelId: primary, fallbackModelIds: fallbacks };
             setMappings(prev => ({...prev, [engine]: newMapping}));
             saveCanonicalMapping(newMapping);
@@ -189,26 +337,33 @@ export const AiControlTower: React.FC = () => {
 
         return (
             <div className="space-y-4">
-                <div className="p-4 bg-blue-900/20 border border-blue-500/20 rounded-lg text-sm text-blue-200">
-                    Map your code's <code>NOTES_ENGINE</code> calls to real models here. The system will automatically fallback if the primary fails.
+                <div className="p-4 bg-blue-900/20 border border-blue-500/20 rounded-lg text-sm text-blue-200 flex items-center gap-3">
+                    <Server size={20} />
+                    <div>
+                        <div className="font-bold">Canonical Routing Table</div>
+                        <div className="opacity-70">Maps abstract engine requests to concrete provider models with fallback chains.</div>
+                    </div>
                 </div>
 
                 <div className="grid gap-4">
                     {engines.map(engine => {
                         const current = mappings[engine] || { canonicalModel: engine, primaryModelId: '', fallbackModelIds: [] };
                         return (
-                            <div key={engine} className="bg-gray-900/50 p-4 rounded-xl border border-white/10">
+                            <div key={engine} className="bg-gray-900/50 p-4 rounded-xl border border-white/10 group hover:border-blue-500/30 transition-all">
                                 <div className="flex justify-between items-start mb-4">
-                                    <h4 className="font-bold text-lg text-yellow-400">{engine}</h4>
-                                    <span className="text-xs px-2 py-1 bg-white/10 rounded">Canonical</span>
+                                    <h4 className="font-bold text-lg text-yellow-400 flex items-center gap-2">
+                                        <Brain size={18} /> {engine}
+                                    </h4>
+                                    <span className="text-xs px-2 py-1 bg-white/10 rounded font-mono">ROUTER_V1</span>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="text-xs text-gray-400 mb-1 block">Primary Model</label>
+                                        <label className="text-xs text-gray-400 mb-1 block uppercase tracking-wider">Primary Model</label>
                                         <select
-                                            className="w-full bg-black/40 border border-white/10 rounded p-2 text-sm"
+                                            className="w-full bg-black/40 border border-white/10 rounded p-2 text-sm focus:border-blue-500 outline-none"
                                             value={current.primaryModelId}
                                             onChange={(e) => updateMapping(engine, e.target.value, current.fallbackModelIds)}
+                                            disabled={isUsingDefaults}
                                         >
                                             <option value="">Select Model...</option>
                                             {models.map(m => (
@@ -217,10 +372,11 @@ export const AiControlTower: React.FC = () => {
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="text-xs text-gray-400 mb-1 block">Fallback Chain</label>
-                                        <div className="flex gap-2">
+                                        <label className="text-xs text-gray-400 mb-1 block uppercase tracking-wider">Fallback Chain</label>
+                                        <div className="flex flex-wrap gap-2">
                                             {current.fallbackModelIds.map((fid, idx) => (
-                                                <div key={idx} className="bg-white/5 px-2 py-1 rounded text-xs flex items-center gap-2">
+                                                <div key={idx} className="bg-white/5 px-2 py-1 rounded text-xs flex items-center gap-2 border border-white/5">
+                                                    <span className="text-orange-300">{idx + 1}.</span>
                                                     {models.find(m => m.id === fid)?.name || fid}
                                                     <button
                                                         onClick={() => updateMapping(engine, current.primaryModelId, current.fallbackModelIds.filter((_, i) => i !== idx))}
@@ -236,6 +392,7 @@ export const AiControlTower: React.FC = () => {
                                                     }
                                                 }}
                                                 value=""
+                                                disabled={isUsingDefaults}
                                             >
                                                 <option value="">+ Add</option>
                                                 {models.map(m => (
@@ -255,6 +412,7 @@ export const AiControlTower: React.FC = () => {
 
     const renderKeys = () => {
         const addKey = async () => {
+            if (isUsingDefaults) return alert("Initialize database first.");
             if (!newKey.key) return;
             const keyObj: AIKey = {
                 id: `k-${Date.now()}`,
@@ -269,53 +427,63 @@ export const AiControlTower: React.FC = () => {
                 status: 'ACTIVE'
             };
             await saveAIKey(keyObj);
-            setNewKey({ key: '', provider: 'gemini', name: '' });
+            setNewKey({ key: '', provider: 'openai', name: '' });
             refreshData();
         };
 
         return (
             <div className="space-y-6">
                 {/* ADD KEY */}
-                <div className="bg-gray-900/50 p-4 rounded-xl border border-white/10">
-                    <h4 className="font-bold mb-3">Add New API Key</h4>
-                    <div className="flex gap-2 flex-wrap">
-                        <select
-                            className="bg-black/40 border border-white/10 rounded p-2 text-sm"
-                            value={newKey.provider}
-                            onChange={e => setNewKey({...newKey, provider: e.target.value})}
-                        >
-                            {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                        </select>
-                        <input
-                            type="text"
-                            placeholder="Key Name (Optional)"
-                            className="bg-black/40 border border-white/10 rounded p-2 text-sm"
-                            value={newKey.name}
-                            onChange={e => setNewKey({...newKey, name: e.target.value})}
-                        />
-                        <input
-                            type="text"
-                            placeholder="sk-..."
-                            className="bg-black/40 border border-white/10 rounded p-2 text-sm flex-1 min-w-[200px]"
-                            value={newKey.key}
-                            onChange={e => setNewKey({...newKey, key: e.target.value})}
-                        />
+                <div className="bg-gray-900/50 p-6 rounded-xl border border-white/10">
+                    <h4 className="font-bold mb-4 flex items-center gap-2"><Plus size={18} className="text-green-400"/> Add New API Key</h4>
+                    <div className="flex gap-4 flex-wrap items-end">
+                        <div className="flex-1 min-w-[200px]">
+                            <label className="text-xs text-gray-400 mb-1 block">Provider</label>
+                            <select
+                                className="w-full bg-black/40 border border-white/10 rounded p-2 text-sm"
+                                value={newKey.provider}
+                                onChange={e => setNewKey({...newKey, provider: e.target.value})}
+                            >
+                                {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            </select>
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <label className="text-xs text-gray-400 mb-1 block">Key Label</label>
+                            <input
+                                type="text"
+                                placeholder="e.g. Production Key 1"
+                                className="w-full bg-black/40 border border-white/10 rounded p-2 text-sm"
+                                value={newKey.name}
+                                onChange={e => setNewKey({...newKey, name: e.target.value})}
+                            />
+                        </div>
+                        <div className="flex-[2] min-w-[300px]">
+                             <label className="text-xs text-gray-400 mb-1 block">Secret Key</label>
+                            <input
+                                type="text"
+                                placeholder="sk-..."
+                                className="w-full bg-black/40 border border-white/10 rounded p-2 text-sm"
+                                value={newKey.key}
+                                onChange={e => setNewKey({...newKey, key: e.target.value})}
+                            />
+                        </div>
                         <button
                             onClick={addKey}
-                            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                            disabled={isUsingDefaults}
+                            className="bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg flex items-center gap-2 font-bold"
                         >
-                            <Plus size={16} /> Add
+                            <Save size={16} /> Save Key
                         </button>
                     </div>
                 </div>
 
                 {/* KEY LIST */}
-                <div className="space-y-4">
-                    {providers.map(provider => (
-                        <div key={provider.id} className="bg-gray-800/30 p-4 rounded-xl">
+                <div className="grid gap-4">
+                    {providers.filter(p => keys.some(k => k.providerId === p.id)).map(provider => (
+                        <div key={provider.id} className="bg-gray-800/30 p-4 rounded-xl border border-white/5">
                             <h4 className="font-bold mb-3 flex items-center gap-2">
-                                <span className="capitalize">{provider.name}</span> Keys
-                                <span className="text-xs px-2 py-0.5 bg-white/10 rounded-full">{keys.filter(k => k.providerId === provider.id).length}</span>
+                                <span className="capitalize">{provider.name}</span>
+                                <span className="text-xs px-2 py-0.5 bg-white/10 rounded-full">{keys.filter(k => k.providerId === provider.id).length} Keys</span>
                             </h4>
                             <div className="grid gap-2">
                                 {keys.filter(k => k.providerId === provider.id).map(key => (
@@ -323,71 +491,50 @@ export const AiControlTower: React.FC = () => {
                                         <div className="flex items-center gap-3">
                                             <div className={cn("w-2 h-2 rounded-full", key.status === 'ACTIVE' ? "bg-green-500" : "bg-red-500")} />
                                             <div className="flex flex-col">
-                                                <span className="font-mono text-sm">{key.name || 'Key'} (...{key.key.slice(-4)})</span>
-                                                <span className="text-xs opacity-50">Used: {key.usageCount} times</span>
+                                                <span className="font-mono text-sm font-bold text-gray-300">{key.name || 'Key'}</span>
+                                                <span className="text-xs opacity-50 font-mono">...{key.key.slice(-6)}</span>
                                             </div>
                                         </div>
-                                        <button className="text-red-400 hover:text-red-300 p-1 opacity-50 hover:opacity-100">
-                                            <Trash2 size={14} />
-                                        </button>
+                                        <div className="flex items-center gap-4 text-xs">
+                                            <div className="flex flex-col items-end">
+                                                <span className="opacity-50">Usage</span>
+                                                <span className="font-bold">{key.usageCount} calls</span>
+                                            </div>
+                                            <button className="text-red-400 hover:text-red-300 p-2 hover:bg-white/5 rounded transition-colors">
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
-                                {keys.filter(k => k.providerId === provider.id).length === 0 && (
-                                    <div className="text-center text-xs opacity-30 py-2">No keys found</div>
-                                )}
                             </div>
                         </div>
                     ))}
+                    {keys.length === 0 && (
+                         <div className="p-8 text-center opacity-30 border border-dashed border-white/10 rounded-xl">
+                            No API Keys Configured
+                         </div>
+                    )}
                 </div>
             </div>
         );
     };
 
-    const renderLogs = () => (
-        <div className="space-y-2 font-mono text-xs">
-            <div className="flex justify-between text-gray-500 px-2 pb-2 border-b border-white/10">
-                <span>Time</span>
-                <span>Engine</span>
-                <span>Model</span>
-                <span>Status</span>
-            </div>
-            {logs.map(log => (
-                <div key={log.id} className="flex justify-between items-center p-2 bg-white/5 rounded hover:bg-white/10 transition-colors">
-                    <span className="opacity-50">{new Date(log.timestamp).toLocaleTimeString()}</span>
-                    <span className="font-bold text-yellow-500">{log.canonicalModel}</span>
-                    <span className="text-blue-300">{log.modelId}</span>
-                    <span className={cn(
-                        "px-2 py-0.5 rounded text-[10px]",
-                        log.status === 'SUCCESS' ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
-                    )}>
-                        {log.status}
-                    </span>
-                </div>
-            ))}
-        </div>
-    );
-
     return (
-        <div className="flex flex-col h-full bg-[#0F172A] text-white p-6 rounded-2xl border border-white/10 shadow-2xl">
+        <div className="flex flex-col h-full bg-[#0F172A] text-white p-6 rounded-2xl border border-white/10 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-50" />
+
             {/* HEADER */}
-            <div className="flex justify-between items-start mb-8">
+            <div className="flex justify-between items-start mb-8 z-10">
                 <div>
-                    <h2 className="text-2xl font-bold flex items-center gap-2">
+                    <h2 className="text-2xl font-bold flex items-center gap-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
                         <Brain className="text-blue-500" /> AI Control Tower
                     </h2>
-                    <p className="text-sm opacity-50 mt-1">Managed AI Operating System (Zone C)</p>
+                    <p className="text-sm opacity-50 mt-1 font-mono">System Status: {isUsingDefaults ? 'VIEW MODE (DEFAULTS)' : 'LIVE (DATABASE CONNECTED)'}</p>
                 </div>
                 <div className="flex gap-2">
                     <button
-                        onClick={handleResetDefaults}
-                        className="flex items-center gap-2 px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors text-xs font-bold uppercase tracking-wider border border-red-500/20"
-                        title="Reset / Initialize Defaults"
-                    >
-                        <RotateCcw size={16} /> Load Defaults
-                    </button>
-                    <button
                         onClick={refreshData}
-                        className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors"
+                        className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors border border-white/5"
                         title="Refresh Data"
                     >
                         <RefreshCw size={20} className={cn(loading && "animate-spin")} />
@@ -396,19 +543,21 @@ export const AiControlTower: React.FC = () => {
             </div>
 
             {/* TABS */}
-            <div className="flex gap-2 mb-6 border-b border-white/10 pb-4">
+            <div className="flex gap-2 mb-6 border-b border-white/10 pb-4 overflow-x-auto">
                 <TabButton id="STATUS" label="Overview" icon={Activity} activeTab={activeTab} setActiveTab={setActiveTab} />
-                <TabButton id="MAPPING" label="Canonical Routes" icon={Server} activeTab={activeTab} setActiveTab={setActiveTab} />
-                <TabButton id="KEYS" label="Providers & Keys" icon={Key} activeTab={activeTab} setActiveTab={setActiveTab} />
-                <TabButton id="LOGS" label="Live Logs" icon={Activity} activeTab={activeTab} setActiveTab={setActiveTab} />
+                <TabButton id="PROVIDERS" label="Providers" icon={Server} activeTab={activeTab} setActiveTab={setActiveTab} />
+                <TabButton id="MODELS" label="Models" icon={Brain} activeTab={activeTab} setActiveTab={setActiveTab} />
+                <TabButton id="MAPPING" label="Routing" icon={RotateCcw} activeTab={activeTab} setActiveTab={setActiveTab} />
+                <TabButton id="KEYS" label="API Keys" icon={Key} activeTab={activeTab} setActiveTab={setActiveTab} />
             </div>
 
             {/* CONTENT */}
-            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar z-10">
                 {activeTab === 'STATUS' && renderStatus()}
+                {activeTab === 'PROVIDERS' && renderProviders()}
+                {activeTab === 'MODELS' && renderModels()}
                 {activeTab === 'MAPPING' && renderMappings()}
                 {activeTab === 'KEYS' && renderKeys()}
-                {activeTab === 'LOGS' && renderLogs()}
             </div>
         </div>
     );

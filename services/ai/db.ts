@@ -17,6 +17,12 @@ export const getAIProviders = async (): Promise<AIProviderConfig[]> => {
     } catch (e) { console.error(e); return []; }
 };
 
+export const toggleAIProvider = async (providerId: string, isEnabled: boolean) => {
+    try {
+        await updateDoc(doc(db, "ai_config", "providers", "list", providerId), { isEnabled });
+    } catch (e) { console.error("Error toggling provider:", e); }
+};
+
 // --- MODELS ---
 export const saveAIModel = async (model: AIModelConfig) => {
     try {
@@ -29,6 +35,12 @@ export const getAIModels = async (): Promise<AIModelConfig[]> => {
         const snap = await getDocs(collection(db, "ai_config", "models", "list"));
         return snap.docs.map(d => d.data() as AIModelConfig);
     } catch (e) { console.error(e); return []; }
+};
+
+export const toggleAIModel = async (modelId: string, isEnabled: boolean) => {
+    try {
+        await updateDoc(doc(db, "ai_config", "models", "list", modelId), { isEnabled });
+    } catch (e) { console.error("Error toggling model:", e); }
 };
 
 // --- KEYS (Stored Securely in Firestore, Usage in RTDB for speed) ---
