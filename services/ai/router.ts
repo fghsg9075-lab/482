@@ -1,7 +1,7 @@
 import { aiRegistry } from "./registry";
 import { getAIKeys, getCanonicalMappings, getAIModels, logAIRequest } from "./db";
 import { CanonicalModel, AIKey, AIModelConfig, AILog, AIProviderType } from "./types";
-import { AIRequestOptions } from "./providers/base";
+import { AIRequestOptions, AIResponse } from "./providers/base";
 
 // Simple in-memory cache to avoid hitting Firestore on every request
 // In a real app, use a robust caching layer (Redis or LocalStorage with expiration)
@@ -63,7 +63,8 @@ const DEFAULT_MAPPINGS: Record<CanonicalModel, string[]> = {
     'CHAT_ENGINE': ['gemini-1.5-flash', 'groq-llama-3.1-8b'],
     'ANALYSIS_ENGINE': ['gemini-1.5-flash', 'groq-mixtral-8x7b'],
     'VISION_ENGINE': ['gemini-1.5-flash'],
-    'TRANSLATION_ENGINE': ['gemini-1.5-flash']
+    'TRANSLATION_ENGINE': ['gemini-1.5-flash'],
+    'ADMIN_ENGINE': ['gemini-1.5-flash'] // Default for Admin actions
 };
 
 const DEFAULT_MODELS: Record<string, AIModelConfig> = {
@@ -80,9 +81,11 @@ export interface RouterExecuteOptions {
     jsonMode?: boolean;
     userId?: string;
     onStream?: (text: string) => void;
+    tools?: any[]; // Allow passing tools
 }
 
-export const executeCanonical = async (options: RouterExecuteOptions): Promise<string> => {
+// Low-level execute that returns full AIResponse
+export const executeCanonicalRaw = async (options: RouterExecuteOptions): Promise<AIResponse> => {
     await ensureConfigLoaded();
 
     // 1. Resolve Chain of Models
@@ -118,8 +121,6 @@ export const executeCanonical = async (options: RouterExecuteOptions): Promise<s
         for (let k = 0; k < keysToTry; k++) {
             const key = getNextKey(providerId);
 
-            // If no keys managed by system, try without key (maybe proxy/env var?)
-            // But strict requirements say "API Key Rotation Engine".
             if (!key) {
                 console.warn(`No active keys for provider ${providerId}. Skipping.`);
                 break; // Skip to next model
@@ -130,24 +131,27 @@ export const executeCanonical = async (options: RouterExecuteOptions): Promise<s
                 const provider = aiRegistry.getProvider(providerId);
 
                 // EXECUTE
-                let content = "";
+                let response: AIResponse;
+
                 if (options.onStream && provider.generateContentStream) {
-                    content = await provider.generateContentStream(key.key, {
+                    const text = await provider.generateContentStream(key.key, {
                         model: modelConfig,
                         prompt: options.prompt,
                         systemPrompt: options.systemPrompt,
                         temperature: options.temperature,
-                        jsonMode: options.jsonMode
+                        jsonMode: options.jsonMode,
+                        tools: options.tools
                     }, options.onStream);
+                    response = { content: text };
                 } else {
-                     const response = await provider.generateContent(key.key, {
+                     response = await provider.generateContent(key.key, {
                         model: modelConfig,
                         prompt: options.prompt,
                         systemPrompt: options.systemPrompt,
                         temperature: options.temperature,
-                        jsonMode: options.jsonMode
+                        jsonMode: options.jsonMode,
+                        tools: options.tools
                     });
-                    content = response.content;
                 }
 
                 // LOG SUCCESS
@@ -162,7 +166,7 @@ export const executeCanonical = async (options: RouterExecuteOptions): Promise<s
                     userId: options.userId
                 });
 
-                return content;
+                return response;
 
             } catch (error: any) {
                 lastError = error;
@@ -184,8 +188,6 @@ export const executeCanonical = async (options: RouterExecuteOptions): Promise<s
                 // Handle Specific Errors
                 if (errMsg.includes("429") || errMsg.includes("Quota") || errMsg.includes("Rate limit")) {
                     console.warn(`Key ${key.id} rate limited. Rotating...`);
-                    // Mark key as limited/exhausted in memory (temporary) or DB
-                    // For now, just continue loop to try next key
                 } else {
                     console.error(`Error with ${modelConfigId}: ${errMsg}. Switching Model.`);
                     break; // Break key loop, try next model
@@ -195,4 +197,10 @@ export const executeCanonical = async (options: RouterExecuteOptions): Promise<s
     }
 
     throw new Error(`AI Engine Failed: All models exhausted. Last Error: ${lastError?.message}`);
+};
+
+// Helper for simple text response
+export const executeCanonical = async (options: RouterExecuteOptions): Promise<string> => {
+    const res = await executeCanonicalRaw(options);
+    return res.content;
 };

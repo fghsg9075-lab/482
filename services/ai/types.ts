@@ -1,6 +1,6 @@
 export type AIProviderType = 'openai' | 'gemini' | 'groq' | 'anthropic' | 'deepseek' | 'mistral';
 
-export type CanonicalModel = 'NOTES_ENGINE' | 'MCQ_ENGINE' | 'CHAT_ENGINE' | 'ANALYSIS_ENGINE' | 'VISION_ENGINE' | 'TRANSLATION_ENGINE';
+export type CanonicalModel = 'NOTES_ENGINE' | 'MCQ_ENGINE' | 'CHAT_ENGINE' | 'ANALYSIS_ENGINE' | 'VISION_ENGINE' | 'TRANSLATION_ENGINE' | 'ADMIN_ENGINE';
 
 export interface AIProviderConfig {
     id: AIProviderType;

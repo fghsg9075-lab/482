@@ -22,9 +22,12 @@ export class GeminiProvider extends BaseAIProvider {
 
     async generateContent(apiKey: string, options: AIRequestOptions): Promise<AIResponse> {
         const genAI = new GoogleGenerativeAI(apiKey);
+
+        // Pass mapped tools to model configuration
         const model = genAI.getGenerativeModel({
             model: options.model.modelId,
-            systemInstruction: options.systemPrompt
+            systemInstruction: options.systemPrompt,
+            tools: options.tools ? this.mapTools(options.tools) : undefined
         });
 
         const generationConfig: any = {};
@@ -38,8 +41,17 @@ export class GeminiProvider extends BaseAIProvider {
         });
 
         const response = result.response;
+
+        // Parse Tool Calls from Response
+        const functionCalls = response.functionCalls();
+        const toolCalls = functionCalls ? functionCalls.map(fc => ({
+            name: fc.name,
+            args: fc.args
+        })) : undefined;
+
         return {
             content: response.text(),
+            toolCalls: toolCalls, // Return parsed tool calls
             inputTokens: response.usageMetadata?.promptTokenCount,
             outputTokens: response.usageMetadata?.candidatesTokenCount
         };
