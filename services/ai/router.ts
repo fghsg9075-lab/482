@@ -1,5 +1,5 @@
 import { aiRegistry } from "./registry";
-import { getAIKeys, getCanonicalMappings, getAIModels, logAIRequest } from "./db";
+import { getAIKeys, getCanonicalMappings, getAIModels, logAIRequest, incrementKeyUsage, recordModelFailure, resetModelFailure } from "./db";
 import { CanonicalModel, AIKey, AIModelConfig, AILog, AIProviderType } from "./types";
 import { AIRequestOptions, AIResponse } from "./providers/base";
 
@@ -39,6 +39,10 @@ const ensureConfigLoaded = async () => {
 };
 
 const getKeysForProvider = (providerId: string): AIKey[] => {
+    // If local/ollama, return a dummy key if none exist
+    if (providerId === 'ollama' || providerId === 'local') {
+        return [{ id: 'local-key', key: 'local', providerId: 'ollama', usageCount: 0, dailyUsageCount: 0, limit: 99999, isExhausted: false, lastUsed: '', status: 'ACTIVE' }];
+    }
     return (keyCache[providerId] || []).filter(k => k.status === 'ACTIVE' && !k.isExhausted);
 };
 
@@ -64,7 +68,7 @@ const DEFAULT_MAPPINGS: Record<CanonicalModel, string[]> = {
     'ANALYSIS_ENGINE': ['gemini-1.5-flash', 'groq-mixtral-8x7b'],
     'VISION_ENGINE': ['gemini-1.5-flash'],
     'TRANSLATION_ENGINE': ['gemini-1.5-flash'],
-    'ADMIN_ENGINE': ['gemini-1.5-flash'] // Default for Admin actions
+    'ADMIN_ENGINE': ['gemini-1.5-flash']
 };
 
 const DEFAULT_MODELS: Record<string, AIModelConfig> = {
@@ -81,7 +85,7 @@ export interface RouterExecuteOptions {
     jsonMode?: boolean;
     userId?: string;
     onStream?: (text: string) => void;
-    tools?: any[]; // Allow passing tools
+    tools?: any[];
 }
 
 // Low-level execute that returns full AIResponse
@@ -154,7 +158,8 @@ export const executeCanonicalRaw = async (options: RouterExecuteOptions): Promis
                     });
                 }
 
-                // LOG SUCCESS
+                // SUCCESS HANDLERS (MUST HAVE)
+                // 1. Log Success
                 await logAIRequest({
                     id: `${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
                     timestamp: new Date().toISOString(),
@@ -165,6 +170,12 @@ export const executeCanonicalRaw = async (options: RouterExecuteOptions): Promis
                     latencyMs: Date.now() - startTime,
                     userId: options.userId
                 });
+
+                // 2. Increment Usage (Real Tracking)
+                incrementKeyUsage(key.id, modelConfigId, providerId);
+
+                // 3. Reset Failure Count (Self-Healing)
+                resetModelFailure(modelConfigId);
 
                 return response;
 
@@ -188,8 +199,13 @@ export const executeCanonicalRaw = async (options: RouterExecuteOptions): Promis
                 // Handle Specific Errors
                 if (errMsg.includes("429") || errMsg.includes("Quota") || errMsg.includes("Rate limit")) {
                     console.warn(`Key ${key.id} rate limited. Rotating...`);
+                    // Rate limits are KEY issues, not MODEL issues usually (unless service down)
+                    // So we DON'T disable the model, we just try next key.
                 } else {
                     console.error(`Error with ${modelConfigId}: ${errMsg}. Switching Model.`);
+                    // FAILURE HANDLER (MUST HAVE)
+                    // If not a rate limit, it's likely a model/provider issue.
+                    recordModelFailure(modelConfigId);
                     break; // Break key loop, try next model
                 }
             }
