@@ -13,6 +13,98 @@ import { twMerge } from 'tailwind-merge';
 
 const cn = (...inputs: (string | undefined | null | false)[]) => twMerge(clsx(inputs));
 
+const KeysPanel = ({ providers, keys, onRefresh }: { providers: AIProviderConfig[], keys: AIKey[], onRefresh: () => void }) => {
+    const [newKey, setNewKey] = useState({ key: '', provider: 'gemini', name: '' });
+
+    const addKey = async () => {
+        if (!newKey.key) return;
+        const keyObj: AIKey = {
+            id: `k-${Date.now()}`,
+            key: newKey.key,
+            providerId: newKey.provider as AIProviderType,
+            name: newKey.name || 'Admin Key',
+            usageCount: 0,
+            dailyUsageCount: 0,
+            limit: 1000,
+            isExhausted: false,
+            lastUsed: new Date().toISOString(),
+            status: 'ACTIVE'
+        };
+        await saveAIKey(keyObj);
+        setNewKey({ key: '', provider: 'gemini', name: '' });
+        onRefresh();
+    };
+
+    return (
+        <div className="space-y-6">
+            {/* ADD KEY */}
+            <div className="bg-gray-900/50 p-4 rounded-xl border border-white/10">
+                <h4 className="font-bold mb-3">Add New API Key</h4>
+                <div className="flex gap-2 flex-wrap">
+                    <select
+                        className="bg-black/40 border border-white/10 rounded p-2 text-sm"
+                        value={newKey.provider}
+                        onChange={e => setNewKey({...newKey, provider: e.target.value})}
+                    >
+                        {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                    <input
+                        type="text"
+                        placeholder="Key Name (Optional)"
+                        className="bg-black/40 border border-white/10 rounded p-2 text-sm"
+                        value={newKey.name}
+                        onChange={e => setNewKey({...newKey, name: e.target.value})}
+                    />
+                    <input
+                        type="text"
+                        placeholder="sk-..."
+                        className="bg-black/40 border border-white/10 rounded p-2 text-sm flex-1 min-w-[200px]"
+                        value={newKey.key}
+                        onChange={e => setNewKey({...newKey, key: e.target.value})}
+                    />
+                    <button
+                        onClick={addKey}
+                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                    >
+                        <Plus size={16} /> Add
+                    </button>
+                </div>
+            </div>
+
+            {/* KEY LIST */}
+            <div className="space-y-4">
+                {providers.map(provider => (
+                    <div key={provider.id} className="bg-gray-800/30 p-4 rounded-xl">
+                        <h4 className="font-bold mb-3 flex items-center gap-2">
+                            <span className="capitalize">{provider.name}</span> Keys
+                            <span className="text-xs px-2 py-0.5 bg-white/10 rounded-full">{keys.filter(k => k.providerId === provider.id).length}</span>
+                        </h4>
+                        <div className="grid gap-2">
+                            {keys.filter(k => k.providerId === provider.id).map(key => (
+                                <div key={key.id} className="flex justify-between items-center bg-black/20 p-3 rounded border border-white/5">
+                                    <div className="flex items-center gap-3">
+                                        <div className={cn("w-2 h-2 rounded-full", key.status === 'ACTIVE' ? "bg-green-500" : "bg-red-500")} />
+                                        <div className="flex flex-col">
+                                            <span className="font-mono text-sm">{key.name || 'Key'} (...{key.key.slice(-4)})</span>
+                                            <span className="text-xs opacity-50">Used: {key.usageCount} times</span>
+                                        </div>
+                                    </div>
+                                    <button className="text-red-400 hover:text-red-300 p-1 opacity-50 hover:opacity-100">
+                                        <Trash2 size={14} />
+                                    </button>
+                                </div>
+                            ))}
+                            {keys.filter(k => k.providerId === provider.id).length === 0 && (
+                                <div className="text-center text-xs opacity-30 py-2">No keys found</div>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 export const AiControlTower: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'STATUS' | 'MAPPING' | 'KEYS' | 'LOGS'>('STATUS');
 
@@ -129,11 +221,13 @@ export const AiControlTower: React.FC = () => {
                                     </div>
                                 );
                             })}
-                             {providers.length === 0 && (
+                             {(providers.length === 0 || models.length === 0) && (
                                  <button
-                                    onClick={() => {
-                                        saveAIProvider({id: 'gemini', name: 'Google Gemini', isEnabled: true});
-                                        saveAIProvider({id: 'groq', name: 'Groq', isEnabled: true});
+                                    onClick={async () => {
+                                        await saveAIProvider({id: 'gemini', name: 'Google Gemini', isEnabled: true});
+                                        await saveAIProvider({id: 'groq', name: 'Groq', isEnabled: true});
+                                        await saveAIModel({id: 'gemini-1.5-flash', providerId: 'gemini', modelId: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', contextWindow: 1000000, isEnabled: true, priority: 1});
+                                        await saveAIModel({id: 'llama3-70b-8192', providerId: 'groq', modelId: 'llama3-70b-8192', name: 'Llama 3 70B (Groq)', contextWindow: 8192, isEnabled: true, priority: 1});
                                         refreshData();
                                     }}
                                     className="w-full py-2 bg-blue-600/20 text-blue-400 rounded hover:bg-blue-600/30 text-sm"
@@ -223,98 +317,6 @@ export const AiControlTower: React.FC = () => {
         );
     };
 
-    const renderKeys = () => {
-        const [newKey, setNewKey] = useState({ key: '', provider: 'gemini', name: '' });
-
-        const addKey = async () => {
-            if (!newKey.key) return;
-            const keyObj: AIKey = {
-                id: `k-${Date.now()}`,
-                key: newKey.key,
-                providerId: newKey.provider as AIProviderType,
-                name: newKey.name || 'Admin Key',
-                usageCount: 0,
-                dailyUsageCount: 0,
-                limit: 1000,
-                isExhausted: false,
-                lastUsed: new Date().toISOString(),
-                status: 'ACTIVE'
-            };
-            await saveAIKey(keyObj);
-            setNewKey({ key: '', provider: 'gemini', name: '' });
-            refreshData();
-        };
-
-        return (
-            <div className="space-y-6">
-                {/* ADD KEY */}
-                <div className="bg-gray-900/50 p-4 rounded-xl border border-white/10">
-                    <h4 className="font-bold mb-3">Add New API Key</h4>
-                    <div className="flex gap-2 flex-wrap">
-                        <select
-                            className="bg-black/40 border border-white/10 rounded p-2 text-sm"
-                            value={newKey.provider}
-                            onChange={e => setNewKey({...newKey, provider: e.target.value})}
-                        >
-                            {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                        </select>
-                        <input
-                            type="text"
-                            placeholder="Key Name (Optional)"
-                            className="bg-black/40 border border-white/10 rounded p-2 text-sm"
-                            value={newKey.name}
-                            onChange={e => setNewKey({...newKey, name: e.target.value})}
-                        />
-                        <input
-                            type="text"
-                            placeholder="sk-..."
-                            className="bg-black/40 border border-white/10 rounded p-2 text-sm flex-1 min-w-[200px]"
-                            value={newKey.key}
-                            onChange={e => setNewKey({...newKey, key: e.target.value})}
-                        />
-                        <button
-                            onClick={addKey}
-                            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
-                        >
-                            <Plus size={16} /> Add
-                        </button>
-                    </div>
-                </div>
-
-                {/* KEY LIST */}
-                <div className="space-y-4">
-                    {providers.map(provider => (
-                        <div key={provider.id} className="bg-gray-800/30 p-4 rounded-xl">
-                            <h4 className="font-bold mb-3 flex items-center gap-2">
-                                <span className="capitalize">{provider.name}</span> Keys
-                                <span className="text-xs px-2 py-0.5 bg-white/10 rounded-full">{keys.filter(k => k.providerId === provider.id).length}</span>
-                            </h4>
-                            <div className="grid gap-2">
-                                {keys.filter(k => k.providerId === provider.id).map(key => (
-                                    <div key={key.id} className="flex justify-between items-center bg-black/20 p-3 rounded border border-white/5">
-                                        <div className="flex items-center gap-3">
-                                            <div className={cn("w-2 h-2 rounded-full", key.status === 'ACTIVE' ? "bg-green-500" : "bg-red-500")} />
-                                            <div className="flex flex-col">
-                                                <span className="font-mono text-sm">{key.name || 'Key'} (...{key.key.slice(-4)})</span>
-                                                <span className="text-xs opacity-50">Used: {key.usageCount} times</span>
-                                            </div>
-                                        </div>
-                                        <button className="text-red-400 hover:text-red-300 p-1 opacity-50 hover:opacity-100">
-                                            <Trash2 size={14} />
-                                        </button>
-                                    </div>
-                                ))}
-                                {keys.filter(k => k.providerId === provider.id).length === 0 && (
-                                    <div className="text-center text-xs opacity-30 py-2">No keys found</div>
-                                )}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
-    };
-
     const renderLogs = () => (
         <div className="space-y-2 font-mono text-xs">
             <div className="flex justify-between text-gray-500 px-2 pb-2 border-b border-white/10">
@@ -370,7 +372,7 @@ export const AiControlTower: React.FC = () => {
             <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                 {activeTab === 'STATUS' && renderStatus()}
                 {activeTab === 'MAPPING' && renderMappings()}
-                {activeTab === 'KEYS' && renderKeys()}
+                {activeTab === 'KEYS' && <KeysPanel providers={providers} keys={keys} onRefresh={refreshData} />}
                 {activeTab === 'LOGS' && renderLogs()}
             </div>
         </div>
