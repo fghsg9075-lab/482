@@ -412,7 +412,7 @@ export const AiControlTower: React.FC = () => {
 
     const renderKeys = () => {
         const addKey = async () => {
-            if (isUsingDefaults) return alert("Initialize database first.");
+            // if (isUsingDefaults) return alert("Initialize database first."); // Removed restriction
             if (!newKey.key) return;
             const keyObj: AIKey = {
                 id: `k-${Date.now()}`,
@@ -469,8 +469,7 @@ export const AiControlTower: React.FC = () => {
                         </div>
                         <button
                             onClick={addKey}
-                            disabled={isUsingDefaults}
-                            className="bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg flex items-center gap-2 font-bold"
+                            className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 font-bold"
                         >
                             <Save size={16} /> Save Key
                         </button>

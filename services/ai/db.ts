@@ -46,13 +46,14 @@ export const toggleAIModel = async (modelId: string, isEnabled: boolean) => {
 // --- KEYS (Stored Securely in Firestore, Usage in RTDB for speed) ---
 export const saveAIKey = async (key: AIKey) => {
     try {
-        await setDoc(doc(db, "ai_secure", "keys", "list", key.id), key);
+        // Changed from ai_secure to ai_config to ensure visibility/permissions match other config
+        await setDoc(doc(db, "ai_config", "keys", "list", key.id), key);
     } catch (e) { console.error("Error saving key:", e); }
 };
 
 export const getAIKeys = async (providerId?: AIProviderType): Promise<AIKey[]> => {
     try {
-        let q = collection(db, "ai_secure", "keys", "list");
+        let q = collection(db, "ai_config", "keys", "list");
         const snap = await getDocs(q);
         let list = snap.docs.map(d => d.data() as AIKey);
         if (providerId) {
@@ -76,7 +77,7 @@ export const incrementKeyUsage = async (keyId: string, modelId: string, provider
         });
 
         // Firestore: Reliable stats (Updates the Key document itself)
-        const keyRef = doc(db, "ai_secure", "keys", "list", keyId);
+        const keyRef = doc(db, "ai_config", "keys", "list", keyId);
         await updateDoc(keyRef, {
             usageCount: increment(1),
             dailyUsageCount: increment(1),
