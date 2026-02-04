@@ -9,7 +9,7 @@ import {
     AILog, CanonicalModel, AIProviderType
 } from '../../services/ai/types';
 import { DEFAULT_PROVIDERS, DEFAULT_MODELS, DEFAULT_MAPPINGS_FULL } from '../../services/ai/defaults';
-import { RefreshCw, Plus, Trash2, CheckCircle, XCircle, Activity, Server, Key, Brain, RotateCcw, Save, AlertTriangle, Play, Pause } from 'lucide-react';
+import { RefreshCw, Plus, Trash2, CheckCircle, XCircle, Activity, Server, Key, Brain, RotateCcw, Save, AlertTriangle, Play, Pause, Rocket } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -158,19 +158,47 @@ export const AiControlTower: React.FC = () => {
         return (
             <div className="space-y-6 animate-in fade-in duration-500">
                 {isUsingDefaults && (
-                    <div className="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-xl flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <AlertTriangle className="text-yellow-500" />
+                    <div className="bg-red-500/10 border-2 border-red-500/50 p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6 animate-pulse">
+                        <div className="flex items-start gap-4">
+                            <div className="p-3 bg-red-500/20 rounded-full text-red-500">
+                                <AlertTriangle size={32} />
+                            </div>
                             <div>
-                                <h3 className="font-bold text-yellow-500">System Running in View-Only Mode</h3>
-                                <p className="text-sm opacity-70">Configuration is loaded from code defaults. Initialize database to enable editing.</p>
+                                <h3 className="text-xl font-black text-red-500 uppercase tracking-wide">⚠️ System in Dummy Mode</h3>
+                                <p className="text-sm text-red-200 mt-1 max-w-xl">
+                                    The AI Operating System is currently reading from hardcoded defaults.
+                                    Real-time routing, key rotation, and usage tracking are <strong>DISABLED</strong>.
+                                </p>
+                                <div className="mt-3 flex gap-4 text-xs font-mono text-red-300">
+                                    <span className="flex items-center gap-1">❌ No Database Connection</span>
+                                    <span className="flex items-center gap-1">❌ No Live Keys</span>
+                                </div>
                             </div>
                         </div>
                         <button
                             onClick={handleInitializeDatabase}
-                            className="bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2"
+                            className="w-full md:w-auto px-8 py-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black text-lg shadow-lg shadow-red-500/20 flex items-center justify-center gap-3 transition-transform hover:scale-105"
                         >
-                            <Save size={16} /> Initialize Database
+                            <Rocket size={24} />
+                            GO LIVE (Initialize DB)
+                        </button>
+                    </div>
+                )}
+
+                {!isUsingDefaults && activeKeyCount === 0 && (
+                     <div className="bg-orange-500/10 border border-orange-500/20 p-4 rounded-xl flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <Key className="text-orange-500" />
+                            <div>
+                                <h3 className="font-bold text-orange-500">No Active API Keys</h3>
+                                <p className="text-sm opacity-70">System is initialized but needs keys to function. Add keys in the "API Keys" tab.</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setActiveTab('KEYS')}
+                            className="bg-orange-500 hover:bg-orange-400 text-black px-4 py-2 rounded-lg font-bold text-sm"
+                        >
+                            + Add Keys
                         </button>
                     </div>
                 )}
