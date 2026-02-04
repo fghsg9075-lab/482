@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { SystemSettings, AiProviderConfig, AiKey, AiModelConfig, AiTask, AiMapping, AiProviderType } from '../../types';
 import { Save, Plus, Trash2, Key, Activity, Server, Shuffle, Play, CheckCircle, AlertTriangle, X, Edit3, Lock, Unlock } from 'lucide-react';
 import { aiManager } from '../../services/AiOs';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '../../firebase';
 
 interface Props {
     settings: SystemSettings;
@@ -38,24 +40,40 @@ const TASKS: AiTask[] = ['NOTES_ENGINE', 'MCQ_ENGINE', 'CHAT_ENGINE', 'PILOT_ENG
 
 export const AiControlTower: React.FC<Props> = ({ settings, onUpdateSettings }) => {
 
-    // Ensure AI OS Config exists
+    const [config, setConfig] = useState<any>({ providers: DEFAULT_PROVIDERS, mappings: [], globalEnabled: true, safetyLock: false });
+    const [loadingConfig, setLoadingConfig] = useState(true);
+
+    // Fetch Config from Secure Firestore Path (Not SystemSettings)
     useEffect(() => {
-        if (!settings.aiOsConfig) {
-            onUpdateSettings({
-                ...settings,
-                aiOsConfig: {
-                    globalEnabled: true,
-                    safetyLock: false,
-                    providers: DEFAULT_PROVIDERS,
-                    mappings: TASKS.map(t => ({
-                        task: t,
-                        primaryProviderId: 'groq',
-                        primaryModelId: 'llama-3.1-8b-instant'
-                    }))
+        const fetchConfig = async () => {
+            try {
+                const docRef = doc(db, 'admin_secure', 'ai_config');
+                const snap = await getDoc(docRef);
+                if (snap.exists()) {
+                    setConfig(snap.data());
+                } else {
+                    // Initialize if missing
+                    const initialConfig = {
+                        globalEnabled: true,
+                        safetyLock: false,
+                        providers: DEFAULT_PROVIDERS,
+                        mappings: TASKS.map(t => ({
+                            task: t,
+                            primaryProviderId: 'groq',
+                            primaryModelId: 'llama-3.1-8b-instant'
+                        }))
+                    };
+                    setConfig(initialConfig);
+                    await setDoc(docRef, initialConfig);
                 }
-            });
-        }
-    }, [settings.aiOsConfig]);
+            } catch (e) {
+                console.error("Failed to load AI Config", e);
+            } finally {
+                setLoadingConfig(false);
+            }
+        };
+        fetchConfig();
+    }, []);
 
     const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'PROVIDERS' | 'ROUTING' | 'TEST_LAB'>('OVERVIEW');
     const [editingProvider, setEditingProvider] = useState<AiProviderConfig | null>(null);
@@ -64,10 +82,15 @@ export const AiControlTower: React.FC<Props> = ({ settings, onUpdateSettings }) 
     const [isTesting, setIsTesting] = useState(false);
     const [testTask, setTestTask] = useState<AiTask>('NOTES_ENGINE');
 
-    const config = settings.aiOsConfig || { providers: [], mappings: [], globalEnabled: false, safetyLock: false };
-
-    const updateConfig = (newConfig: any) => {
-        onUpdateSettings({ ...settings, aiOsConfig: { ...config, ...newConfig } });
+    const updateConfig = async (newParts: any) => {
+        const newConfig = { ...config, ...newParts };
+        setConfig(newConfig);
+        try {
+            await setDoc(doc(db, 'admin_secure', 'ai_config'), newConfig);
+        } catch (e) {
+            console.error("Failed to save config", e);
+            alert("Failed to save changes to secure storage.");
+        }
     };
 
     const handleAddKey = (providerId: string, keyValue: string) => {
@@ -95,7 +118,10 @@ export const AiControlTower: React.FC<Props> = ({ settings, onUpdateSettings }) 
         setIsTesting(true);
         setTestResult('Connecting to Neural Core...');
         try {
-            const res = await aiManager.execute(testTask, [{ role: 'user', content: testPrompt }], settings);
+            // We pass the LOCAL config to the manager for immediate testing feedback
+            // But ideally, the server should read the DB.
+            // Since we just saved to DB, the server *should* see it.
+            const res = await aiManager.execute(testTask, [{ role: 'user', content: testPrompt }], settings); // settings is unused now in execute
             setTestResult(res);
         } catch (e: any) {
             setTestResult(`ERROR: ${e.message}`);
@@ -103,6 +129,8 @@ export const AiControlTower: React.FC<Props> = ({ settings, onUpdateSettings }) 
             setIsTesting(false);
         }
     };
+
+    if (loadingConfig) return <div className="p-10 text-center">Loading Secure Config...</div>;
 
     return (
         <div className="bg-slate-50 min-h-screen pb-20">
