@@ -2,16 +2,21 @@ import { BaseAIProvider } from "./providers/base";
 import { GeminiProvider } from "./providers/gemini";
 import { GroqProvider } from "./providers/groq";
 import { LocalProvider } from "./providers/local";
+import { GenericOpenAIProvider } from "./providers/genericOpenAi";
 import { AIProviderType } from "./types";
 
 class AIRegistry {
     private providers: Record<string, BaseAIProvider> = {};
+    private genericProvider: GenericOpenAIProvider;
 
     constructor() {
         this.register(new GeminiProvider());
         this.register(new GroqProvider());
         this.register(new LocalProvider());
-        // Add others here
+
+        // Register Generic Provider for OpenAI-compatible APIs
+        this.genericProvider = new GenericOpenAIProvider();
+        this.providers['generic-openai'] = this.genericProvider;
     }
 
     register(provider: BaseAIProvider) {
@@ -19,18 +24,24 @@ class AIRegistry {
     }
 
     getProvider(id: string): BaseAIProvider {
-        // Map types to implementation IDs if needed, or assume ID match
-        // 'ollama' -> LocalProvider
-        if (id === 'ollama') return this.providers['ollama'];
-        if (id === 'openai') return this.providers['openai']; // Future
+        // Explicit Mappings
+        if (id === 'ollama') return this.providers['local']; // 'local' is the id of LocalProvider class usually
 
-        const provider = this.providers[id];
-        if (!provider) {
-            // Fallback for types that might map to same provider class
-            if (id === 'deepseek') return this.providers['ollama']; // Example: DeepSeek via Ollama
-            throw new Error(`Provider ${id} not found in registry.`);
+        // If exact match exists (e.g. 'gemini', 'groq')
+        if (this.providers[id]) return this.providers[id];
+
+        // Fallback to Generic OpenAI Provider for known compatible types
+        const genericTypes: string[] = [
+            'openai', 'openrouter', 'deepseek', 'mistral', 'together',
+            'fireworks', 'cohere', 'perplexity', 'huggingface',
+            'replicate', 'vllm', 'lmstudio', 'localai'
+        ];
+
+        if (genericTypes.includes(id)) {
+            return this.genericProvider;
         }
-        return provider;
+
+        throw new Error(`Provider ${id} not found in registry.`);
     }
 }
 

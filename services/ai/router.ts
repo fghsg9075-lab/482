@@ -1,12 +1,13 @@
 import { aiRegistry } from "./registry";
-import { getAIKeys, getCanonicalMappings, getAIModels, logAIRequest, incrementKeyUsage, recordModelFailure, resetModelFailure } from "./db";
-import { CanonicalModel, AIKey, AIModelConfig, AILog, AIProviderType } from "./types";
+import { getAIKeys, getCanonicalMappings, getAIModels, logAIRequest, incrementKeyUsage, recordModelFailure, resetModelFailure, getAIProviders } from "./db";
+import { CanonicalModel, AIKey, AIModelConfig, AILog, AIProviderType, AIProviderConfig } from "./types";
 import { AIRequestOptions, AIResponse } from "./providers/base";
 
 // Simple in-memory cache to avoid hitting Firestore on every request
 // In a real app, use a robust caching layer (Redis or LocalStorage with expiration)
 let mappingCache: Record<string, any> | null = null;
 let modelCache: AIModelConfig[] | null = null;
+let providerCache: AIProviderConfig[] | null = null;
 let keyCache: Record<string, AIKey[]> = {};
 let keyIndexMap: Record<string, number> = {}; // For Round Robin
 
@@ -19,14 +20,16 @@ const ensureConfigLoaded = async () => {
     }
 
     // Parallel Fetch
-    const [mappings, models, allKeys] = await Promise.all([
+    const [mappings, models, allKeys, providers] = await Promise.all([
         getCanonicalMappings(),
         getAIModels(),
-        getAIKeys() // Fetch all keys securely
+        getAIKeys(), // Fetch all keys securely
+        getAIProviders()
     ]);
 
     mappingCache = mappings;
     modelCache = models;
+    providerCache = providers;
 
     // Group keys by provider
     keyCache = {};
@@ -133,29 +136,27 @@ export const executeCanonicalRaw = async (options: RouterExecuteOptions): Promis
             const startTime = Date.now();
             try {
                 const provider = aiRegistry.getProvider(providerId);
+                const providerConfig = providerCache?.find(p => p.id === providerId);
+                const baseUrl = providerConfig?.baseUrl;
 
                 // EXECUTE
                 let response: AIResponse;
 
+                const requestOptions: AIRequestOptions = {
+                    model: modelConfig,
+                    prompt: options.prompt,
+                    systemPrompt: options.systemPrompt,
+                    temperature: options.temperature,
+                    jsonMode: options.jsonMode,
+                    tools: options.tools,
+                    baseUrl: baseUrl // INJECT BASE URL
+                };
+
                 if (options.onStream && provider.generateContentStream) {
-                    const text = await provider.generateContentStream(key.key, {
-                        model: modelConfig,
-                        prompt: options.prompt,
-                        systemPrompt: options.systemPrompt,
-                        temperature: options.temperature,
-                        jsonMode: options.jsonMode,
-                        tools: options.tools
-                    }, options.onStream);
+                    const text = await provider.generateContentStream(key.key, requestOptions, options.onStream);
                     response = { content: text };
                 } else {
-                     response = await provider.generateContent(key.key, {
-                        model: modelConfig,
-                        prompt: options.prompt,
-                        systemPrompt: options.systemPrompt,
-                        temperature: options.temperature,
-                        jsonMode: options.jsonMode,
-                        tools: options.tools
-                    });
+                     response = await provider.generateContent(key.key, requestOptions);
                 }
 
                 // SUCCESS HANDLERS (MUST HAVE)

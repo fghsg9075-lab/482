@@ -1,6 +1,6 @@
 import { db, rtdb, sanitizeForFirestore } from '../../firebase';
 import { collection, doc, setDoc, getDoc, getDocs, updateDoc, increment } from 'firebase/firestore';
-import { ref, set, get, update, onValue } from 'firebase/database';
+import { ref, set, get, update, onValue, runTransaction } from 'firebase/database';
 import { AIProviderConfig, AIModelConfig, AIKey, AICanonicalMapping, AILog, AIProviderType, CanonicalModel } from './types';
 
 // --- PROVIDERS ---
@@ -58,15 +58,10 @@ export const incrementKeyUsage = async (keyId: string, modelId: string, provider
         const today = new Date().toISOString().split('T')[0];
 
         // RTDB: High-frequency counters
-        const updates: any = {};
-        updates[`ai_usage/${today}/${providerId}/${keyId}`] = {
-            usage: increment(1) // Simulated increment logic if rtdb doesn't support 'increment' directly in client SDK comfortably without transaction, but we will assume transaction or simple fetch-update loop.
-            // Actually RTDB simple set for now is enough or transaction.
-            // Let's use simple transaction for RTDB or just ignore race condition for now as requested "Simple Version".
-        };
-        // Just direct path update using transaction
-        // NOTE: Client SDK transaction:
-        // runTransaction(ref(rtdb, ...), (val) => (val || 0) + 1);
+        const usageRef = ref(rtdb, `ai_usage/${today}/${providerId}/${keyId}/usage`);
+        runTransaction(usageRef, (currentValue) => {
+            return (currentValue || 0) + 1;
+        });
 
         // Firestore: Reliable stats (Updates the Key document itself)
         const keyRef = doc(db, "ai_secure", "keys", "list", keyId);

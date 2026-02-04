@@ -7,11 +7,35 @@ import {
     AIKey, AIModelConfig, AIProviderConfig, AICanonicalMapping,
     AILog, CanonicalModel, AIProviderType
 } from '../../services/ai/types';
-import { RefreshCw, Plus, Trash2, CheckCircle, XCircle, Activity, Server, Key, Brain } from 'lucide-react';
+import { DEFAULT_PROVIDERS, DEFAULT_MODELS, DEFAULT_MAPPINGS_FULL } from '../../services/ai/defaults';
+import { RefreshCw, Plus, Trash2, CheckCircle, XCircle, Activity, Server, Key, Brain, RotateCcw } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 const cn = (...inputs: (string | undefined | null | false)[]) => twMerge(clsx(inputs));
+
+// --- SUB COMPONENTS (Moved Outside) ---
+
+const StatusCard = ({ title, value, sub, color }: any) => (
+    <div className={cn("p-4 rounded-xl border border-white/10 bg-white/5", color)}>
+        <div className="text-sm opacity-70">{title}</div>
+        <div className="text-2xl font-bold mt-1">{value}</div>
+        {sub && <div className="text-xs mt-1 opacity-50">{sub}</div>}
+    </div>
+);
+
+const TabButton = ({ id, label, icon: Icon, activeTab, setActiveTab }: any) => (
+    <button
+        onClick={() => setActiveTab(id)}
+        className={cn(
+            "flex items-center gap-2 px-4 py-2 rounded-lg transition-all",
+            activeTab === id ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "bg-white/5 hover:bg-white/10 text-gray-300"
+        )}
+    >
+        <Icon size={16} />
+        {label}
+    </button>
+);
 
 export const AiControlTower: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'STATUS' | 'MAPPING' | 'KEYS' | 'LOGS'>('STATUS');
@@ -23,6 +47,9 @@ export const AiControlTower: React.FC = () => {
     const [mappings, setMappings] = useState<Record<string, AICanonicalMapping>>({});
     const [logs, setLogs] = useState<AILog[]>([]);
     const [loading, setLoading] = useState(true);
+
+    // Form State (Moved up to avoid Hook violation in renderKeys)
+    const [newKey, setNewKey] = useState({ key: '', provider: 'gemini', name: '' });
 
     const refreshData = async () => {
         setLoading(true);
@@ -39,34 +66,31 @@ export const AiControlTower: React.FC = () => {
         setLoading(false);
     };
 
+    const handleResetDefaults = async () => {
+        if (!confirm("Reset AI Brain? This will overwrite providers and models (keys will be safe).")) return;
+        setLoading(true);
+        try {
+            // Providers
+            for (const p of DEFAULT_PROVIDERS) await saveAIProvider(p);
+            // Models
+            for (const m of DEFAULT_MODELS) await saveAIModel(m);
+            // Mappings
+            for (const map of DEFAULT_MAPPINGS_FULL) await saveCanonicalMapping(map);
+
+            await refreshData();
+            alert("AI Brain Initialized with Factory Defaults!");
+        } catch(e) {
+            console.error(e);
+            alert("Error initializing defaults.");
+        }
+        setLoading(false);
+    };
+
     useEffect(() => {
         refreshData();
         const unsubscribe = subscribeToAILogs((newLogs) => setLogs(newLogs));
         return () => unsubscribe();
     }, []);
-
-    // --- SUB COMPONENTS ---
-
-    const StatusCard = ({ title, value, sub, color }: any) => (
-        <div className={cn("p-4 rounded-xl border border-white/10 bg-white/5", color)}>
-            <div className="text-sm opacity-70">{title}</div>
-            <div className="text-2xl font-bold mt-1">{value}</div>
-            {sub && <div className="text-xs mt-1 opacity-50">{sub}</div>}
-        </div>
-    );
-
-    const TabButton = ({ id, label, icon: Icon }: any) => (
-        <button
-            onClick={() => setActiveTab(id)}
-            className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg transition-all",
-                activeTab === id ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "bg-white/5 hover:bg-white/10 text-gray-300"
-            )}
-        >
-            <Icon size={16} />
-            {label}
-        </button>
-    );
 
     // --- TAB CONTENT ---
 
@@ -131,9 +155,15 @@ export const AiControlTower: React.FC = () => {
                             })}
                              {providers.length === 0 && (
                                  <button
-                                    onClick={() => {
-                                        saveAIProvider({id: 'gemini', name: 'Google Gemini', isEnabled: true});
-                                        saveAIProvider({id: 'groq', name: 'Groq', isEnabled: true});
+                                    onClick={async () => {
+                                        await saveAIProvider({id: 'gemini', name: 'Google Gemini', isEnabled: true});
+                                        await saveAIProvider({id: 'groq', name: 'Groq', isEnabled: true});
+
+                                        // Default Models
+                                        await saveAIModel({id: 'gemini-1.5-flash', providerId: 'gemini', name: 'Gemini 1.5 Flash', isEnabled: true, costPer1k: 0.0001, contextWindow: 1000000});
+                                        await saveAIModel({id: 'llama-3.1-8b-instant', providerId: 'groq', name: 'Llama 3.1 8B (Groq)', isEnabled: true, costPer1k: 0.00005, contextWindow: 8192});
+                                        await saveAIModel({id: 'llama-3.2-90b-vision-preview', providerId: 'groq', name: 'Llama 3.2 90B Vision', isEnabled: true, costPer1k: 0.0001, contextWindow: 128000});
+
                                         refreshData();
                                     }}
                                     className="w-full py-2 bg-blue-600/20 text-blue-400 rounded hover:bg-blue-600/30 text-sm"
@@ -224,8 +254,6 @@ export const AiControlTower: React.FC = () => {
     };
 
     const renderKeys = () => {
-        const [newKey, setNewKey] = useState({ key: '', provider: 'gemini', name: '' });
-
         const addKey = async () => {
             if (!newKey.key) return;
             const keyObj: AIKey = {
@@ -349,21 +377,30 @@ export const AiControlTower: React.FC = () => {
                     </h2>
                     <p className="text-sm opacity-50 mt-1">Managed AI Operating System (Zone C)</p>
                 </div>
-                <button
-                    onClick={refreshData}
-                    className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors"
-                    title="Refresh Data"
-                >
-                    <RefreshCw size={20} className={cn(loading && "animate-spin")} />
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={handleResetDefaults}
+                        className="flex items-center gap-2 px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors text-xs font-bold uppercase tracking-wider border border-red-500/20"
+                        title="Reset / Initialize Defaults"
+                    >
+                        <RotateCcw size={16} /> Load Defaults
+                    </button>
+                    <button
+                        onClick={refreshData}
+                        className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors"
+                        title="Refresh Data"
+                    >
+                        <RefreshCw size={20} className={cn(loading && "animate-spin")} />
+                    </button>
+                </div>
             </div>
 
             {/* TABS */}
             <div className="flex gap-2 mb-6 border-b border-white/10 pb-4">
-                <TabButton id="STATUS" label="Overview" icon={Activity} />
-                <TabButton id="MAPPING" label="Canonical Routes" icon={Server} />
-                <TabButton id="KEYS" label="Providers & Keys" icon={Key} />
-                <TabButton id="LOGS" label="Live Logs" icon={Activity} />
+                <TabButton id="STATUS" label="Overview" icon={Activity} activeTab={activeTab} setActiveTab={setActiveTab} />
+                <TabButton id="MAPPING" label="Canonical Routes" icon={Server} activeTab={activeTab} setActiveTab={setActiveTab} />
+                <TabButton id="KEYS" label="Providers & Keys" icon={Key} activeTab={activeTab} setActiveTab={setActiveTab} />
+                <TabButton id="LOGS" label="Live Logs" icon={Activity} activeTab={activeTab} setActiveTab={setActiveTab} />
             </div>
 
             {/* CONTENT */}
