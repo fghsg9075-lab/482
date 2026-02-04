@@ -1,7 +1,9 @@
 export type AIProviderType =
     | 'openai' | 'gemini' | 'groq' | 'anthropic'
     | 'openrouter' | 'deepseek' | 'mistral' | 'together' | 'fireworks' | 'cohere' | 'perplexity'
-    | 'huggingface' | 'replicate' | 'ollama' | 'local';
+    | 'huggingface' | 'replicate' | 'ollama' | 'local'
+    | 'yi' | 'baichuan' | 'zhipu' | 'modal' | 'anyscale'
+    | 'vllm' | 'gpt4all' | 'localai';
 
 export type CanonicalModel = 'NOTES_ENGINE' | 'MCQ_ENGINE' | 'CHAT_ENGINE' | 'ANALYSIS_ENGINE' | 'VISION_ENGINE' | 'TRANSLATION_ENGINE' | 'ADMIN_ENGINE';
 

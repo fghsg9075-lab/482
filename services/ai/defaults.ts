@@ -19,52 +19,73 @@ export const DEFAULT_PROVIDERS: AIProviderConfig[] = [
     // --- TIER C (Aggregation/Cloud) ---
     { id: 'huggingface', name: 'HuggingFace', isEnabled: true, baseUrl: 'https://api-inference.huggingface.co/models', icon: 'https://huggingface.co/front/assets/huggingface_logo-noborder.svg' },
     { id: 'replicate', name: 'Replicate', isEnabled: true, baseUrl: 'https://api.replicate.com/v1', icon: 'https://replicate.com/static/favicon.ico' },
+    { id: 'modal', name: 'Modal', isEnabled: true, baseUrl: 'https://api.modal.com/v1', icon: 'https://modal.com/favicon.ico' },
+    { id: 'anyscale', name: 'Anyscale', isEnabled: true, baseUrl: 'https://api.endpoints.anyscale.com/v1', icon: 'https://docs.anyscale.com/img/favicon.ico' },
 
-    // --- TIER D (Local) ---
+    // --- TIER D (Asian Models) ---
+    { id: 'yi', name: 'Yi (01.AI)', isEnabled: true, baseUrl: 'https://api.01.ai/v1', icon: 'https://01.ai/favicon.ico' },
+    { id: 'baichuan', name: 'Baichuan', isEnabled: true, baseUrl: 'https://api.baichuan-ai.com/v1', icon: 'https://www.baichuan-ai.com/favicon.ico' },
+    { id: 'zhipu', name: 'Zhipu (ChatGLM)', isEnabled: true, baseUrl: 'https://open.bigmodel.cn/api/paas/v4', icon: 'https://zhipuai.cn/favicon.ico' },
+
+    // --- TIER E (Local) ---
     { id: 'ollama', name: 'Ollama (Local)', isEnabled: true, baseUrl: 'http://localhost:11434/v1', icon: 'https://ollama.com/public/ollama.png' },
-    { id: 'local', name: 'Local AI / LM Studio', isEnabled: true, baseUrl: 'http://localhost:1234/v1', icon: 'https://lmstudio.ai/favicon.ico' }
+    { id: 'local', name: 'Local AI / LM Studio', isEnabled: true, baseUrl: 'http://localhost:1234/v1', icon: 'https://lmstudio.ai/favicon.ico' },
+    { id: 'vllm', name: 'vLLM', isEnabled: true, baseUrl: 'http://localhost:8000/v1', icon: 'https://docs.vllm.ai/en/latest/_static/vllm-logo.png' },
+    { id: 'gpt4all', name: 'GPT4All', isEnabled: true, baseUrl: 'http://localhost:4891/v1', icon: 'https://gpt4all.io/favicon.ico' },
+    { id: 'localai', name: 'LocalAI', isEnabled: true, baseUrl: 'http://localhost:8080/v1', icon: 'https://localai.io/favicon.ico' }
 ];
 
 export const DEFAULT_MODELS: AIModelConfig[] = [
     // --- OPENAI ---
-    { id: 'openai-gpt-4o', providerId: 'openai', modelId: 'gpt-4o', name: 'GPT-4o (Omni)', contextWindow: 128000, isEnabled: true, priority: 1 },
+    { id: 'openai-gpt-4o', providerId: 'openai', modelId: 'gpt-4o', name: 'GPT-4o', contextWindow: 128000, isEnabled: true, priority: 1 },
     { id: 'openai-gpt-4o-mini', providerId: 'openai', modelId: 'gpt-4o-mini', name: 'GPT-4o Mini', contextWindow: 128000, isEnabled: true, priority: 2 },
 
     // --- GEMINI ---
-    { id: 'gemini-1.5-flash', providerId: 'gemini', modelId: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', contextWindow: 1000000, isEnabled: true, priority: 1 },
-    { id: 'gemini-1.5-pro', providerId: 'gemini', modelId: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', contextWindow: 2000000, isEnabled: true, priority: 2 },
-
-    // --- GROQ ---
-    { id: 'groq-llama-3.1-70b', providerId: 'groq', modelId: 'llama-3.1-70b-versatile', name: 'Llama 3.1 70B (Fast)', contextWindow: 8192, isEnabled: true, priority: 1 },
-    { id: 'groq-llama-3.1-8b', providerId: 'groq', modelId: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B (Instant)', contextWindow: 8192, isEnabled: true, priority: 2 },
-    { id: 'groq-mixtral-8x7b', providerId: 'groq', modelId: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B', contextWindow: 32768, isEnabled: true, priority: 3 },
+    { id: 'gemini-1.5-pro', providerId: 'gemini', modelId: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', contextWindow: 2000000, isEnabled: true, priority: 1 },
+    { id: 'gemini-1.5-flash', providerId: 'gemini', modelId: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', contextWindow: 1000000, isEnabled: true, priority: 2 },
 
     // --- ANTHROPIC ---
-    { id: 'claude-3-5-sonnet', providerId: 'anthropic', modelId: 'claude-3-5-sonnet-20240620', name: 'Claude 3.5 Sonnet', contextWindow: 200000, isEnabled: true, priority: 1 },
-    { id: 'claude-3-haiku', providerId: 'anthropic', modelId: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku', contextWindow: 200000, isEnabled: true, priority: 2 },
+    { id: 'claude-3-5-sonnet', providerId: 'anthropic', modelId: 'claude-3-5-sonnet-latest', name: 'Claude 3.5 Sonnet', contextWindow: 200000, isEnabled: true, priority: 1 },
 
-    // --- DEEPSEEK ---
-    { id: 'deepseek-chat', providerId: 'deepseek', modelId: 'deepseek-chat', name: 'DeepSeek V2.5', contextWindow: 128000, isEnabled: true, priority: 1 },
-    { id: 'deepseek-coder', providerId: 'deepseek', modelId: 'deepseek-coder', name: 'DeepSeek Coder', contextWindow: 128000, isEnabled: true, priority: 2 },
+    // --- OPEN SOURCE (META) ---
+    { id: 'llama-3.1-405b', providerId: 'huggingface', modelId: 'meta-llama/Meta-Llama-3.1-405B-Instruct', name: 'Llama 3.1 405B', contextWindow: 128000, isEnabled: true, priority: 1 },
+    { id: 'llama-3.1-70b', providerId: 'groq', modelId: 'llama-3.1-70b-versatile', name: 'Llama 3.1 70B (Groq)', contextWindow: 8192, isEnabled: true, priority: 1 },
 
     // --- MISTRAL ---
-    { id: 'mistral-large', providerId: 'mistral', modelId: 'mistral-large-latest', name: 'Mistral Large', contextWindow: 32000, isEnabled: true, priority: 1 },
-    { id: 'mistral-small', providerId: 'mistral', modelId: 'mistral-small-latest', name: 'Mistral Small', contextWindow: 32000, isEnabled: true, priority: 2 },
+    { id: 'mistral-large', providerId: 'mistral', modelId: 'mistral-large-2407', name: 'Mistral Large 2', contextWindow: 32000, isEnabled: true, priority: 1 },
 
-    // --- TOGETHER ---
-    { id: 'together-llama-3-70b', providerId: 'together', modelId: 'meta-llama/Llama-3-70b-chat-hf', name: 'Llama 3 70B (Together)', contextWindow: 8192, isEnabled: true, priority: 1 },
-    { id: 'together-qwen', providerId: 'together', modelId: 'Qwen/Qwen2-72B-Instruct', name: 'Qwen 2 72B', contextWindow: 32000, isEnabled: true, priority: 2 },
+    // --- QWEN (ALIBABA) ---
+    { id: 'qwen-2.5-72b', providerId: 'together', modelId: 'Qwen/Qwen2.5-72B-Instruct', name: 'Qwen 2.5 72B', contextWindow: 32000, isEnabled: true, priority: 1 },
+
+    // --- DEEPSEEK ---
+    { id: 'deepseek-v3', providerId: 'deepseek', modelId: 'deepseek-chat', name: 'DeepSeek V3', contextWindow: 128000, isEnabled: true, priority: 1 },
+
+    // --- YI (01.AI) ---
+    { id: 'yi-1.5-34b', providerId: 'yi', modelId: 'yi-1.5-34b-chat', name: 'Yi 1.5 34B', contextWindow: 4096, isEnabled: true, priority: 1 },
+
+    // --- BAICHUAN ---
+    { id: 'baichuan-2-13b', providerId: 'baichuan', modelId: 'baichuan-2-13b-chat', name: 'Baichuan 2 13B', contextWindow: 4096, isEnabled: true, priority: 1 },
+
+    // --- ZHIPU ---
+    { id: 'glm-4', providerId: 'zhipu', modelId: 'glm-4', name: 'GLM-4', contextWindow: 128000, isEnabled: true, priority: 1 },
 
     // --- PERPLEXITY ---
-    { id: 'pplx-llama-3-sonar', providerId: 'perplexity', modelId: 'llama-3-sonar-large-32k-online', name: 'Sonar Large Online', contextWindow: 32000, isEnabled: true, priority: 1 },
+    { id: 'sonar-pro', providerId: 'perplexity', modelId: 'sonar-pro', name: 'Sonar Pro', contextWindow: 32000, isEnabled: true, priority: 1 },
 
-    // --- OPENROUTER (Aggregation) ---
-    { id: 'or-llama-3.1-405b', providerId: 'openrouter', modelId: 'meta-llama/llama-3.1-405b-instruct', name: 'Llama 3.1 405B', contextWindow: 128000, isEnabled: true, priority: 1 },
-    { id: 'or-nous-hermes', providerId: 'openrouter', modelId: 'nousresearch/hermes-3-llama-3.1-405b', name: 'Hermes 3', contextWindow: 128000, isEnabled: true, priority: 2 },
+    // --- OPENROUTER ---
+    { id: 'openrouter-auto', providerId: 'openrouter', modelId: 'auto', name: 'OpenRouter Auto', contextWindow: 128000, isEnabled: true, priority: 1 },
 
-    // --- LOCAL ---
-    { id: 'local-llama3', providerId: 'ollama', modelId: 'llama3', name: 'Llama 3 (Local)', contextWindow: 8192, isEnabled: true, priority: 1 },
-    { id: 'local-mistral', providerId: 'ollama', modelId: 'mistral', name: 'Mistral (Local)', contextWindow: 8192, isEnabled: true, priority: 2 },
+    // --- HOSTED SERVICES (Together, Fireworks, Anyscale) ---
+    { id: 'together-llama-70b', providerId: 'together', modelId: 'togethercomputer/llama-3.1-70b', name: 'Together Llama 3.1 70B', contextWindow: 8192, isEnabled: true, priority: 2 },
+    { id: 'fireworks-llama-405b', providerId: 'fireworks', modelId: 'accounts/fireworks/models/llama-v3p1-405b-instruct', name: 'Fireworks Llama 3.1 405B', contextWindow: 128000, isEnabled: true, priority: 1 },
+    { id: 'anyscale-llama-70b', providerId: 'anyscale', modelId: 'meta-llama/Llama-3.1-70b-Instruct-Turbo', name: 'Anyscale Llama 3.1 70B', contextWindow: 8192, isEnabled: true, priority: 1 },
+
+    // --- LOCAL (Ollama, LM Studio, etc) ---
+    { id: 'ollama-llama-3.1', providerId: 'ollama', modelId: 'llama3.1', name: 'Ollama Llama 3.1', contextWindow: 8192, isEnabled: true, priority: 1 },
+    { id: 'local-server', providerId: 'local', modelId: 'local-model', name: 'LM Studio / Local Server', contextWindow: 8192, isEnabled: true, priority: 1 },
+    { id: 'vllm-model', providerId: 'vllm', modelId: 'vllm-model', name: 'vLLM Engine', contextWindow: 8192, isEnabled: true, priority: 1 },
+    { id: 'gpt4all-model', providerId: 'gpt4all', modelId: 'gpt4all-model', name: 'GPT4All', contextWindow: 8192, isEnabled: true, priority: 1 },
+    { id: 'localai-model', providerId: 'localai', modelId: 'gpt-4', name: 'LocalAI', contextWindow: 8192, isEnabled: true, priority: 1 },
 ];
 
 export const DEFAULT_MAPPINGS_FULL: AICanonicalMapping[] = [
