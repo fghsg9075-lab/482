@@ -4,54 +4,29 @@ import { STATIC_SYLLABUS } from "../constants";
 import { getChapterData, getCustomSyllabus, incrementApiUsage, getApiUsage, rtdb, getSystemSettings } from "../firebase";
 import { ref, get } from "firebase/database";
 import { storage } from "../utils/storage";
+import { AiOs } from "./ai-os";
 
-// GROQ API CALL HELPER
+// GROQ API CALL HELPER (Now redirected to AI OS)
 export const callGroqApi = async (messages: any[], model: string = "llama-3.1-8b-instant") => {
-    // Validate model (Gemini models are not supported on Groq)
-    let modelToUse = model;
+    // Attempt to infer task type from system prompt
+    const systemContent = messages.find(m => m.role === 'system')?.content || "";
+    let taskType = 'NOTES_ENGINE';
 
-    try {
-        const settings = await getSystemSettings();
-        if (settings?.aiModel) {
-            modelToUse = settings.aiModel;
-        }
-    } catch (e) {
-        console.warn("Failed to fetch settings, using default/provided model", e);
+    if (systemContent.toLowerCase().includes('json') || systemContent.toLowerCase().includes('exam') || messages.some(m => m.content?.includes('MCQ'))) {
+        taskType = 'MCQ_ENGINE';
+        // Note: MCQ_ENGINE needs to be defined in AiOs routes or fallback to NOTES_ENGINE.
+        // Default config has NOTES_ENGINE and CHAT_ENGINE.
+        // AiOs.execute falls back to NOTES_ENGINE if route not found.
+    } else if (systemContent.toLowerCase().includes('translate')) {
+        taskType = 'TRANSLATION_ENGINE';
     }
 
-    const ALLOWED_MODELS = [
-        "llama-3.1-8b-instant",
-        "llama-3.1-70b-versatile",
-        "mixtral-8x7b-32768"
-    ];
-
-    if (!ALLOWED_MODELS.includes(modelToUse)) {
-        modelToUse = "llama-3.1-8b-instant";
-    }
-
-    // Proxy call to server
-    const response = await fetch("/api/groq", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            model: modelToUse,
-            messages: messages
-        })
-    });
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Groq API Error: ${response.status} - ${errorText}`);
-    }
-
-    const data = await response.json();
-    return data.choices[0].message.content;
+    return await AiOs.execute(taskType, messages);
 };
 
 // NEW: Tool Support
 export const callGroqApiWithTools = async (messages: any[], tools: any[], model: string = "llama-3.3-70b-versatile") => {
+    // Legacy support for Tools via direct API (until AiOs supports tools)
     const response = await fetch("/api/groq", {
         method: "POST",
         headers: {
@@ -76,43 +51,8 @@ export const callGroqApiWithTools = async (messages: any[], tools: any[], model:
 
 // STREAMING API CALL
 export const callGroqApiStream = async (messages: any[], onChunk: (text: string) => void, model: string = "llama-3.1-8b-instant") => {
-    let safeModel = model;
-    if (!safeModel || safeModel.includes("gemini")) safeModel = "llama-3.1-8b-instant";
-
-    const response = await fetch("/api/groq", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: safeModel, messages, stream: true })
-    });
-
-    if (!response.ok) throw new Error("Groq API Stream Error");
-    if (!response.body) throw new Error("No response body");
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let accumulated = "";
-
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
-        for (const line of lines) {
-            if (line.startsWith('data: ')) {
-                const jsonStr = line.slice(6);
-                if (jsonStr.trim() === '[DONE]') return accumulated;
-                try {
-                    const json = JSON.parse(jsonStr);
-                    const content = json.choices?.[0]?.delta?.content || "";
-                    if (content) {
-                        accumulated += content;
-                        onChunk(accumulated);
-                    }
-                } catch (e) {}
-            }
-        }
-    }
-    return accumulated;
+    // Universal OS Fallback with Streaming Support
+    return await AiOs.execute('NOTES_ENGINE', messages, 'STUDENT', onChunk);
 };
 
 export const executeWithRotation = async <T>(

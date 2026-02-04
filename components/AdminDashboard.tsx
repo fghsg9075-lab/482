@@ -16,6 +16,7 @@ import { CustomAlert } from './CustomDialogs';
 import { AdminAiAssistant } from './AdminAiAssistant';
 import { UniversalChat } from './UniversalChat';
 import { ChallengeCreator20 } from './admin/ChallengeCreator20';
+import { AiControlTower } from './AiControlTower';
 // @ts-ignore
 import JSZip from 'jszip';
 import { Document, Page, pdfjs } from 'react-pdf';
@@ -9878,78 +9879,9 @@ Capital of India?       Mumbai  Delhi   Kolkata Chennai 2       Delhi is the cap
           <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 animate-in slide-in-from-right">
               <div className="flex items-center gap-4 mb-6 border-b pb-4">
                   <button onClick={() => setActiveTab('DASHBOARD')} className="bg-slate-100 p-2 rounded-full hover:bg-slate-200"><ArrowLeft size={20} /></button>
-                  <h3 className="text-xl font-black text-slate-800">AI Tutor Configuration</h3>
+                  <h3 className="text-xl font-black text-slate-800">Zone C — AI Control</h3>
               </div>
-
-              <div className="space-y-6">
-                  {/* LIMITS */}
-                  <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
-                      <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                          <Bot size={20} className="text-indigo-600"/> Daily Usage Limits
-                      </h4>
-                      <div className="grid grid-cols-3 gap-4">
-                          <div>
-                              <label className="text-xs font-bold text-slate-500 uppercase">Free Users</label>
-                              <input 
-                                  type="number" 
-                                  value={localSettings.aiLimits?.free ?? 5} 
-                                  onChange={(e) => setLocalSettings({
-                                      ...localSettings, 
-                                      aiLimits: { ...localSettings.aiLimits, free: Number(e.target.value) } as any
-                                  })}
-                                  className="w-full p-3 rounded-xl border border-slate-200 font-bold" 
-                              />
-                          </div>
-                          <div>
-                              <label className="text-xs font-bold text-slate-500 uppercase">Basic Users</label>
-                              <input 
-                                  type="number" 
-                                  value={localSettings.aiLimits?.basic ?? 50} 
-                                  onChange={(e) => setLocalSettings({
-                                      ...localSettings, 
-                                      aiLimits: { ...localSettings.aiLimits, basic: Number(e.target.value) } as any
-                                  })}
-                                  className="w-full p-3 rounded-xl border border-slate-200 font-bold" 
-                              />
-                          </div>
-                          <div>
-                              <label className="text-xs font-bold text-slate-500 uppercase">Ultra Users</label>
-                              <input 
-                                  type="number" 
-                                  value={localSettings.aiLimits?.ultra ?? 99999} 
-                                  onChange={(e) => setLocalSettings({
-                                      ...localSettings, 
-                                      aiLimits: { ...localSettings.aiLimits, ultra: Number(e.target.value) } as any
-                                  })}
-                                  className="w-full p-3 rounded-xl border border-slate-200 font-bold" 
-                              />
-                          </div>
-                      </div>
-                  </div>
-
-                  {/* INSTRUCTIONS */}
-                  <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
-                      <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                          <BrainCircuit size={20} className="text-purple-600"/> AI Persona & Instructions
-                      </h4>
-                      <label className="text-xs font-bold text-slate-500 uppercase block mb-2">System Prompt (Persona)</label>
-                      <textarea 
-                          value={localSettings.aiInstruction || ''}
-                          onChange={(e) => setLocalSettings({...localSettings, aiInstruction: e.target.value})}
-                          placeholder="You are a helpful tutor..."
-                          className="w-full h-32 p-4 rounded-xl border border-slate-200 text-sm font-mono leading-relaxed"
-                      />
-                      <p className="text-[10px] text-slate-400 mt-2">
-                          This instruction will guide the AI's behavior. If empty, it uses the default friendly tutor persona.
-                      </p>
-                  </div>
-
-                  <div className="flex justify-end">
-                      <button onClick={handleSaveSettings} className="bg-green-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-green-700 flex items-center gap-2">
-                          <Save size={20} /> Save Configuration
-                      </button>
-                  </div>
-              </div>
+              <AiControlTower />
           </div>
       )}
 
