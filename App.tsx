@@ -68,7 +68,7 @@ const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
     user: null,
     originalAdmin: null,
-    view: 'ADMIN_DASHBOARD',
+    view: 'BOARDS',
     selectedBoard: null,
     selectedClass: null,
     selectedStream: null,

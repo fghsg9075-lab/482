@@ -31,7 +31,7 @@ import {
     setDoc
 } from "firebase/firestore";
 import { User, SystemSettings, WeeklyTest, MCQItem, InboxMessage, SubscriptionHistoryEntry, ClassLevel, Board, Challenge20 } from '../types';
-import { fetchChapters, fetchLessonContent } from './groq';
+import { fetchChapters, fetchLessonContent } from './contentGenerator';
 
 // --- HELPER: GET ALL USERS (ONCE) ---
 const getAllUsers = async (): Promise<User[]> => {

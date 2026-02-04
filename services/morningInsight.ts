@@ -1,66 +1,64 @@
 import { UniversalAnalysisLog } from '../types';
+import { executeCanonical } from './ai/router';
+import { saveSystemSettings } from '../firebase';
 
-import { executeCanonicalRaw } from '@/services/ai/router';
+export const generateMorningInsight = async (logs: UniversalAnalysisLog[], settings: any, onSave: (banner: any) => void): Promise<string> => {
+    // 1. Filter Logs (Last 24 Hours)
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-export const generateMorningInsight = async (
+    const recentLogs = logs.filter(l => new Date(l.date) > yesterday);
 
-  logs: UniversalAnalysisLog[],
+    if (recentLogs.length === 0) return "No recent data for analysis.";
 
-  settings: any,
+    // 2. Prepare Data for AI
+    // We limit to 50 samples to avoid token overflow
+    const samples = recentLogs.slice(0, 50).map(l => ({
+        subject: l.subject,
+        chapter: l.chapter,
+        score: `${l.score}/${l.totalQuestions}`,
+        mistakes: l.aiResponse ? "Yes" : "No" // We don't have exact mistake text in list, just AI response presence
+    }));
 
-  onSave: (banner: any) => void
+    const prompt = `
+    You are an AI Mentor for students.
+    Based on the recent activity logs below, identify common patterns or struggle areas.
+    Create a "Morning Insight Banner" content.
 
-): Promise<string> => {
+    LOGS:
+    ${JSON.stringify(samples)}
 
-  const now = new Date();
+    OUTPUT FORMAT (JSON):
+    {
+      "title": "Daily Wisdom / Insight Title",
+      "wisdom": "A short motivational quote or deep fact related to study patterns.",
+      "commonTrap": "Identify one subject/topic students struggled with most.",
+      "proTip": "One specific actionable tip to improve.",
+      "motivation": "One punchy line to start the day."
+    }
+    `;
 
-  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    try {
+        const result = await executeCanonical({
+            canonicalModel: 'ANALYSIS_ENGINE',
+            prompt: prompt,
+            systemPrompt: "You are an AI Mentor for students."
+        });
 
-  const recentLogs = logs.filter(l => new Date(l.date) > yesterday);
+        // Parse JSON
+        const cleanJson = result.replace(/```json/g, '').replace(/```/g, '').trim();
+        const bannerData = JSON.parse(cleanJson);
 
-  if (recentLogs.length === 0) return "No recent data for analysis.";
+        // Add Date
+        bannerData.date = new Date().toDateString();
+        bannerData.id = `insight-${Date.now()}`;
 
-  const samples = recentLogs.slice(0, 50).map(l => ({
+        // Save
+        onSave(bannerData);
 
-    subject: l.subject,
-
-    chapter: l.chapter,
-
-    score: `${l.score}/${l.totalQuestions}`,
-
-    mistakes: l.aiResponse ? "Yes" : "No"
-
-  }));
-
-  const prompt = `You are an AI Mentor. Analyze logs and return JSON ONLY: { "title": "", "wisdom": "", "commonTrap": "", "proTip": "", "motivation": "" }\n\nLOGS: ${JSON.stringify(samples)}`;
-
-  try {
-
-    const result = await executeCanonicalRaw({
-
-      engine: "MORNING_INSIGHT_ENGINE", // Ensure this matches Admin Dashboard
-
-      messages: [{ role: "user", content: prompt }],
-
-    });
-
-    const bannerData = JSON.parse(result.match(/\{[\s\S]*\}/)![0]);
-
-    bannerData.date = new Date().toDateString();
-
-    bannerData.id = `insight-${Date.now()}`;
-
-    onSave(bannerData);
-
-    return "Morning Insight Generated Successfully!";
-
-  } catch (e) {
-
-    console.error("Morning Insight Error", e);
-
-    throw new Error("Failed to generate insight.");
-
-  }
-
+        return "Morning Insight Generated Successfully!";
+    } catch (e: any) {
+        console.error("Morning Insight Generation Error", e);
+        throw new Error("Failed to generate insight.");
+    }
 };
-
