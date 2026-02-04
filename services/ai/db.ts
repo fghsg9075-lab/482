@@ -17,6 +17,12 @@ export const getAIProviders = async (): Promise<AIProviderConfig[]> => {
     } catch (e) { console.error(e); return []; }
 };
 
+export const toggleAIProvider = async (providerId: string, isEnabled: boolean) => {
+    try {
+        await updateDoc(doc(db, "ai_config", "providers", "list", providerId), { isEnabled });
+    } catch (e) { console.error("Error toggling provider:", e); }
+};
+
 // --- MODELS ---
 export const saveAIModel = async (model: AIModelConfig) => {
     try {
@@ -31,16 +37,23 @@ export const getAIModels = async (): Promise<AIModelConfig[]> => {
     } catch (e) { console.error(e); return []; }
 };
 
+export const toggleAIModel = async (modelId: string, isEnabled: boolean) => {
+    try {
+        await updateDoc(doc(db, "ai_config", "models", "list", modelId), { isEnabled });
+    } catch (e) { console.error("Error toggling model:", e); }
+};
+
 // --- KEYS (Stored Securely in Firestore, Usage in RTDB for speed) ---
 export const saveAIKey = async (key: AIKey) => {
     try {
-        await setDoc(doc(db, "ai_secure", "keys", "list", key.id), key);
+        // Changed from ai_secure to ai_config to ensure visibility/permissions match other config
+        await setDoc(doc(db, "ai_config", "keys", "list", key.id), key);
     } catch (e) { console.error("Error saving key:", e); }
 };
 
 export const getAIKeys = async (providerId?: AIProviderType): Promise<AIKey[]> => {
     try {
-        let q = collection(db, "ai_secure", "keys", "list");
+        let q = collection(db, "ai_config", "keys", "list");
         const snap = await getDocs(q);
         let list = snap.docs.map(d => d.data() as AIKey);
         if (providerId) {
@@ -64,7 +77,7 @@ export const incrementKeyUsage = async (keyId: string, modelId: string, provider
         });
 
         // Firestore: Reliable stats (Updates the Key document itself)
-        const keyRef = doc(db, "ai_secure", "keys", "list", keyId);
+        const keyRef = doc(db, "ai_config", "keys", "list", keyId);
         await updateDoc(keyRef, {
             usageCount: increment(1),
             dailyUsageCount: increment(1),

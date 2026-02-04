@@ -87,7 +87,7 @@ export const StudentAiAssistant: React.FC<Props> = ({ user, settings, isOpen: co
             saveUserToLive(updatedUser);
 
             const prompt = settings?.aiInstruction || "You are a helpful AI Tutor. Answer the student's question clearly and concisely.";
-            const responseText = await generateCustomNotes(userMsg, prompt, settings?.aiModel);
+            const responseText = await generateCustomNotes(userMsg, prompt);
 
             const aiMsg: Message = { role: 'AI', text: responseText, timestamp: Date.now() };
             setMessages(prev => [...prev, aiMsg]);
