@@ -24,6 +24,9 @@ export const AiControlTower: React.FC = () => {
     const [logs, setLogs] = useState<AILog[]>([]);
     const [loading, setLoading] = useState(true);
 
+    // Key Management State (Moved to top level to fix Hook Rule violation)
+    const [newKey, setNewKey] = useState({ key: '', provider: 'gemini', name: '' });
+
     const refreshData = async () => {
         setLoading(true);
         const [p, m, k, map] = await Promise.all([
@@ -44,6 +47,38 @@ export const AiControlTower: React.FC = () => {
         const unsubscribe = subscribeToAILogs((newLogs) => setLogs(newLogs));
         return () => unsubscribe();
     }, []);
+
+    const initializeDefaultModels = async () => {
+         const defaults: AIModelConfig[] = [
+            { id: 'gemini-1.5-flash', providerId: 'gemini', modelId: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', contextWindow: 1000000, isEnabled: true },
+            { id: 'groq-llama-3.1-8b', providerId: 'groq', modelId: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B', contextWindow: 8192, isEnabled: true },
+            { id: 'groq-mixtral-8x7b', providerId: 'groq', modelId: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B', contextWindow: 32768, isEnabled: true }
+         ];
+
+         for (const model of defaults) {
+             await saveAIModel(model);
+         }
+         refreshData();
+    };
+
+    const addKey = async () => {
+        if (!newKey.key) return;
+        const keyObj: AIKey = {
+            id: `k-${Date.now()}`,
+            key: newKey.key,
+            providerId: newKey.provider as AIProviderType,
+            name: newKey.name || 'Admin Key',
+            usageCount: 0,
+            dailyUsageCount: 0,
+            limit: 1000,
+            isExhausted: false,
+            lastUsed: new Date().toISOString(),
+            status: 'ACTIVE'
+        };
+        await saveAIKey(keyObj);
+        setNewKey({ key: '', provider: 'gemini', name: '' });
+        refreshData();
+    };
 
     // --- SUB COMPONENTS ---
 
@@ -141,6 +176,14 @@ export const AiControlTower: React.FC = () => {
                                     Initialize Defaults
                                  </button>
                              )}
+                             {models.length === 0 && (
+                                 <button
+                                    onClick={initializeDefaultModels}
+                                    className="w-full py-2 bg-purple-600/20 text-purple-400 rounded hover:bg-purple-600/30 text-sm mt-2"
+                                 >
+                                    Initialize Default Models
+                                 </button>
+                             )}
                         </div>
                      </div>
                 </div>
@@ -149,7 +192,7 @@ export const AiControlTower: React.FC = () => {
     };
 
     const renderMappings = () => {
-        const engines: CanonicalModel[] = ['NOTES_ENGINE', 'MCQ_ENGINE', 'CHAT_ENGINE', 'ANALYSIS_ENGINE', 'VISION_ENGINE'];
+        const engines: CanonicalModel[] = ['NOTES_ENGINE', 'MCQ_ENGINE', 'CHAT_ENGINE', 'ANALYSIS_ENGINE', 'VISION_ENGINE', 'TRANSLATION_ENGINE', 'ADMIN_ENGINE'];
 
         const updateMapping = (engine: CanonicalModel, primary: string, fallbacks: string[]) => {
             const newMapping: AICanonicalMapping = { canonicalModel: engine, primaryModelId: primary, fallbackModelIds: fallbacks };
@@ -224,26 +267,7 @@ export const AiControlTower: React.FC = () => {
     };
 
     const renderKeys = () => {
-        const [newKey, setNewKey] = useState({ key: '', provider: 'gemini', name: '' });
-
-        const addKey = async () => {
-            if (!newKey.key) return;
-            const keyObj: AIKey = {
-                id: `k-${Date.now()}`,
-                key: newKey.key,
-                providerId: newKey.provider as AIProviderType,
-                name: newKey.name || 'Admin Key',
-                usageCount: 0,
-                dailyUsageCount: 0,
-                limit: 1000,
-                isExhausted: false,
-                lastUsed: new Date().toISOString(),
-                status: 'ACTIVE'
-            };
-            await saveAIKey(keyObj);
-            setNewKey({ key: '', provider: 'gemini', name: '' });
-            refreshData();
-        };
+        // Hooks removed from here. Using closure variables newKey, setNewKey, addKey.
 
         return (
             <div className="space-y-6">
