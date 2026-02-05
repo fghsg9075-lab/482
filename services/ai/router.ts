@@ -139,7 +139,8 @@ export const executeCanonicalRaw = async (options: RouterExecuteOptions): Promis
         { providerId: 'gemini', modelId: 'gemini-1.5-flash' },      // 2. Fast/Free Tier
         { providerId: 'gemini', modelId: 'gemini-1.5-pro' },        // 3. High Capability Backup
         { providerId: 'groq', modelId: 'llama-3.1-8b-instant' },    // 4. Ultra Fast
-        { providerId: 'openai', modelId: 'gpt-4o-mini' }            // 5. Reliable Backup
+        { providerId: 'openai', modelId: 'gpt-4o-mini' },           // 5. Reliable Backup
+        { providerId: 'openrouter', modelId: 'auto' }               // 6. Last Resort (OpenRouter Auto)
     ];
 
     // Deduplicate and filter out the primary if it's already in the list (it is, but we want unique attempts)
