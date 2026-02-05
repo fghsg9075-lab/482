@@ -23,9 +23,15 @@ export class GeminiProvider extends BaseAIProvider {
     async generateContent(apiKey: string, options: AIRequestOptions): Promise<AIResponse> {
         const genAI = new GoogleGenerativeAI(apiKey);
 
+        // Sanitize Model ID (Strip models/ prefix and version suffixes like -001)
+        let cleanModelId = options.model.modelId.replace(/^models\//, '');
+        // Strip specific version suffixes to use the rolling alias (e.g. gemini-1.5-pro-001 -> gemini-1.5-pro)
+        // This helps avoid 404s when specific versions are deprecated or if v1beta expects the alias
+        cleanModelId = cleanModelId.replace(/-[0-9]{3}$/, '').replace(/-latest$/, '');
+
         // Pass mapped tools to model configuration
         const model = genAI.getGenerativeModel({
-            model: options.model.modelId,
+            model: cleanModelId,
             systemInstruction: options.systemPrompt,
             tools: options.tools ? this.mapTools(options.tools) : undefined
         });

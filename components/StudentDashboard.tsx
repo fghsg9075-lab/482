@@ -1080,16 +1080,43 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                      <p className="text-xs font-black text-slate-800 leading-tight">Mixed Quiz (15m)</p>
                  </div>
              </button>
+
+             {/* Request Content Button */}
+             <button onClick={() => setShowRequestModal(true)} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-start gap-2 hover:bg-pink-50 transition-colors text-left group">
+                 <div className="p-2 bg-pink-100 rounded-lg text-pink-600 group-hover:bg-pink-200 transition-colors">
+                     <Megaphone size={18} />
+                 </div>
+                 <div>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase">Demand</p>
+                     <p className="text-xs font-black text-slate-800 leading-tight">Request Content</p>
+                 </div>
+             </button>
+
+             {/* Conditional Discount Button */}
+             {showDiscountBanner && (
+                 <button onClick={() => onTabChange('STORE')} className="bg-gradient-to-br from-indigo-600 to-purple-600 p-4 rounded-2xl shadow-lg border border-white/20 flex flex-col items-start gap-2 hover:scale-[1.02] transition-transform text-left group relative overflow-hidden">
+                     <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 animate-spin-slow"></div>
+                     <div className="p-2 bg-white/20 rounded-lg text-yellow-300 backdrop-blur-sm relative z-10">
+                         <Sparkles size={18} className="animate-pulse" />
+                     </div>
+                     <div className="relative z-10">
+                         <p className="text-[10px] font-bold text-indigo-200 uppercase">Special Offer</p>
+                         <p className="text-xs font-black text-white leading-tight">Get Discount</p>
+                     </div>
+                 </button>
+             )}
          </div>
 
          {/* Navigation to Layer 2 */}
-         <button
-             onClick={() => smartSlideRef.current?.scrollIntoView({ behavior: 'smooth' })}
-             className="mt-8 flex flex-col items-center gap-1 text-slate-400 hover:text-slate-600 transition-colors animate-bounce cursor-pointer"
-         >
-             <span className="text-[10px] font-bold uppercase tracking-widest">Explore More</span>
-             <ChevronsDown size={24} />
-         </button>
+         <div className="mt-8 flex justify-center w-full">
+            <button
+                onClick={() => smartSlideRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                className="bg-slate-900 text-white px-8 py-3 rounded-full shadow-xl shadow-slate-300 hover:scale-105 active:scale-95 transition-all flex items-center gap-2 animate-bounce-slow"
+            >
+                <span className="text-xs font-black uppercase tracking-widest">Explore More</span>
+                <ChevronsDown size={18} />
+            </button>
+         </div>
       </div>
     );
   };
