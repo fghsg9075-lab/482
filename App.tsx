@@ -1756,13 +1756,13 @@ const App: React.FC = () => {
           <PremiumModal user={state.user} chapter={tempSelectedChapter} credits={state.user.credits || 0} isAdmin={state.user.role === 'ADMIN'} onSelect={handleContentGeneration} onClose={() => setShowPremiumModal(false)} />
       )}
       
-      {/* FLOATING DOCK */}
-      {state.user && !activeWeeklyTest && !isFullScreen && (
+      {/* FLOATING DOCK - Only for Admin/Teachers if needed, hidden for Students in new UI */}
+      {state.user && !activeWeeklyTest && !isFullScreen && state.user.role !== 'STUDENT' && !state.originalAdmin && (
           <FloatingDock 
             onTabSelect={setStudentTab} 
             onGoHome={goHome} 
             onGoBack={goBack} 
-            isStudent={state.user.role === 'STUDENT' || !!state.originalAdmin} 
+            isStudent={false}
             settings={state.settings}
           />
       )}
