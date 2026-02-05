@@ -23,9 +23,15 @@ export class GeminiProvider extends BaseAIProvider {
     async generateContent(apiKey: string, options: AIRequestOptions): Promise<AIResponse> {
         const genAI = new GoogleGenerativeAI(apiKey);
 
+        // Sanitize Model ID (Fix 404s by stripping suffixes like -001, -latest, -beta)
+        // The v1 API strictly requires 'gemini-1.5-flash' or 'gemini-1.5-pro'
+        let modelName = options.model.modelId;
+        if (modelName.startsWith('gemini-1.5-flash')) modelName = 'gemini-1.5-flash';
+        else if (modelName.startsWith('gemini-1.5-pro')) modelName = 'gemini-1.5-pro';
+
         // Pass mapped tools to model configuration
         const model = genAI.getGenerativeModel({
-            model: options.model.modelId,
+            model: modelName,
             systemInstruction: options.systemPrompt,
             tools: options.tools ? this.mapTools(options.tools) : undefined
         });
