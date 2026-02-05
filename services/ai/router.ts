@@ -28,9 +28,18 @@ const ensureConfigLoaded = async () => {
                 // 1. Fix Gemini 404 Error (gemini-1.5-flash-latest/001 -> gemini-1.5-flash)
                 Object.keys(settingsCache.aiCanonicalMap).forEach(key => {
                     const mapping = settingsCache!.aiCanonicalMap[key];
-                    if (mapping.modelId === 'gemini-1.5-flash-latest' || mapping.modelId === 'gemini-1.5-flash-001') {
+
+                    // Aggressive auto-fix for Flash (strips -001, -latest, etc)
+                    if (mapping.modelId.startsWith('gemini-1.5-flash') && mapping.modelId !== 'gemini-1.5-flash') {
                         console.warn(`[AI Router] Auto-fixing deprecated model for ${key}: ${mapping.modelId} -> gemini-1.5-flash`);
                         mapping.modelId = 'gemini-1.5-flash';
+                        hasChanges = true;
+                    }
+
+                    // Aggressive auto-fix for Pro
+                    if (mapping.modelId.startsWith('gemini-1.5-pro') && mapping.modelId !== 'gemini-1.5-pro') {
+                        console.warn(`[AI Router] Auto-fixing deprecated model for ${key}: ${mapping.modelId} -> gemini-1.5-pro`);
+                        mapping.modelId = 'gemini-1.5-pro';
                         hasChanges = true;
                     }
                 });
