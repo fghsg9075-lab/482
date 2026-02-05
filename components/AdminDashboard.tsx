@@ -2968,8 +2968,14 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
       {/* --- AI CONFIG TAB --- */}
       {activeTab === 'AI_CONTROL_TOWER' && (
           <div className="h-[85vh] animate-in slide-in-from-bottom-4">
-              <div className="flex items-center gap-4 mb-4">
-                  <button onClick={() => setActiveTab('DASHBOARD')} className="bg-white p-2 rounded-full hover:bg-slate-100 shadow"><ArrowLeft size={20} /></button>
+              <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-4">
+                      <button onClick={() => setActiveTab('DASHBOARD')} className="bg-white p-2 rounded-full hover:bg-slate-100 shadow"><ArrowLeft size={20} /></button>
+                      <h3 className="text-xl font-black text-slate-800">AI Control Center</h3>
+                  </div>
+                  <button onClick={handleSaveSettings} className="bg-green-600 text-white px-6 py-2 rounded-xl text-sm font-bold shadow-lg hover:bg-green-700 flex items-center gap-2">
+                      <Save size={18} /> Save Changes
+                  </button>
               </div>
               <AiControlTower
                   settings={localSettings}
