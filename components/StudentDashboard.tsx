@@ -1092,30 +1092,17 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                  </div>
              </button>
 
-             {/* Conditional Discount Button */}
-             {showDiscountBanner && (
-                 <button onClick={() => onTabChange('STORE')} className="bg-gradient-to-br from-indigo-600 to-purple-600 p-4 rounded-2xl shadow-lg border border-white/20 flex flex-col items-start gap-2 hover:scale-[1.02] transition-transform text-left group relative overflow-hidden">
-                     <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 animate-spin-slow"></div>
-                     <div className="p-2 bg-white/20 rounded-lg text-yellow-300 backdrop-blur-sm relative z-10">
-                         <Sparkles size={18} className="animate-pulse" />
-                     </div>
-                     <div className="relative z-10">
-                         <p className="text-[10px] font-bold text-indigo-200 uppercase">Special Offer</p>
-                         <p className="text-xs font-black text-white leading-tight">Get Discount</p>
-                     </div>
-                 </button>
-             )}
-         </div>
-
-         {/* Navigation to Layer 2 */}
-         <div className="mt-8 flex justify-center w-full">
-            <button
-                onClick={() => smartSlideRef.current?.scrollIntoView({ behavior: 'smooth' })}
-                className="bg-slate-900 text-white px-8 py-3 rounded-full shadow-xl shadow-slate-300 hover:scale-105 active:scale-95 transition-all flex items-center gap-2 animate-bounce-slow"
-            >
-                <span className="text-xs font-black uppercase tracking-widest">Explore More</span>
-                <ChevronsDown size={18} />
-            </button>
+             {/* Explore More Button */}
+             <button onClick={() => onTabChange('EXPLORE' as any)} className="bg-slate-900 text-white p-4 rounded-2xl shadow-xl shadow-slate-200 border border-slate-700 flex flex-col items-start gap-2 hover:scale-[1.02] transition-transform text-left group relative overflow-hidden">
+                 {showDiscountBanner && <div className="absolute top-0 right-0 bg-red-600 text-white text-[9px] font-black px-2 py-0.5 rounded-bl-lg animate-pulse">SALE LIVE</div>}
+                 <div className="p-2 bg-white/10 rounded-lg text-white group-hover:bg-white/20 transition-colors">
+                     <Layout size={18} />
+                 </div>
+                 <div>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase">Discover</p>
+                     <p className="text-xs font-black text-white leading-tight">Explore More</p>
+                 </div>
+             </button>
          </div>
       </div>
     );
@@ -1311,27 +1298,22 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                 </div>
 
                 {renderHeroLayer()}
+              </div>
+          );
+      }
 
-                {/* Layer 2: SMART SLIDE (Swipe Up Layer) */}
-                <div ref={smartSlideRef} className="bg-slate-50 rounded-t-[2.5rem] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] pt-8 pb-32 -mt-6 relative z-10 min-h-screen">
+      // 1.5 EXPLORE TAB (LAYER 2)
+      if ((activeTab as any) === 'EXPLORE') {
+          return (
+              <div className="animate-in slide-in-from-bottom duration-300 pb-24">
+                  <div className="flex items-center justify-between px-4 py-4 sticky top-0 bg-slate-50/80 backdrop-blur-md z-40">
+                      <h2 className="text-2xl font-black text-slate-800">Explore</h2>
+                      <button onClick={() => onTabChange('HOME')} className="p-2 bg-white rounded-full shadow-sm border border-slate-200 text-slate-600">
+                          <X size={20} />
+                      </button>
+                  </div>
 
-                    {/* Back to Hero Button */}
-                    <div className="absolute top-6 right-6 z-20">
-                        <button
-                            onClick={() => heroRef.current?.scrollIntoView({ behavior: 'smooth' })}
-                            className="p-2 bg-white/80 backdrop-blur-sm rounded-full text-slate-400 hover:bg-white hover:text-slate-600 shadow-sm border border-slate-200 transition-all"
-                        >
-                            <ChevronsUp size={20} />
-                        </button>
-                    </div>
-
-                    <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6"></div> {/* Swipe Handle */}
-
-                    <div className="px-2 space-y-4">
-
-                {/* HERO SECTION */}
-                  <div className="space-y-4 mb-6">
-
+                  <div className="px-2 space-y-4">
                       {/* SPECIAL DISCOUNT BANNER (Kept separate as requested) */}
                       {showDiscountBanner && discountTimer && (
                           <div
@@ -1601,10 +1583,9 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                   </div>
                   </DashboardSectionWrapper>
               </div>
-              </div>
-              </div>
           );
       }
+
       // 2. COURSES TAB (Handles Video, Notes, MCQ Selection)
       // 2. COURSES TAB
       if (activeTab === 'COURSES') {
