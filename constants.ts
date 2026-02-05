@@ -638,5 +638,6 @@ export const DEFAULT_AI_MAPPINGS = {
     'MCQ_ENGINE': { providerId: 'groq', modelId: 'llama-3.1-8b-instant' },
     'CHAT_ENGINE': { providerId: 'groq', modelId: 'llama-3.1-70b-versatile' },
     'ANALYSIS_ENGINE': { providerId: 'gemini', modelId: 'gemini-1.5-flash' },
-    'VISION_ENGINE': { providerId: 'gemini', modelId: 'gemini-1.5-flash' }
+    'VISION_ENGINE': { providerId: 'gemini', modelId: 'gemini-1.5-flash' },
+    'ADMIN_ENGINE': { providerId: 'groq', modelId: 'llama-3.1-70b-versatile' }
 };
