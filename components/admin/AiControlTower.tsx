@@ -45,7 +45,12 @@ export const AiControlTower: React.FC<Props> = ({ settings, onUpdateSettings }) 
     // Initialize or Sync Providers
     useEffect(() => {
         if (settings.aiProviderConfig && settings.aiProviderConfig.length > 0) {
-            setProviders(settings.aiProviderConfig);
+            // Fix: Ensure apiKeys is always an array to prevent crash
+            const sanitized = settings.aiProviderConfig.map(p => ({
+                ...p,
+                apiKeys: Array.isArray(p.apiKeys) ? p.apiKeys : []
+            }));
+            setProviders(sanitized);
         } else {
             // Seed with Master Defaults
             setProviders(MASTER_AI_PROVIDERS);
@@ -66,9 +71,10 @@ export const AiControlTower: React.FC<Props> = ({ settings, onUpdateSettings }) 
         if (!keyStr.trim()) return;
         const updated = providers.map(p => {
             if (p.id === providerId) {
+                const currentKeys = Array.isArray(p.apiKeys) ? p.apiKeys : [];
                 return {
                     ...p,
-                    apiKeys: [...p.apiKeys, {
+                    apiKeys: [...currentKeys, {
                         key: keyStr.trim(),
                         addedAt: new Date().toISOString(),
                         usageCount: 0,
@@ -84,7 +90,8 @@ export const AiControlTower: React.FC<Props> = ({ settings, onUpdateSettings }) 
     const deleteKey = (providerId: AIProviderID, keyIndex: number) => {
         const updated = providers.map(p => {
             if (p.id === providerId) {
-                const newKeys = p.apiKeys.filter((_, i) => i !== keyIndex);
+                const currentKeys = Array.isArray(p.apiKeys) ? p.apiKeys : [];
+                const newKeys = currentKeys.filter((_, i) => i !== keyIndex);
                 return { ...p, apiKeys: newKeys };
             }
             return p;
@@ -165,7 +172,7 @@ export const AiControlTower: React.FC<Props> = ({ settings, onUpdateSettings }) 
     };
 
     const renderStatus = () => {
-        const totalKeys = providers.reduce((acc, p) => acc + p.apiKeys.length, 0);
+        const totalKeys = providers.reduce((acc, p) => acc + (p.apiKeys?.length || 0), 0);
         const activeProviders = providers.filter(p => p.isEnabled).length;
 
         return (
@@ -193,7 +200,7 @@ export const AiControlTower: React.FC<Props> = ({ settings, onUpdateSettings }) 
                                 <div className="flex gap-2 text-xs font-mono opacity-60">
                                     <span>{p.models.length} Models</span>
                                     <span>•</span>
-                                    <span>{p.apiKeys.length} Keys</span>
+                                    <span>{(p.apiKeys || []).length} Keys</span>
                                 </div>
                             </div>
                         </div>
@@ -277,14 +284,14 @@ export const AiControlTower: React.FC<Props> = ({ settings, onUpdateSettings }) 
                 </div>
 
                 <div className="space-y-4">
-                    {providers.filter(p => p.apiKeys.length > 0).map(p => (
+                    {providers.filter(p => (p.apiKeys || []).length > 0).map(p => (
                         <div key={p.id} className="bg-gray-800/30 p-4 rounded-xl border border-white/5">
                             <div className="flex items-center gap-2 mb-3">
                                 <div className="w-2 h-2 rounded-full bg-blue-500"></div>
                                 <h4 className="font-bold text-gray-300">{p.name} Keys</h4>
                             </div>
                             <div className="grid gap-2">
-                                {p.apiKeys.map((k, idx) => (
+                                {(p.apiKeys || []).map((k, idx) => (
                                     <div key={idx} className="flex justify-between items-center bg-black/20 p-3 rounded border border-white/5">
                                         <div className="flex flex-col">
                                             <span className="font-mono text-sm text-gray-400">

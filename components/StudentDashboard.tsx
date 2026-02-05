@@ -11,7 +11,7 @@ import { generateMorningInsight } from '../services/morningInsight';
 import { RedeemSection } from './RedeemSection';
 import { PrizeList } from './PrizeList';
 import { Store } from './Store';
-import { Layout, Gift, Sparkles, Megaphone, Lock, BookOpen, AlertCircle, Edit, Settings, Play, Pause, RotateCcw, MessageCircle, Gamepad2, Timer, CreditCard, Send, CheckCircle, Mail, X, Ban, Smartphone, Trophy, ShoppingBag, ArrowRight, Video, Youtube, Home, User as UserIcon, Book, BookOpenText, List, BarChart3, Award, Bell, Headphones, LifeBuoy, WifiOff, Zap, Star, Crown, History, ListChecks, Rocket, Ticket, TrendingUp, BrainCircuit, Menu } from 'lucide-react';
+import { Layout, Gift, Sparkles, Megaphone, Lock, BookOpen, AlertCircle, Edit, Settings, Play, Pause, RotateCcw, MessageCircle, Gamepad2, Timer, CreditCard, Send, CheckCircle, Mail, X, Ban, Smartphone, Trophy, ShoppingBag, ArrowRight, Video, Youtube, Home, User as UserIcon, Book, BookOpenText, List, BarChart3, Award, Bell, Headphones, LifeBuoy, WifiOff, Zap, Star, Crown, History, ListChecks, Rocket, Ticket, TrendingUp, BrainCircuit, Menu, ChevronsDown, ChevronsUp } from 'lucide-react';
 import { SubjectSelection } from './SubjectSelection';
 import { BannerCarousel } from './BannerCarousel';
 import { ChapterSelection } from './ChapterSelection'; // Imported for Video Flow
@@ -152,6 +152,10 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
   const [showMonthlyReport, setShowMonthlyReport] = useState(false);
   const [showReferralPopup, setShowReferralPopup] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  // Navigation Refs
+  const heroRef = useRef<HTMLDivElement>(null);
+  const smartSlideRef = useRef<HTMLDivElement>(null);
 
   // --- REFERRAL POPUP CHECK ---
   useEffect(() => {
@@ -997,7 +1001,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
     const strokeDashoffset = circumference - progress * circumference;
 
     return (
-      <div className="flex flex-col items-center justify-start pt-6 pb-8 min-h-[70vh]">
+      <div ref={heroRef} className="flex flex-col items-center justify-start pt-6 pb-8 min-h-[70vh] relative">
          {/* 1. STUDY TIMER (Apple Watch Ring) */}
          <div className="relative mb-8">
              <svg width="200" height="200" className="transform -rotate-90">
@@ -1077,6 +1081,15 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                  </div>
              </button>
          </div>
+
+         {/* Navigation to Layer 2 */}
+         <button
+             onClick={() => smartSlideRef.current?.scrollIntoView({ behavior: 'smooth' })}
+             className="mt-8 flex flex-col items-center gap-1 text-slate-400 hover:text-slate-600 transition-colors animate-bounce cursor-pointer"
+         >
+             <span className="text-[10px] font-bold uppercase tracking-widest">Explore More</span>
+             <ChevronsDown size={24} />
+         </button>
       </div>
     );
   };
@@ -1273,8 +1286,18 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                 {renderHeroLayer()}
 
                 {/* Layer 2: SMART SLIDE (Swipe Up Layer) */}
-                {/* Layer 2: SMART SLIDE (Swipe Up Layer) */}
-                <div className="bg-slate-50 rounded-t-[2.5rem] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] pt-8 pb-32 -mt-6 relative z-10 min-h-screen">
+                <div ref={smartSlideRef} className="bg-slate-50 rounded-t-[2.5rem] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] pt-8 pb-32 -mt-6 relative z-10 min-h-screen">
+
+                    {/* Back to Hero Button */}
+                    <div className="absolute top-6 right-6 z-20">
+                        <button
+                            onClick={() => heroRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                            className="p-2 bg-white/80 backdrop-blur-sm rounded-full text-slate-400 hover:bg-white hover:text-slate-600 shadow-sm border border-slate-200 transition-all"
+                        >
+                            <ChevronsUp size={20} />
+                        </button>
+                    </div>
+
                     <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6"></div> {/* Swipe Handle */}
 
                     <div className="px-2 space-y-4">

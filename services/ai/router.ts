@@ -89,101 +89,126 @@ export const executeCanonicalRaw = async (options: RouterExecuteOptions): Promis
         throw new Error(`No mapping found for engine: ${options.canonicalModel}`);
     }
 
-    const providerId = mapping.providerId;
-    const modelId = mapping.modelId;
+    const primaryProviderId = mapping.providerId;
+    const primaryModelId = mapping.modelId;
 
-    // TODO: Fallback Chain Logic
-    // Current Simple Logic: Just try the mapped provider/model.
-    // Ideally we should look up if settings allow fallback.
-    // For now, we stick to the primary mapped model.
+    // Define Fallback Chain (Hardcoded strategy for robustness if primary fails)
+    // In a future update, this could be configurable in SystemSettings.
+    const fallbackCandidates = [
+        { providerId: primaryProviderId, modelId: primaryModelId }, // 1. Primary
+        { providerId: 'gemini', modelId: 'gemini-1.5-flash' },      // 2. Fast/Free Tier
+        { providerId: 'groq', modelId: 'llama-3.1-8b-instant' },    // 3. Ultra Fast
+        { providerId: 'openai', modelId: 'gpt-4o-mini' }            // 4. Reliable Backup
+    ];
 
-    // 1. Get Provider
-    const providerConfig = getProviderConfig(providerId);
-    if (!providerConfig || !providerConfig.isEnabled) {
-        throw new Error(`Provider ${providerId} is disabled or not configured.`);
-    }
+    // Deduplicate and filter out the primary if it's already in the list (it is, but we want unique attempts)
+    // We only want to add fallbacks that are NOT the primary
+    const uniqueCandidates = [
+        { providerId: primaryProviderId, modelId: primaryModelId },
+        ...fallbackCandidates.filter(c => c.providerId !== primaryProviderId)
+    ];
 
-    // 2. Resolve Model Config
-    // We construct AIModelConfig on the fly
-    const modelConfig: AIModelConfig = {
-        id: modelId,
-        providerId: providerId as any,
-        modelId: modelId,
-        name: modelId,
-        contextWindow: 128000, // Default assumption
-        isEnabled: true
-    };
-
-    // 3. Key Rotation Loop
-    const keysToTry = 2;
     let lastError: any = null;
 
-    for (let k = 0; k < keysToTry; k++) {
-        const keyObj = getNextKey(providerId);
+    for (const candidate of uniqueCandidates) {
+        const { providerId, modelId } = candidate;
 
-        if (!keyObj) {
-            console.warn(`No active keys for provider ${providerId}.`);
-            break;
+        // 1. Get Provider Config
+        const providerConfig = getProviderConfig(providerId);
+
+        // Skip if provider doesn't exist or is disabled
+        if (!providerConfig || !providerConfig.isEnabled) {
+            continue;
         }
 
-        const startTime = Date.now();
-        try {
-            const provider = aiRegistry.getProvider(providerId);
+        // 2. Resolve Model Config
+        const modelConfig: AIModelConfig = {
+            id: modelId,
+            providerId: providerId as any,
+            modelId: modelId,
+            name: modelId,
+            contextWindow: 128000,
+            isEnabled: true
+        };
 
-            const requestOptions: AIRequestOptions = {
-                model: modelConfig,
-                prompt: options.prompt,
-                systemPrompt: options.systemPrompt,
-                temperature: options.temperature,
-                jsonMode: options.jsonMode,
-                tools: options.tools,
-                baseUrl: providerConfig.baseUrl // Use configured base URL
-            };
+        // 3. Try Keys (Rotation)
+        const keysToTry = 2;
+        let success = false;
+        let response: AIResponse | null = null;
 
-            let response: AIResponse;
-            if (options.onStream && provider.generateContentStream) {
-                const text = await provider.generateContentStream(keyObj.key, requestOptions, options.onStream);
-                response = { content: text };
-            } else {
-                 response = await provider.generateContent(keyObj.key, requestOptions);
+        for (let k = 0; k < keysToTry; k++) {
+            const keyObj = getNextKey(providerId);
+
+            if (!keyObj) {
+                // No keys active for this provider, try next provider
+                break;
             }
 
-            // Async Log (Fire & Forget)
-            logAIRequest({
-                id: `${Date.now()}`,
-                timestamp: new Date().toISOString(),
-                canonicalModel: options.canonicalModel as any,
-                providerId: providerId as any,
-                modelId: modelId,
-                status: 'SUCCESS',
-                latencyMs: Date.now() - startTime,
-                userId: options.userId
-            }).catch(console.error);
+            const startTime = Date.now();
+            try {
+                const provider = aiRegistry.getProvider(providerId);
 
-            // Increment Key Usage (Ideally update SystemSettings/LocalStorage, but complex from here without causing loops)
-            // We rely on 'db.ts' for metrics persistence if connected.
+                const requestOptions: AIRequestOptions = {
+                    model: modelConfig,
+                    prompt: options.prompt,
+                    systemPrompt: options.systemPrompt,
+                    temperature: options.temperature,
+                    jsonMode: options.jsonMode,
+                    tools: options.tools,
+                    baseUrl: providerConfig.baseUrl
+                };
 
-            return response;
+                if (options.onStream && provider.generateContentStream) {
+                    const text = await provider.generateContentStream(keyObj.key, requestOptions, options.onStream);
+                    response = { content: text };
+                } else {
+                     response = await provider.generateContent(keyObj.key, requestOptions);
+                }
 
-        } catch (error: any) {
-            lastError = error;
-            console.error(`AI Error (${providerId}):`, error);
+                // Log Success
+                logAIRequest({
+                    id: `${Date.now()}`,
+                    timestamp: new Date().toISOString(),
+                    canonicalModel: options.canonicalModel as any,
+                    providerId: providerId as any,
+                    modelId: modelId,
+                    status: 'SUCCESS',
+                    latencyMs: Date.now() - startTime,
+                    userId: options.userId
+                }).catch(console.error);
 
-            logAIRequest({
-                id: `${Date.now()}`,
-                timestamp: new Date().toISOString(),
-                canonicalModel: options.canonicalModel as any,
-                providerId: providerId as any,
-                modelId: modelId,
-                status: 'FAILURE',
-                errorMessage: error.message,
-                latencyMs: Date.now() - startTime,
-                userId: options.userId
-            }).catch(console.error);
+                success = true;
+                break; // Exit Key Loop
+
+            } catch (error: any) {
+                lastError = error;
+                console.warn(`AI Error (${providerId} - ${modelId}):`, error.message);
+
+                logAIRequest({
+                    id: `${Date.now()}`,
+                    timestamp: new Date().toISOString(),
+                    canonicalModel: options.canonicalModel as any,
+                    providerId: providerId as any,
+                    modelId: modelId,
+                    status: 'FAILURE',
+                    errorMessage: error.message,
+                    latencyMs: Date.now() - startTime,
+                    userId: options.userId
+                }).catch(console.error);
+
+                // Continue to next key
+            }
         }
+
+        if (success && response) {
+            return response;
+        }
+
+        // If we get here, this provider failed (all keys).
+        // Loop continues to next candidate.
     }
 
-    throw new Error(`AI Engine Failed: ${lastError?.message || "Unknown Error"}`);
+    throw new Error(`All AI Providers Failed. Last error: ${lastError?.message || "Unknown Error"}`);
 };
 
 // Helper for simple text response
