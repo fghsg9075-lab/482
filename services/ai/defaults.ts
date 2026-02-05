@@ -41,8 +41,8 @@ export const DEFAULT_MODELS: AIModelConfig[] = [
     { id: 'openai-gpt-4o-mini', providerId: 'openai', modelId: 'gpt-4o-mini', name: 'GPT-4o Mini', contextWindow: 128000, isEnabled: true, priority: 2 },
 
     // --- GEMINI ---
-    { id: 'gemini-1.5-pro', providerId: 'gemini', modelId: 'gemini-1.5-pro-001', name: 'Gemini 1.5 Pro', contextWindow: 2000000, isEnabled: true, priority: 1 },
-    { id: 'gemini-1.5-flash', providerId: 'gemini', modelId: 'gemini-1.5-flash-001', name: 'Gemini 1.5 Flash', contextWindow: 1000000, isEnabled: true, priority: 2 },
+    { id: 'gemini-1.5-pro', providerId: 'gemini', modelId: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', contextWindow: 2000000, isEnabled: true, priority: 1 },
+    { id: 'gemini-1.5-flash', providerId: 'gemini', modelId: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', contextWindow: 1000000, isEnabled: true, priority: 2 },
 
     // --- ANTHROPIC ---
     { id: 'claude-3-5-sonnet', providerId: 'anthropic', modelId: 'claude-3-5-sonnet-latest', name: 'Claude 3.5 Sonnet', contextWindow: 200000, isEnabled: true, priority: 1 },
