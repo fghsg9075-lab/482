@@ -442,6 +442,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
   }, [settings?.specialDiscountEvent]);
 
   // --- HERO SLIDER STATE ---
+  const [viewLayer, setViewLayer] = useState<'HERO' | 'LAYER2'>('HERO');
   const [currentSlide, setCurrentSlide] = useState(0);
   const slides = [
       { id: 1, title: "Ultra Subscription", subtitle: "Unlock Everything: Videos, PDFs & Tests", icon: <Crown className="text-yellow-400" size={40} />, btnText: "Get Access" },
@@ -1028,9 +1029,16 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
 
              {/* Timer Controls */}
              <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 flex gap-2 w-max">
-                 <button className="px-3 py-1 bg-slate-900 text-white rounded-full text-[10px] font-bold shadow-lg hover:scale-105 transition-transform border border-slate-700">15m</button>
-                 <button className="px-3 py-1 bg-slate-900 text-white rounded-full text-[10px] font-bold shadow-lg hover:scale-105 transition-transform border border-slate-700">30m</button>
-                 <button className="px-3 py-1 bg-slate-900 text-white rounded-full text-[10px] font-bold shadow-lg hover:scale-105 transition-transform border border-slate-700">1h</button>
+                 <button onClick={() => setDailyTargetSeconds(15*60)} className="px-3 py-1 bg-slate-900 text-white rounded-full text-[10px] font-bold shadow-lg hover:scale-105 transition-transform border border-slate-700">15m</button>
+                 <button onClick={() => setDailyTargetSeconds(30*60)} className="px-3 py-1 bg-slate-900 text-white rounded-full text-[10px] font-bold shadow-lg hover:scale-105 transition-transform border border-slate-700">30m</button>
+                 <button onClick={() => setDailyTargetSeconds(60*60)} className="px-3 py-1 bg-slate-900 text-white rounded-full text-[10px] font-bold shadow-lg hover:scale-105 transition-transform border border-slate-700">1h</button>
+                 <button onClick={() => {
+                     const input = prompt("Enter study goal in minutes:", "180");
+                     if (input) {
+                         const mins = parseInt(input);
+                         if (!isNaN(mins) && mins > 0) setDailyTargetSeconds(mins * 60);
+                     }
+                 }} className="px-3 py-1 bg-indigo-600 text-white rounded-full text-[10px] font-bold shadow-lg hover:scale-105 transition-transform border border-indigo-400">Custom</button>
              </div>
          </div>
 
@@ -1080,15 +1088,36 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                      <p className="text-xs font-black text-slate-800 leading-tight">Mixed Quiz (15m)</p>
                  </div>
              </button>
+
+             {/* Video Lectures */}
+             <button onClick={() => onTabChange('VIDEO')} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-start gap-2 hover:bg-slate-50 transition-colors text-left group">
+                 <div className="p-2 bg-red-100 rounded-lg text-red-600 group-hover:bg-red-200 transition-colors">
+                     <Play size={18} fill="currentColor" />
+                 </div>
+                 <div>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase">Video Lectures</p>
+                     <p className="text-xs font-black text-slate-800 leading-tight">Watch Videos</p>
+                 </div>
+             </button>
+
+             {/* Course Material */}
+             <button onClick={() => onTabChange('COURSES')} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-start gap-2 hover:bg-slate-50 transition-colors text-left group">
+                 <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600 group-hover:bg-indigo-200 transition-colors">
+                     <Book size={18} />
+                 </div>
+                 <div>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase">Study Material</p>
+                     <p className="text-xs font-black text-slate-800 leading-tight">All Courses</p>
+                 </div>
+             </button>
          </div>
 
          {/* Navigation to Layer 2 */}
          <button
-             onClick={() => smartSlideRef.current?.scrollIntoView({ behavior: 'smooth' })}
-             className="mt-8 flex flex-col items-center gap-1 text-slate-400 hover:text-slate-600 transition-colors animate-bounce cursor-pointer"
+             onClick={() => setViewLayer('LAYER2')}
+             className="mt-8 mx-auto bg-slate-900 text-white px-8 py-3 rounded-full font-bold text-xs shadow-lg flex items-center gap-2 animate-bounce-slow"
          >
-             <span className="text-[10px] font-bold uppercase tracking-widest">Explore More</span>
-             <ChevronsDown size={24} />
+             Explore Features <ChevronsDown size={16} />
          </button>
       </div>
     );
@@ -1283,22 +1312,28 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                     </div>
                 </div>
 
-                {renderHeroLayer()}
+                {/* LAYER SWITCHER: HERO vs SLIDE */}
+                {viewLayer === 'HERO' ? (
+                   renderHeroLayer()
+                ) : (
+                   /* Layer 2: SMART SLIDE (Now Conditional View) */
+                   <div ref={smartSlideRef} className="bg-slate-50 min-h-screen pt-8 pb-32 animate-in slide-in-from-bottom-10 duration-500">
 
-                {/* Layer 2: SMART SLIDE (Swipe Up Layer) */}
-                <div ref={smartSlideRef} className="bg-slate-50 rounded-t-[2.5rem] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] pt-8 pb-32 -mt-6 relative z-10 min-h-screen">
+                       {/* Back to Hero Button */}
+                       <div className="absolute top-6 right-6 z-20">
+                           <button
+                               onClick={() => setViewLayer('HERO')}
+                               className="p-2 bg-white/80 backdrop-blur-sm rounded-full text-slate-400 hover:bg-white hover:text-slate-600 shadow-sm border border-slate-200 transition-all"
+                           >
+                               <ChevronsUp size={20} />
+                           </button>
+                       </div>
 
-                    {/* Back to Hero Button */}
-                    <div className="absolute top-6 right-6 z-20">
-                        <button
-                            onClick={() => heroRef.current?.scrollIntoView({ behavior: 'smooth' })}
-                            className="p-2 bg-white/80 backdrop-blur-sm rounded-full text-slate-400 hover:bg-white hover:text-slate-600 shadow-sm border border-slate-200 transition-all"
-                        >
-                            <ChevronsUp size={20} />
-                        </button>
-                    </div>
-
-                    <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6"></div> {/* Swipe Handle */}
+                       {/* Header Title for Layer 2 */}
+                       <div className="px-6 mb-6">
+                           <h2 className="text-2xl font-black text-slate-800">Explore</h2>
+                           <p className="text-sm text-slate-500">Discover all features & content</p>
+                       </div>
 
                     <div className="px-2 space-y-4">
 
@@ -1575,6 +1610,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                   </DashboardSectionWrapper>
               </div>
               </div>
+              )}
               </div>
           );
       }

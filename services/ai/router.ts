@@ -108,7 +108,12 @@ export const executeCanonicalRaw = async (options: RouterExecuteOptions): Promis
     }
 
     const primaryProviderId = mapping.providerId;
-    const primaryModelId = mapping.modelId;
+    let primaryModelId = mapping.modelId;
+
+    // FIX: Force correct model ID for Gemini if deprecated one is found
+    if (primaryModelId === 'gemini-1.5-flash-latest') {
+        primaryModelId = 'gemini-1.5-flash';
+    }
 
     // Define Fallback Chain (Hardcoded strategy for robustness if primary fails)
     // In a future update, this could be configurable in SystemSettings.
