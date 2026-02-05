@@ -462,6 +462,30 @@ export interface SystemSettings {
       BASIC: string[];
       ULTRA: string[];
   };
+
+  // AI OPERATING SYSTEM (ZONE C)
+  aiProviderConfig?: AIProvider[];
+  aiCanonicalMap?: Record<string, { providerId: AIProviderID, modelId: string }>; // "NOTES_ENGINE" -> { providerId: 'groq', modelId: 'llama-3.1-70b-versatile' }
+}
+
+export type AIProviderID = 'openai' | 'gemini' | 'claude' | 'groq' | 'together' | 'fireworks' | 'anyscale' | 'mistral' | 'deepseek' | 'qwen' | 'yi' | 'baichuan' | 'zhipu' | 'perplexity' | 'openrouter' | 'ollama' | 'lm_studio' | 'vllm' | 'gpt4all' | 'localai' | 'huggingface' | 'replicate' | 'modal';
+
+export interface AIModel {
+    id: string; // e.g., 'gpt-4o'
+    name: string; // Display Name
+    isLegacy?: boolean; // Avoid if true
+    costPerToken?: number; // Optional tracking
+}
+
+export interface AIProvider {
+    id: AIProviderID;
+    name: string; // "OpenAI", "Groq"
+    isEnabled: boolean;
+    apiKeys: { key: string, addedAt: string, usageCount: number, isExhausted: boolean, lastUsed?: string }[];
+    models: AIModel[];
+    selectedModelId?: string; // The specific model selected for this provider
+    priority: number; // 1 = Primary, 2 = Fallback, etc.
+    baseUrl?: string; // For Local AI or custom endpoints
 }
 
 export interface ContentInfoItem {

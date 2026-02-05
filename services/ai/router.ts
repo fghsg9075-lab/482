@@ -1,55 +1,59 @@
 import { aiRegistry } from "./registry";
-import { getAIKeys, getCanonicalMappings, getAIModels, logAIRequest, incrementKeyUsage, recordModelFailure, resetModelFailure, getAIProviders } from "./db";
+import { logAIRequest, incrementKeyUsage, recordModelFailure, resetModelFailure } from "./db"; // Keep logging logic
 import { CanonicalModel, AIKey, AIModelConfig, AILog, AIProviderType, AIProviderConfig } from "./types";
 import { AIRequestOptions, AIResponse } from "./providers/base";
+import { MASTER_AI_PROVIDERS, DEFAULT_AI_MAPPINGS } from "../../constants";
+import { SystemSettings, AIProvider } from "../../types";
 
-// Simple in-memory cache to avoid hitting Firestore on every request
-// In a real app, use a robust caching layer (Redis or LocalStorage with expiration)
-let mappingCache: Record<string, any> | null = null;
-let modelCache: AIModelConfig[] | null = null;
-let providerCache: AIProviderConfig[] | null = null;
-let keyCache: Record<string, AIKey[]> = {};
+// In-memory cache
+let settingsCache: SystemSettings | null = null;
 let keyIndexMap: Record<string, number> = {}; // For Round Robin
 
-const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 Minutes
+const REFRESH_INTERVAL = 1000; // 1 Second (since localStorage is fast)
 let lastRefresh = 0;
 
 const ensureConfigLoaded = async () => {
-    if (Date.now() - lastRefresh < REFRESH_INTERVAL && mappingCache && modelCache) {
+    if (Date.now() - lastRefresh < REFRESH_INTERVAL && settingsCache) {
         return;
     }
 
-    // Parallel Fetch
-    const [mappings, models, allKeys, providers] = await Promise.all([
-        getCanonicalMappings(),
-        getAIModels(),
-        getAIKeys(), // Fetch all keys securely
-        getAIProviders()
-    ]);
-
-    mappingCache = mappings;
-    modelCache = models;
-    providerCache = providers;
-
-    // Group keys by provider
-    keyCache = {};
-    allKeys.forEach(k => {
-        if (!keyCache[k.providerId]) keyCache[k.providerId] = [];
-        keyCache[k.providerId].push(k);
-    });
+    try {
+        const stored = localStorage.getItem('nst_system_settings');
+        if (stored) {
+            settingsCache = JSON.parse(stored);
+        } else {
+            // Fallback mock settings if empty
+            settingsCache = {
+                appName: 'IIC',
+                aiProviderConfig: MASTER_AI_PROVIDERS,
+                aiCanonicalMap: DEFAULT_AI_MAPPINGS
+            } as any;
+        }
+    } catch (e) {
+        console.error("Failed to load AI Settings:", e);
+    }
 
     lastRefresh = Date.now();
 };
 
-const getKeysForProvider = (providerId: string): AIKey[] => {
-    // If local/ollama, return a dummy key if none exist
-    if (providerId === 'ollama' || providerId === 'local') {
-        return [{ id: 'local-key', key: 'local', providerId: 'ollama', usageCount: 0, dailyUsageCount: 0, limit: 99999, isExhausted: false, lastUsed: '', status: 'ACTIVE' }];
-    }
-    return (keyCache[providerId] || []).filter(k => k.status === 'ACTIVE' && !k.isExhausted);
+const getProviderConfig = (providerId: string): AIProvider | undefined => {
+    const config = settingsCache?.aiProviderConfig || MASTER_AI_PROVIDERS;
+    return config.find(p => p.id === providerId);
 };
 
-const getNextKey = (providerId: string): AIKey | null => {
+const getKeysForProvider = (providerId: string): { key: string, id: string }[] => {
+    const provider = getProviderConfig(providerId);
+    if (!provider || !provider.isEnabled) return [];
+
+    // Filter active keys
+    // In new SystemSettings, keys are strings or objects?
+    // Types.ts says: apiKeys: { key: string, ... }[]
+    return provider.apiKeys
+        .filter(k => !k.isExhausted)
+        .map((k, idx) => ({ key: k.key, id: `${providerId}-key-${idx}` }));
+};
+
+const getNextKey = (providerId: string): { key: string, id: string } | null => {
     const keys = getKeysForProvider(providerId);
     if (keys.length === 0) return null;
 
@@ -63,25 +67,8 @@ const getNextKey = (providerId: string): AIKey | null => {
     return key;
 };
 
-// DEFAULTS if DB is empty (Bootstrap)
-const DEFAULT_MAPPINGS: Record<CanonicalModel, string[]> = {
-    'NOTES_ENGINE': ['groq-llama-3.1-8b', 'gemini-1.5-flash'],
-    'MCQ_ENGINE': ['groq-llama-3.1-8b', 'gemini-1.5-flash'],
-    'CHAT_ENGINE': ['gemini-1.5-flash', 'groq-llama-3.1-8b'],
-    'ANALYSIS_ENGINE': ['gemini-1.5-flash', 'groq-mixtral-8x7b'],
-    'VISION_ENGINE': ['gemini-1.5-flash'],
-    'TRANSLATION_ENGINE': ['gemini-1.5-flash'],
-    'ADMIN_ENGINE': ['gemini-1.5-flash']
-};
-
-const DEFAULT_MODELS: Record<string, AIModelConfig> = {
-    'groq-llama-3.1-8b': { id: 'groq-llama-3.1-8b', providerId: 'groq', modelId: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B', contextWindow: 8192, isEnabled: true },
-    'groq-mixtral-8x7b': { id: 'groq-mixtral-8x7b', providerId: 'groq', modelId: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B', contextWindow: 32768, isEnabled: true },
-    'gemini-1.5-flash': { id: 'gemini-1.5-flash', providerId: 'gemini', modelId: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', contextWindow: 1000000, isEnabled: true },
-};
-
 export interface RouterExecuteOptions {
-    canonicalModel: CanonicalModel;
+    canonicalModel: string; // "NOTES_ENGINE" etc
     prompt: string;
     systemPrompt?: string;
     temperature?: number;
@@ -95,125 +82,108 @@ export interface RouterExecuteOptions {
 export const executeCanonicalRaw = async (options: RouterExecuteOptions): Promise<AIResponse> => {
     await ensureConfigLoaded();
 
-    // 1. Resolve Chain of Models
-    let modelChain: string[] = [];
-    const mapping = mappingCache?.[options.canonicalModel];
+    const canonicalMap = settingsCache?.aiCanonicalMap || DEFAULT_AI_MAPPINGS;
+    const mapping = canonicalMap[options.canonicalModel]; // { providerId, modelId }
 
-    if (mapping) {
-        modelChain = [mapping.primaryModelId, ...mapping.fallbackModelIds];
-    } else {
-        modelChain = DEFAULT_MAPPINGS[options.canonicalModel] || [];
+    if (!mapping) {
+        throw new Error(`No mapping found for engine: ${options.canonicalModel}`);
     }
 
-    if (modelChain.length === 0) {
-        throw new Error(`No models mapped for ${options.canonicalModel}`);
+    const providerId = mapping.providerId;
+    const modelId = mapping.modelId;
+
+    // TODO: Fallback Chain Logic
+    // Current Simple Logic: Just try the mapped provider/model.
+    // Ideally we should look up if settings allow fallback.
+    // For now, we stick to the primary mapped model.
+
+    // 1. Get Provider
+    const providerConfig = getProviderConfig(providerId);
+    if (!providerConfig || !providerConfig.isEnabled) {
+        throw new Error(`Provider ${providerId} is disabled or not configured.`);
     }
 
-    // 2. Try Each Model in Chain
+    // 2. Resolve Model Config
+    // We construct AIModelConfig on the fly
+    const modelConfig: AIModelConfig = {
+        id: modelId,
+        providerId: providerId as any,
+        modelId: modelId,
+        name: modelId,
+        contextWindow: 128000, // Default assumption
+        isEnabled: true
+    };
+
+    // 3. Key Rotation Loop
+    const keysToTry = 2;
     let lastError: any = null;
 
-    for (const modelConfigId of modelChain) {
-        // Resolve Model Config
-        const modelConfig = modelCache?.find(m => m.id === modelConfigId) || DEFAULT_MODELS[modelConfigId];
+    for (let k = 0; k < keysToTry; k++) {
+        const keyObj = getNextKey(providerId);
 
-        if (!modelConfig || !modelConfig.isEnabled) {
-            console.warn(`Model ${modelConfigId} not found or disabled. Skipping.`);
-            continue;
+        if (!keyObj) {
+            console.warn(`No active keys for provider ${providerId}.`);
+            break;
         }
 
-        const providerId = modelConfig.providerId;
+        const startTime = Date.now();
+        try {
+            const provider = aiRegistry.getProvider(providerId);
 
-        // 3. Key Rotation Loop (Try up to 2 keys for the same model if one fails with 429)
-        const keysToTry = 2;
-        for (let k = 0; k < keysToTry; k++) {
-            const key = getNextKey(providerId);
+            const requestOptions: AIRequestOptions = {
+                model: modelConfig,
+                prompt: options.prompt,
+                systemPrompt: options.systemPrompt,
+                temperature: options.temperature,
+                jsonMode: options.jsonMode,
+                tools: options.tools,
+                baseUrl: providerConfig.baseUrl // Use configured base URL
+            };
 
-            if (!key) {
-                console.warn(`No active keys for provider ${providerId}. Skipping.`);
-                break; // Skip to next model
+            let response: AIResponse;
+            if (options.onStream && provider.generateContentStream) {
+                const text = await provider.generateContentStream(keyObj.key, requestOptions, options.onStream);
+                response = { content: text };
+            } else {
+                 response = await provider.generateContent(keyObj.key, requestOptions);
             }
 
-            const startTime = Date.now();
-            try {
-                const provider = aiRegistry.getProvider(providerId);
-                const providerConfig = providerCache?.find(p => p.id === providerId);
-                const baseUrl = providerConfig?.baseUrl;
+            // Async Log (Fire & Forget)
+            logAIRequest({
+                id: `${Date.now()}`,
+                timestamp: new Date().toISOString(),
+                canonicalModel: options.canonicalModel as any,
+                providerId: providerId as any,
+                modelId: modelId,
+                status: 'SUCCESS',
+                latencyMs: Date.now() - startTime,
+                userId: options.userId
+            }).catch(console.error);
 
-                // EXECUTE
-                let response: AIResponse;
+            // Increment Key Usage (Ideally update SystemSettings/LocalStorage, but complex from here without causing loops)
+            // We rely on 'db.ts' for metrics persistence if connected.
 
-                const requestOptions: AIRequestOptions = {
-                    model: modelConfig,
-                    prompt: options.prompt,
-                    systemPrompt: options.systemPrompt,
-                    temperature: options.temperature,
-                    jsonMode: options.jsonMode,
-                    tools: options.tools,
-                    baseUrl: baseUrl // INJECT BASE URL
-                };
+            return response;
 
-                if (options.onStream && provider.generateContentStream) {
-                    const text = await provider.generateContentStream(key.key, requestOptions, options.onStream);
-                    response = { content: text };
-                } else {
-                     response = await provider.generateContent(key.key, requestOptions);
-                }
+        } catch (error: any) {
+            lastError = error;
+            console.error(`AI Error (${providerId}):`, error);
 
-                // SUCCESS HANDLERS (MUST HAVE)
-                // 1. Log Success
-                await logAIRequest({
-                    id: `${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-                    timestamp: new Date().toISOString(),
-                    canonicalModel: options.canonicalModel,
-                    providerId: providerId as AIProviderType,
-                    modelId: modelConfig.modelId,
-                    status: 'SUCCESS',
-                    latencyMs: Date.now() - startTime,
-                    userId: options.userId
-                });
-
-                // 2. Increment Usage (Real Tracking)
-                incrementKeyUsage(key.id, modelConfigId, providerId);
-
-                // 3. Reset Failure Count (Self-Healing)
-                resetModelFailure(modelConfigId);
-
-                return response;
-
-            } catch (error: any) {
-                lastError = error;
-                const errMsg = error.message || "";
-
-                // LOG FAILURE
-                await logAIRequest({
-                    id: `${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-                    timestamp: new Date().toISOString(),
-                    canonicalModel: options.canonicalModel,
-                    providerId: providerId as AIProviderType,
-                    modelId: modelConfig.modelId,
-                    status: 'FAILURE',
-                    errorMessage: errMsg,
-                    latencyMs: Date.now() - startTime,
-                    userId: options.userId
-                });
-
-                // Handle Specific Errors
-                if (errMsg.includes("429") || errMsg.includes("Quota") || errMsg.includes("Rate limit")) {
-                    console.warn(`Key ${key.id} rate limited. Rotating...`);
-                    // Rate limits are KEY issues, not MODEL issues usually (unless service down)
-                    // So we DON'T disable the model, we just try next key.
-                } else {
-                    console.error(`Error with ${modelConfigId}: ${errMsg}. Switching Model.`);
-                    // FAILURE HANDLER (MUST HAVE)
-                    // If not a rate limit, it's likely a model/provider issue.
-                    recordModelFailure(modelConfigId);
-                    break; // Break key loop, try next model
-                }
-            }
+            logAIRequest({
+                id: `${Date.now()}`,
+                timestamp: new Date().toISOString(),
+                canonicalModel: options.canonicalModel as any,
+                providerId: providerId as any,
+                modelId: modelId,
+                status: 'FAILURE',
+                errorMessage: error.message,
+                latencyMs: Date.now() - startTime,
+                userId: options.userId
+            }).catch(console.error);
         }
     }
 
-    throw new Error(`AI Engine Failed: All models exhausted. Last Error: ${lastError?.message}`);
+    throw new Error(`AI Engine Failed: ${lastError?.message || "Unknown Error"}`);
 };
 
 // Helper for simple text response

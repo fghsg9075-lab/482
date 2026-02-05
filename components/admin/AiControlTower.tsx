@@ -1,22 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import {
-    getAIKeys, getAIModels, getAIProviders, getCanonicalMappings,
-    saveAIKey, saveAIModel, saveCanonicalMapping, saveAIProvider, subscribeToAILogs,
-    toggleAIModel, toggleAIProvider
-} from '../../services/ai/db';
-import {
-    AIKey, AIModelConfig, AIProviderConfig, AICanonicalMapping,
-    AILog, CanonicalModel, AIProviderType
-} from '../../services/ai/types';
-import { DEFAULT_PROVIDERS, DEFAULT_MODELS, DEFAULT_MAPPINGS_FULL } from '../../services/ai/defaults';
-import { RefreshCw, Plus, Trash2, CheckCircle, XCircle, Activity, Server, Key, Brain, RotateCcw, Save, AlertTriangle, Play, Pause, Rocket, Zap } from 'lucide-react';
+import { MASTER_AI_PROVIDERS } from '../../constants';
+import { AIProvider, SystemSettings, AIModel, AIProviderID } from '../../types';
+import { RefreshCw, Plus, Trash2, CheckCircle, XCircle, Activity, Server, Key, Brain, RotateCcw, Save, AlertTriangle, Play, Pause, Rocket, Zap, Edit3, Lock } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { aiRegistry } from '../../services/ai/registry';
 
 const cn = (...inputs: (string | undefined | null | false)[]) => twMerge(clsx(inputs));
 
-// --- SUB COMPONENTS ---
+interface Props {
+    settings: SystemSettings;
+    onUpdateSettings: (s: SystemSettings) => void;
+}
 
 const StatusCard = ({ title, value, sub, color, icon: Icon }: any) => (
     <div className="p-4 rounded-xl border border-white/10 bg-gradient-to-br from-white/5 to-transparent relative overflow-hidden group hover:border-white/20 transition-all">
@@ -44,562 +38,272 @@ const TabButton = ({ id, label, icon: Icon, activeTab, setActiveTab }: any) => (
     </button>
 );
 
-const TableHeader = ({ children }: { children: React.ReactNode }) => (
-    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider bg-black/20 border-b border-white/5 first:rounded-tl-lg last:rounded-tr-lg">
-        {children}
-    </th>
-);
+export const AiControlTower: React.FC<Props> = ({ settings, onUpdateSettings }) => {
+    const [activeTab, setActiveTab] = useState<'STATUS' | 'PROVIDERS' | 'KEYS' | 'MAPPING'>('STATUS');
+    const [providers, setProviders] = useState<AIProvider[]>([]);
 
-const TableRow = ({ children, className }: { children: React.ReactNode, className?: string }) => (
-    <tr className={cn("hover:bg-white/5 transition-colors border-b border-white/5 last:border-0", className)}>
-        {children}
-    </tr>
-);
-
-const TableCell = ({ children, className }: { children: React.ReactNode, className?: string }) => (
-    <td className={cn("px-4 py-3 text-sm whitespace-nowrap", className)}>
-        {children}
-    </td>
-);
-
-export const AiControlTower: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<'STATUS' | 'PROVIDERS' | 'MODELS' | 'MAPPING' | 'KEYS' | 'LOGS'>('STATUS');
-
-    // Data State
-    const [providers, setProviders] = useState<AIProviderConfig[]>([]);
-    const [models, setModels] = useState<AIModelConfig[]>([]);
-    const [keys, setKeys] = useState<AIKey[]>([]);
-    const [mappings, setMappings] = useState<Record<string, AICanonicalMapping>>({});
-    const [logs, setLogs] = useState<AILog[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [isUsingDefaults, setIsUsingDefaults] = useState(false);
-
-    // Test State
-    const [testingKeyId, setTestingKeyId] = useState<string | null>(null);
-
-    // Form State
-    const [newKey, setNewKey] = useState({ key: '', provider: 'openai', name: '' });
-
-    const refreshData = async () => {
-        setLoading(true);
-        try {
-            let [p, m, k, map] = await Promise.all([
-                getAIProviders(),
-                getAIModels(),
-                getAIKeys(),
-                getCanonicalMappings()
-            ]);
-
-            // Auto-Seed View with Defaults if DB is empty
-            if (p.length === 0) {
-                console.log("AI System: No config found in DB, loading defaults for display.");
-                p = DEFAULT_PROVIDERS;
-                m = DEFAULT_MODELS;
-                // Convert list to map
-                const mapObj: Record<string, AICanonicalMapping> = {};
-                DEFAULT_MAPPINGS_FULL.forEach(mapping => {
-                    mapObj[mapping.canonicalModel] = mapping;
-                });
-                map = mapObj;
-                setIsUsingDefaults(true);
-            } else {
-                setIsUsingDefaults(false);
-            }
-
-            setProviders(p);
-            setModels(m);
-            setKeys(k);
-            setMappings(map);
-        } catch (error) {
-            console.error("Failed to load AI data:", error);
-        }
-        setLoading(false);
-    };
-
-    const handleInitializeDatabase = async () => {
-        if (!confirm("Initialize AI Database with Factory Defaults? This will save all currently visible providers and models to the database.")) return;
-        setLoading(true);
-        try {
-            // Providers
-            for (const p of DEFAULT_PROVIDERS) await saveAIProvider(p);
-            // Models
-            for (const m of DEFAULT_MODELS) await saveAIModel(m);
-            // Mappings
-            for (const map of DEFAULT_MAPPINGS_FULL) await saveCanonicalMapping(map);
-
-            await refreshData();
-            alert("AI Brain Successfully Initialized!");
-        } catch(e) {
-            console.error(e);
-            alert("Error initializing defaults.");
-        }
-        setLoading(false);
-    };
-
-    const handleToggleProvider = async (id: AIProviderType, current: boolean) => {
-        if (isUsingDefaults) {
-             const confirmInit = confirm("System is in View Mode. To edit, we must initialize the database first. Proceed?");
-             if(confirmInit) {
-                 await handleInitializeDatabase();
-                 // After init, toggle
-                 await toggleAIProvider(id, !current);
-                 refreshData();
-             }
-             return;
-        }
-        await toggleAIProvider(id, !current);
-        refreshData();
-    };
-
-    const verifyKey = async (key: AIKey) => {
-        setTestingKeyId(key.id);
-        try {
-            // 1. Get Provider from Registry (or Mock)
-            // Note: In real app, we need the provider implementation.
-            // Registry is in services/ai/registry.ts.
-            const provider = aiRegistry.getProvider(key.providerId);
-
-            // 2. Validate
-            let isValid = false;
-
-            // Basic validation
-            if (provider.validate) {
-                isValid = await provider.validate(key.key);
-            } else {
-                // Fallback: Try a small generation
-                try {
-                    const testModel = models.find(m => m.providerId === key.providerId && m.isEnabled);
-                    if (testModel) {
-                        await provider.generateContent(key.key, {
-                            model: testModel,
-                            prompt: "Hello",
-                            maxTokens: 5
-                        });
-                        isValid = true;
-                    } else {
-                        // Just checking format if no model
-                        isValid = key.key.length > 10;
-                    }
-                } catch(e) {
-                    console.error("Validation Call Failed:", e);
-                    isValid = false;
-                }
-            }
-
-            if (isValid) {
-                alert(`✅ Key Verified! ${provider.id} is accepting this key.`);
-            } else {
-                alert(`❌ Key Validation Failed. Please check the key.`);
-            }
-
-        } catch (e: any) {
-            alert(`⚠️ Error testing key: ${e.message}`);
-        } finally {
-            setTestingKeyId(null);
-        }
-    };
-
+    // Initialize or Sync Providers
     useEffect(() => {
-        refreshData();
-        const unsubscribe = subscribeToAILogs((newLogs) => setLogs(newLogs));
-        return () => unsubscribe();
-    }, []);
+        if (settings.aiProviderConfig && settings.aiProviderConfig.length > 0) {
+            setProviders(settings.aiProviderConfig);
+        } else {
+            // Seed with Master Defaults
+            setProviders(MASTER_AI_PROVIDERS);
+        }
+    }, [settings.aiProviderConfig]);
 
-    // --- TAB CONTENT ---
-
-    const renderStatus = () => {
-        const totalCalls = logs.length;
-        const failedCalls = logs.filter(l => l.status === 'FAILURE').length;
-        const successRate = totalCalls > 0 ? ((totalCalls - failedCalls) / totalCalls) * 100 : 100;
-        const activeKeyCount = keys.filter(k => k.status === 'ACTIVE').length;
-
-        return (
-            <div className="space-y-6 animate-in fade-in duration-500">
-                {isUsingDefaults && (
-                    <div className="bg-red-500/10 border-2 border-red-500/50 p-6 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-6 animate-pulse">
-                        <div className="flex items-start gap-4">
-                            <div className="p-3 bg-red-500/20 rounded-full text-red-500">
-                                <AlertTriangle size={32} />
-                            </div>
-                            <div>
-                                <h3 className="text-xl font-black text-red-500 uppercase tracking-wide">⚠️ System in Dummy Mode</h3>
-                                <p className="text-sm text-red-200 mt-1 max-w-xl">
-                                    The AI Operating System is currently reading from hardcoded defaults.
-                                    Real-time routing, key rotation, and usage tracking are <strong>DISABLED</strong>.
-                                </p>
-                                <div className="mt-3 flex gap-4 text-xs font-mono text-red-300">
-                                    <span className="flex items-center gap-1">❌ No Database Connection</span>
-                                    <span className="flex items-center gap-1">❌ No Live Keys</span>
-                                </div>
-                            </div>
-                        </div>
-                        <button
-                            onClick={handleInitializeDatabase}
-                            className="w-full md:w-auto px-8 py-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black text-lg shadow-lg shadow-red-500/20 flex items-center justify-center gap-3 transition-transform hover:scale-105"
-                        >
-                            <Rocket size={24} />
-                            GO LIVE (Initialize DB)
-                        </button>
-                    </div>
-                )}
-
-                {!isUsingDefaults && activeKeyCount === 0 && (
-                     <div className="bg-orange-500/10 border border-orange-500/20 p-4 rounded-xl flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <Key className="text-orange-500" />
-                            <div>
-                                <h3 className="font-bold text-orange-500">No Active API Keys</h3>
-                                <p className="text-sm opacity-70">System is initialized but needs keys to function. Add keys in the "API Keys" tab.</p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={() => setActiveTab('KEYS')}
-                            className="bg-orange-500 hover:bg-orange-400 text-black px-4 py-2 rounded-lg font-bold text-sm"
-                        >
-                            + Add Keys
-                        </button>
-                    </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <StatusCard title="AI Providers" value={providers.length} sub={`${providers.filter(p => p.isEnabled).length} Active`} color="text-blue-400" icon={Server} />
-                    <StatusCard title="Model Registry" value={models.length} sub="Across all tiers" color="text-purple-400" icon={Brain} />
-                    <StatusCard title="API Keys" value={keys.length} sub={`${activeKeyCount} Operational`} color="text-green-400" icon={Key} />
-                    <StatusCard title="Health Score" value={`${Math.round(successRate)}%`} sub={`${logs.length} Transactions`} color={successRate > 90 ? "text-green-400" : "text-red-400"} icon={Activity} />
-                </div>
-
-                <div className="bg-gray-900/50 rounded-xl border border-white/10 overflow-hidden">
-                    <div className="p-4 border-b border-white/5 flex justify-between items-center">
-                        <h3 className="font-bold flex items-center gap-2">
-                            <Activity size={18} className="text-blue-400"/> System Pulse
-                        </h3>
-                        <span className="text-xs opacity-50 font-mono">Realtime</span>
-                    </div>
-                    <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
-                        <table className="w-full text-sm">
-                            <thead className="sticky top-0 bg-[#0F172A] z-10">
-                                <tr>
-                                    <TableHeader>Time</TableHeader>
-                                    <TableHeader>Canonical Route</TableHeader>
-                                    <TableHeader>Resolved Model</TableHeader>
-                                    <TableHeader>Latency</TableHeader>
-                                    <TableHeader>Status</TableHeader>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {logs.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={5} className="p-8 text-center opacity-30">No activity recorded yet</td>
-                                    </tr>
-                                ) : logs.slice(0, 20).map(log => (
-                                    <TableRow key={log.id}>
-                                        <TableCell><span className="opacity-50 font-mono">{new Date(log.timestamp).toLocaleTimeString()}</span></TableCell>
-                                        <TableCell><span className="font-bold text-yellow-400">{log.canonicalModel}</span></TableCell>
-                                        <TableCell><span className="text-blue-300 font-mono text-xs">{log.modelId}</span></TableCell>
-                                        <TableCell>{log.latencyMs}ms</TableCell>
-                                        <TableCell>
-                                            <span className={cn(
-                                                "px-2 py-0.5 rounded text-[10px] font-bold",
-                                                log.status === 'SUCCESS' ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
-                                            )}>
-                                                {log.status}
-                                            </span>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        );
+    const handleSave = (updatedProviders: AIProvider[]) => {
+        setProviders(updatedProviders);
+        onUpdateSettings({ ...settings, aiProviderConfig: updatedProviders });
     };
 
-    const renderProviders = () => (
-        <div className="space-y-4">
-             <div className="bg-gray-900/50 rounded-xl border border-white/10 overflow-hidden">
-                <table className="w-full text-sm">
-                    <thead>
-                        <tr>
-                            <TableHeader>Provider</TableHeader>
-                            <TableHeader>Base URL</TableHeader>
-                            <TableHeader>Configured Keys</TableHeader>
-                            <TableHeader>Status</TableHeader>
-                            <TableHeader>Actions</TableHeader>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {providers.map(p => {
-                            const keyCount = keys.filter(k => k.providerId === p.id).length;
-                            return (
-                                <TableRow key={p.id}>
-                                    <TableCell>
-                                        <div className="flex items-center gap-3">
-                                            {p.icon && <img src={p.icon} className="w-6 h-6 rounded bg-white/10 p-0.5" alt="" />}
-                                            <span className="font-medium">{p.name}</span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell><span className="font-mono text-xs opacity-50">{p.baseUrl || 'Default'}</span></TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-2">
-                                            <Key size={12} className={keyCount > 0 ? "text-green-400" : "text-gray-600"} />
-                                            <span>{keyCount}</span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <span className={cn("px-2 py-1 rounded text-xs font-bold", p.isEnabled ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400")}>
-                                            {p.isEnabled ? 'ONLINE' : 'OFFLINE'}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell>
-                                        <button
-                                            onClick={() => handleToggleProvider(p.id, p.isEnabled)}
-                                            className={cn("p-1.5 rounded hover:bg-white/10 transition-colors")}
-                                            title={p.isEnabled ? "Disable Provider" : "Enable Provider"}
-                                        >
-                                            {p.isEnabled ? <Pause size={16} /> : <Play size={16} />}
-                                        </button>
-                                    </TableCell>
-                                </TableRow>
-                            );
-                        })}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    );
+    const toggleProvider = (id: AIProviderID) => {
+        const updated = providers.map(p => p.id === id ? { ...p, isEnabled: !p.isEnabled } : p);
+        handleSave(updated);
+    };
 
-    const renderModels = () => (
-        <div className="space-y-4">
-            <div className="bg-gray-900/50 rounded-xl border border-white/10 overflow-hidden">
-                <table className="w-full text-sm">
-                    <thead>
-                        <tr>
-                            <TableHeader>Model ID</TableHeader>
-                            <TableHeader>Provider</TableHeader>
-                            <TableHeader>Context Window</TableHeader>
-                            <TableHeader>Priority</TableHeader>
-                            <TableHeader>Status</TableHeader>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {models.map(m => (
-                            <TableRow key={m.id}>
-                                <TableCell><span className="font-bold">{m.name}</span> <div className="text-xs opacity-50 font-mono">{m.modelId}</div></TableCell>
-                                <TableCell>
-                                    <span className="px-2 py-1 rounded bg-white/5 text-xs uppercase tracking-wide opacity-70">
-                                        {m.providerId}
-                                    </span>
-                                </TableCell>
-                                <TableCell>{(m.contextWindow / 1000).toFixed(0)}k tokens</TableCell>
-                                <TableCell>
-                                    <div className="flex items-center gap-1">
-                                        <span className="text-xs opacity-50">Tier</span>
-                                        <span className="font-bold text-blue-400">{m.priority || 1}</span>
-                                    </div>
-                                </TableCell>
-                                <TableCell>
-                                     <span className={cn("px-2 py-1 rounded text-xs font-bold", m.isEnabled ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400")}>
-                                            {m.isEnabled ? 'Active' : 'Disabled'}
-                                    </span>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    );
+    const addKey = (providerId: AIProviderID, keyStr: string) => {
+        if (!keyStr.trim()) return;
+        const updated = providers.map(p => {
+            if (p.id === providerId) {
+                return {
+                    ...p,
+                    apiKeys: [...p.apiKeys, {
+                        key: keyStr.trim(),
+                        addedAt: new Date().toISOString(),
+                        usageCount: 0,
+                        isExhausted: false
+                    }]
+                };
+            }
+            return p;
+        });
+        handleSave(updated);
+    };
+
+    const deleteKey = (providerId: AIProviderID, keyIndex: number) => {
+        const updated = providers.map(p => {
+            if (p.id === providerId) {
+                const newKeys = p.apiKeys.filter((_, i) => i !== keyIndex);
+                return { ...p, apiKeys: newKeys };
+            }
+            return p;
+        });
+        handleSave(updated);
+    };
+
+    const setPriority = (providerId: AIProviderID, priority: number) => {
+        const updated = providers.map(p => p.id === providerId ? { ...p, priority } : p);
+        handleSave(updated);
+    };
 
     const renderMappings = () => {
-        const engines: CanonicalModel[] = ['NOTES_ENGINE', 'MCQ_ENGINE', 'CHAT_ENGINE', 'ANALYSIS_ENGINE', 'VISION_ENGINE'];
+        const ENGINES = ['NOTES_ENGINE', 'MCQ_ENGINE', 'CHAT_ENGINE', 'ANALYSIS_ENGINE', 'VISION_ENGINE'];
+        const currentMap = settings.aiCanonicalMap || {};
 
-        const updateMapping = (engine: CanonicalModel, primary: string, fallbacks: string[]) => {
-            if (isUsingDefaults) return alert("Initialize database to edit mappings.");
-            const newMapping: AICanonicalMapping = { canonicalModel: engine, primaryModelId: primary, fallbackModelIds: fallbacks };
-            setMappings(prev => ({...prev, [engine]: newMapping}));
-            saveCanonicalMapping(newMapping);
+        const updateMapping = (engine: string, providerId: string, modelId: string) => {
+            const newMap = { ...currentMap, [engine]: { providerId, modelId } };
+            onUpdateSettings({ ...settings, aiCanonicalMap: newMap });
         };
 
         return (
-            <div className="space-y-4">
-                <div className="p-4 bg-blue-900/20 border border-blue-500/20 rounded-lg text-sm text-blue-200 flex items-center gap-3">
-                    <Server size={20} />
-                    <div>
-                        <div className="font-bold">Canonical Routing Table</div>
-                        <div className="opacity-70">Maps abstract engine requests to concrete provider models with fallback chains.</div>
-                    </div>
-                </div>
+            <div className="space-y-4 animate-in fade-in">
+                {ENGINES.map(engine => {
+                    const mapping = currentMap[engine] || { providerId: '', modelId: '' };
+                    const selectedProvider = providers.find(p => p.id === mapping.providerId);
 
-                <div className="grid gap-4">
-                    {engines.map(engine => {
-                        const current = mappings[engine] || { canonicalModel: engine, primaryModelId: '', fallbackModelIds: [] };
-                        return (
-                            <div key={engine} className="bg-gray-900/50 p-4 rounded-xl border border-white/10 group hover:border-blue-500/30 transition-all">
-                                <div className="flex justify-between items-start mb-4">
-                                    <h4 className="font-bold text-lg text-yellow-400 flex items-center gap-2">
-                                        <Brain size={18} /> {engine}
-                                    </h4>
-                                    <span className="text-xs px-2 py-1 bg-white/10 rounded font-mono">ROUTER_V1</span>
+                    return (
+                        <div key={engine} className="bg-gray-900/50 p-4 rounded-xl border border-white/10 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-blue-500/20 text-blue-400 rounded-lg">
+                                    <Brain size={20} />
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="text-xs text-gray-400 mb-1 block uppercase tracking-wider">Primary Model</label>
-                                        <select
-                                            className="w-full bg-black/40 border border-white/10 rounded p-2 text-sm focus:border-blue-500 outline-none"
-                                            value={current.primaryModelId}
-                                            onChange={(e) => updateMapping(engine, e.target.value, current.fallbackModelIds)}
-                                            disabled={isUsingDefaults}
-                                        >
-                                            <option value="">Select Model...</option>
-                                            {models.map(m => (
-                                                <option key={m.id} value={m.id}>{m.name} ({m.providerId})</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs text-gray-400 mb-1 block uppercase tracking-wider">Fallback Chain</label>
-                                        <div className="flex flex-wrap gap-2">
-                                            {current.fallbackModelIds.map((fid, idx) => (
-                                                <div key={idx} className="bg-white/5 px-2 py-1 rounded text-xs flex items-center gap-2 border border-white/5">
-                                                    <span className="text-orange-300">{idx + 1}.</span>
-                                                    {models.find(m => m.id === fid)?.name || fid}
-                                                    <button
-                                                        onClick={() => updateMapping(engine, current.primaryModelId, current.fallbackModelIds.filter((_, i) => i !== idx))}
-                                                        className="hover:text-red-400"
-                                                    >×</button>
-                                                </div>
-                                            ))}
-                                            <select
-                                                className="bg-black/40 border border-white/10 rounded p-1 text-xs w-24"
-                                                onChange={(e) => {
-                                                    if (e.target.value) {
-                                                        updateMapping(engine, current.primaryModelId, [...current.fallbackModelIds, e.target.value]);
-                                                    }
-                                                }}
-                                                value=""
-                                                disabled={isUsingDefaults}
-                                            >
-                                                <option value="">+ Add</option>
-                                                {models.map(m => (
-                                                    <option key={m.id} value={m.id}>{m.name}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
+                                <div>
+                                    <h4 className="font-bold text-gray-200">{engine}</h4>
+                                    <p className="text-xs text-gray-500">Canonical Route</p>
                                 </div>
                             </div>
-                        );
-                    })}
+
+                            <div className="flex gap-2">
+                                <select
+                                    value={mapping.providerId}
+                                    onChange={(e) => {
+                                        const pid = e.target.value;
+                                        // Auto-select first model of new provider
+                                        const prov = providers.find(p => p.id === pid);
+                                        const mid = prov?.models[0]?.id || '';
+                                        updateMapping(engine, pid, mid);
+                                    }}
+                                    className="bg-black/40 border border-white/10 rounded-lg p-2 text-sm w-40"
+                                >
+                                    <option value="">Select Provider</option>
+                                    {providers.filter(p => p.isEnabled).map(p => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                    ))}
+                                </select>
+
+                                <select
+                                    value={mapping.modelId}
+                                    onChange={(e) => updateMapping(engine, mapping.providerId, e.target.value)}
+                                    className="bg-black/40 border border-white/10 rounded-lg p-2 text-sm w-60"
+                                    disabled={!mapping.providerId}
+                                >
+                                    {selectedProvider ? (
+                                        selectedProvider.models.map(m => (
+                                            <option key={m.id} value={m.id}>{m.name}</option>
+                                        ))
+                                    ) : (
+                                        <option value="">Select Model</option>
+                                    )}
+                                </select>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    };
+
+    const renderStatus = () => {
+        const totalKeys = providers.reduce((acc, p) => acc + p.apiKeys.length, 0);
+        const activeProviders = providers.filter(p => p.isEnabled).length;
+
+        return (
+            <div className="space-y-6 animate-in fade-in">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <StatusCard title="AI Providers" value={providers.length} sub={`${activeProviders} Enabled`} color="text-blue-400" icon={Server} />
+                    <StatusCard title="Active API Keys" value={totalKeys} sub="Total Configured" color="text-green-400" icon={Key} />
+                    <StatusCard title="System Health" value="100%" sub="Operational" color="text-purple-400" icon={Activity} />
                 </div>
             </div>
         );
     };
 
-    const renderKeys = () => {
-        const addKey = async () => {
-            // if (isUsingDefaults) return alert("Initialize database first."); // Removed restriction
-            if (!newKey.key) return;
-            const keyObj: AIKey = {
-                id: `k-${Date.now()}`,
-                key: newKey.key,
-                providerId: newKey.provider as AIProviderType,
-                name: newKey.name || 'Admin Key',
-                usageCount: 0,
-                dailyUsageCount: 0,
-                limit: 1000,
-                isExhausted: false,
-                lastUsed: new Date().toISOString(),
-                status: 'ACTIVE'
-            };
-            const success = await saveAIKey(keyObj);
-            if (success) {
-                alert("API Key Saved Successfully!");
-                setNewKey({ key: '', provider: 'openai', name: '' });
-                refreshData();
-            } else {
-                alert("Failed to save API Key. Check console for details.");
-            }
-        };
+    const renderProvidersList = () => (
+        <div className="space-y-4 animate-in fade-in">
+            {providers.map(p => (
+                <div key={p.id} className={cn("bg-gray-900/50 rounded-xl border p-4 transition-all", p.isEnabled ? "border-blue-500/30" : "border-white/5 opacity-70")}>
+                    <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-3">
+                            <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", p.isEnabled ? "bg-blue-500/20 text-blue-400" : "bg-white/5 text-gray-500")}>
+                                <Server size={20} />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-lg">{p.name}</h3>
+                                <div className="flex gap-2 text-xs font-mono opacity-60">
+                                    <span>{p.models.length} Models</span>
+                                    <span>•</span>
+                                    <span>{p.apiKeys.length} Keys</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="flex flex-col items-end mr-4">
+                                <label className="text-[10px] uppercase text-gray-500 font-bold mb-1">Priority</label>
+                                <input
+                                    type="number"
+                                    value={p.priority}
+                                    onChange={(e) => setPriority(p.id, parseInt(e.target.value))}
+                                    className="w-12 bg-black/40 border border-white/10 rounded p-1 text-center text-xs font-bold"
+                                    min="1"
+                                />
+                            </div>
+                            <button
+                                onClick={() => toggleProvider(p.id)}
+                                className={cn("p-2 rounded-lg transition-colors", p.isEnabled ? "bg-green-500/20 text-green-400 hover:bg-green-500/30" : "bg-white/5 text-gray-400 hover:bg-white/10")}
+                            >
+                                {p.isEnabled ? <Pause size={18} /> : <Play size={18} />}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* MODELS LIST (Read Only for now, derived from Master) */}
+                    {p.isEnabled && (
+                        <div className="pl-12 mt-2">
+                            <p className="text-xs font-bold text-gray-500 uppercase mb-2">Available Models</p>
+                            <div className="flex flex-wrap gap-2">
+                                {p.models.map(m => (
+                                    <span key={m.id} className="px-2 py-1 bg-white/5 border border-white/5 rounded text-xs text-gray-300">
+                                        {m.name}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            ))}
+        </div>
+    );
+
+    const renderKeysManager = () => {
+        const [tempKey, setTempKey] = useState('');
+        const [selectedProvider, setSelectedProvider] = useState<AIProviderID>('openai');
 
         return (
-            <div className="space-y-6">
-                {/* ADD KEY */}
+            <div className="space-y-6 animate-in fade-in">
                 <div className="bg-gray-900/50 p-6 rounded-xl border border-white/10">
-                    <h4 className="font-bold mb-4 flex items-center gap-2"><Plus size={18} className="text-green-400"/> Add New API Key</h4>
-                    <div className="flex gap-4 flex-wrap items-end">
-                        <div className="flex-1 min-w-[200px]">
-                            <label className="text-xs text-gray-400 mb-1 block">Provider</label>
+                    <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Key size={18} className="text-yellow-400"/> Add New API Key</h3>
+                    <div className="flex gap-4 items-end">
+                        <div className="flex-1">
+                            <label className="text-xs text-gray-400 mb-1 block uppercase">Select Provider</label>
                             <select
-                                className="w-full bg-black/40 border border-white/10 rounded p-2 text-sm"
-                                value={newKey.provider}
-                                onChange={e => setNewKey({...newKey, provider: e.target.value})}
+                                value={selectedProvider}
+                                onChange={(e) => setSelectedProvider(e.target.value as AIProviderID)}
+                                className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none"
                             >
                                 {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                             </select>
                         </div>
-                        <div className="flex-1 min-w-[200px]">
-                            <label className="text-xs text-gray-400 mb-1 block">Key Label</label>
-                            <input
-                                type="text"
-                                placeholder="e.g. Production Key 1"
-                                className="w-full bg-black/40 border border-white/10 rounded p-2 text-sm"
-                                value={newKey.name}
-                                onChange={e => setNewKey({...newKey, name: e.target.value})}
-                            />
-                        </div>
-                        <div className="flex-[2] min-w-[300px]">
-                             <label className="text-xs text-gray-400 mb-1 block">Secret Key</label>
-                            <input
-                                type="text"
-                                placeholder="sk-..."
-                                className="w-full bg-black/40 border border-white/10 rounded p-2 text-sm"
-                                value={newKey.key}
-                                onChange={e => setNewKey({...newKey, key: e.target.value})}
-                            />
+                        <div className="flex-[2]">
+                            <label className="text-xs text-gray-400 mb-1 block uppercase">API Key / Token</label>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    value={tempKey}
+                                    onChange={(e) => setTempKey(e.target.value)}
+                                    placeholder="sk-..."
+                                    className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none pr-10"
+                                />
+                                <Lock size={14} className="absolute right-3 top-3.5 text-gray-500" />
+                            </div>
                         </div>
                         <button
-                            onClick={addKey}
-                            className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 font-bold"
+                            onClick={() => { addKey(selectedProvider, tempKey); setTempKey(''); }}
+                            className="bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2"
                         >
-                            <Save size={16} /> Save Key
+                            <Plus size={18} /> Add
                         </button>
                     </div>
                 </div>
 
-                {/* KEY LIST */}
-                <div className="grid gap-4">
-                    {providers.filter(p => keys.some(k => k.providerId === p.id)).map(provider => (
-                        <div key={provider.id} className="bg-gray-800/30 p-4 rounded-xl border border-white/5">
-                            <h4 className="font-bold mb-3 flex items-center gap-2">
-                                <span className="capitalize">{provider.name}</span>
-                                <span className="text-xs px-2 py-0.5 bg-white/10 rounded-full">{keys.filter(k => k.providerId === provider.id).length} Keys</span>
-                            </h4>
+                <div className="space-y-4">
+                    {providers.filter(p => p.apiKeys.length > 0).map(p => (
+                        <div key={p.id} className="bg-gray-800/30 p-4 rounded-xl border border-white/5">
+                            <div className="flex items-center gap-2 mb-3">
+                                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                                <h4 className="font-bold text-gray-300">{p.name} Keys</h4>
+                            </div>
                             <div className="grid gap-2">
-                                {keys.filter(k => k.providerId === provider.id).map(key => (
-                                    <div key={key.id} className="flex justify-between items-center bg-black/20 p-3 rounded border border-white/5">
-                                        <div className="flex items-center gap-3">
-                                            <div className={cn("w-2 h-2 rounded-full", key.status === 'ACTIVE' ? "bg-green-500" : "bg-red-500")} />
-                                            <div className="flex flex-col">
-                                                <span className="font-mono text-sm font-bold text-gray-300">{key.name || 'Key'}</span>
-                                                <span className="text-xs opacity-50 font-mono">...{key.key.slice(-6)}</span>
-                                            </div>
+                                {p.apiKeys.map((k, idx) => (
+                                    <div key={idx} className="flex justify-between items-center bg-black/20 p-3 rounded border border-white/5">
+                                        <div className="flex flex-col">
+                                            <span className="font-mono text-sm text-gray-400">
+                                                {k.key.slice(0, 4)}...{k.key.slice(-4)}
+                                            </span>
+                                            <span className="text-[10px] text-gray-600">Added: {new Date(k.addedAt).toLocaleDateString()}</span>
                                         </div>
-                                        <div className="flex items-center gap-2 text-xs">
-                                            <button
-                                                onClick={() => verifyKey(key)}
-                                                disabled={testingKeyId === key.id}
-                                                className="bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 px-3 py-1.5 rounded flex items-center gap-1 transition-colors"
-                                            >
-                                                {testingKeyId === key.id ? <RefreshCw size={12} className="animate-spin" /> : <Zap size={12} />}
-                                                Test
-                                            </button>
-                                            <div className="flex flex-col items-end mx-2">
-                                                <span className="opacity-50">Usage</span>
-                                                <span className="font-bold">{key.usageCount} calls</span>
+                                        <div className="flex items-center gap-4">
+                                            <div className="text-right">
+                                                <div className="text-xs font-bold text-gray-400">{k.usageCount} Calls</div>
+                                                <div className={`text-[10px] ${k.isExhausted ? 'text-red-500' : 'text-green-500'}`}>
+                                                    {k.isExhausted ? 'EXHAUSTED' : 'ACTIVE'}
+                                                </div>
                                             </div>
-                                            <button className="text-red-400 hover:text-red-300 p-2 hover:bg-white/5 rounded transition-colors">
-                                                <Trash2 size={14} />
+                                            <button
+                                                onClick={() => deleteKey(p.id, idx)}
+                                                className="p-2 text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                                            >
+                                                <Trash2 size={16} />
                                             </button>
                                         </div>
                                     </div>
@@ -607,18 +311,13 @@ export const AiControlTower: React.FC = () => {
                             </div>
                         </div>
                     ))}
-                    {keys.length === 0 && (
-                         <div className="p-8 text-center opacity-30 border border-dashed border-white/10 rounded-xl">
-                            No API Keys Configured
-                         </div>
-                    )}
                 </div>
             </div>
         );
     };
 
     return (
-        <div className="flex flex-col h-full bg-[#0F172A] text-white p-6 rounded-2xl border border-white/10 shadow-2xl relative overflow-hidden">
+        <div className="flex flex-col h-full bg-[#0F172A] text-white p-6 rounded-3xl border border-white/10 shadow-2xl relative overflow-hidden min-h-[600px]">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-50" />
 
             {/* HEADER */}
@@ -627,35 +326,24 @@ export const AiControlTower: React.FC = () => {
                     <h2 className="text-2xl font-bold flex items-center gap-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
                         <Brain className="text-blue-500" /> AI Control Tower
                     </h2>
-                    <p className="text-sm opacity-50 mt-1 font-mono">System Status: {isUsingDefaults ? 'VIEW MODE (DEFAULTS)' : 'LIVE (DATABASE CONNECTED)'}</p>
-                </div>
-                <div className="flex gap-2">
-                    <button
-                        onClick={refreshData}
-                        className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors border border-white/5"
-                        title="Refresh Data"
-                    >
-                        <RefreshCw size={20} className={cn(loading && "animate-spin")} />
-                    </button>
+                    <p className="text-sm opacity-50 mt-1 font-mono">Central Neural System V2.0</p>
                 </div>
             </div>
 
             {/* TABS */}
             <div className="flex gap-2 mb-6 border-b border-white/10 pb-4 overflow-x-auto">
                 <TabButton id="STATUS" label="Overview" icon={Activity} activeTab={activeTab} setActiveTab={setActiveTab} />
-                <TabButton id="PROVIDERS" label="Providers" icon={Server} activeTab={activeTab} setActiveTab={setActiveTab} />
-                <TabButton id="MODELS" label="Models" icon={Brain} activeTab={activeTab} setActiveTab={setActiveTab} />
-                <TabButton id="MAPPING" label="Routing" icon={RotateCcw} activeTab={activeTab} setActiveTab={setActiveTab} />
-                <TabButton id="KEYS" label="API Keys" icon={Key} activeTab={activeTab} setActiveTab={setActiveTab} />
+                <TabButton id="PROVIDERS" label="Providers & Models" icon={Server} activeTab={activeTab} setActiveTab={setActiveTab} />
+                <TabButton id="MAPPING" label="Routing Engine" icon={RotateCcw} activeTab={activeTab} setActiveTab={setActiveTab} />
+                <TabButton id="KEYS" label="API Key Vault" icon={Key} activeTab={activeTab} setActiveTab={setActiveTab} />
             </div>
 
             {/* CONTENT */}
             <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar z-10">
                 {activeTab === 'STATUS' && renderStatus()}
-                {activeTab === 'PROVIDERS' && renderProviders()}
-                {activeTab === 'MODELS' && renderModels()}
+                {activeTab === 'PROVIDERS' && renderProvidersList()}
                 {activeTab === 'MAPPING' && renderMappings()}
-                {activeTab === 'KEYS' && renderKeys()}
+                {activeTab === 'KEYS' && renderKeysManager()}
             </div>
         </div>
     );

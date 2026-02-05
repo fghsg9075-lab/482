@@ -2971,7 +2971,12 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
               <div className="flex items-center gap-4 mb-4">
                   <button onClick={() => setActiveTab('DASHBOARD')} className="bg-white p-2 rounded-full hover:bg-slate-100 shadow"><ArrowLeft size={20} /></button>
               </div>
-              <AiControlTower />
+              <AiControlTower
+                  settings={localSettings}
+                  onUpdateSettings={(newSettings) => {
+                      setLocalSettings(newSettings);
+                  }}
+              />
           </div>
       )}
 
