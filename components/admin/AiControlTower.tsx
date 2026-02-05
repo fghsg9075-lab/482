@@ -9,9 +9,10 @@ import {
     AILog, CanonicalModel, AIProviderType
 } from '../../services/ai/types';
 import { DEFAULT_PROVIDERS, DEFAULT_MODELS, DEFAULT_MAPPINGS_FULL } from '../../services/ai/defaults';
-import { RefreshCw, Plus, Trash2, CheckCircle, XCircle, Activity, Server, Key, Brain, RotateCcw, Save, AlertTriangle, Play, Pause, Rocket } from 'lucide-react';
+import { RefreshCw, Plus, Trash2, CheckCircle, XCircle, Activity, Server, Key, Brain, RotateCcw, Save, AlertTriangle, Play, Pause, Rocket, Zap } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { aiRegistry } from '../../services/ai/registry';
 
 const cn = (...inputs: (string | undefined | null | false)[]) => twMerge(clsx(inputs));
 
@@ -72,6 +73,9 @@ export const AiControlTower: React.FC = () => {
     const [logs, setLogs] = useState<AILog[]>([]);
     const [loading, setLoading] = useState(true);
     const [isUsingDefaults, setIsUsingDefaults] = useState(false);
+
+    // Test State
+    const [testingKeyId, setTestingKeyId] = useState<string | null>(null);
 
     // Form State
     const [newKey, setNewKey] = useState({ key: '', provider: 'openai', name: '' });
@@ -134,11 +138,65 @@ export const AiControlTower: React.FC = () => {
 
     const handleToggleProvider = async (id: AIProviderType, current: boolean) => {
         if (isUsingDefaults) {
-             alert("Please initialize the database first.");
+             const confirmInit = confirm("System is in View Mode. To edit, we must initialize the database first. Proceed?");
+             if(confirmInit) {
+                 await handleInitializeDatabase();
+                 // After init, toggle
+                 await toggleAIProvider(id, !current);
+                 refreshData();
+             }
              return;
         }
         await toggleAIProvider(id, !current);
         refreshData();
+    };
+
+    const verifyKey = async (key: AIKey) => {
+        setTestingKeyId(key.id);
+        try {
+            // 1. Get Provider from Registry (or Mock)
+            // Note: In real app, we need the provider implementation.
+            // Registry is in services/ai/registry.ts.
+            const provider = aiRegistry.getProvider(key.providerId);
+
+            // 2. Validate
+            let isValid = false;
+
+            // Basic validation
+            if (provider.validate) {
+                isValid = await provider.validate(key.key);
+            } else {
+                // Fallback: Try a small generation
+                try {
+                    const testModel = models.find(m => m.providerId === key.providerId && m.isEnabled);
+                    if (testModel) {
+                        await provider.generateContent(key.key, {
+                            model: testModel,
+                            prompt: "Hello",
+                            maxTokens: 5
+                        });
+                        isValid = true;
+                    } else {
+                        // Just checking format if no model
+                        isValid = key.key.length > 10;
+                    }
+                } catch(e) {
+                    console.error("Validation Call Failed:", e);
+                    isValid = false;
+                }
+            }
+
+            if (isValid) {
+                alert(`✅ Key Verified! ${provider.id} is accepting this key.`);
+            } else {
+                alert(`❌ Key Validation Failed. Please check the key.`);
+            }
+
+        } catch (e: any) {
+            alert(`⚠️ Error testing key: ${e.message}`);
+        } finally {
+            setTestingKeyId(null);
+        }
     };
 
     useEffect(() => {
@@ -296,8 +354,8 @@ export const AiControlTower: React.FC = () => {
                                     <TableCell>
                                         <button
                                             onClick={() => handleToggleProvider(p.id, p.isEnabled)}
-                                            disabled={isUsingDefaults}
-                                            className={cn("p-1.5 rounded hover:bg-white/10 transition-colors", isUsingDefaults && "opacity-30 cursor-not-allowed")}
+                                            className={cn("p-1.5 rounded hover:bg-white/10 transition-colors")}
+                                            title={p.isEnabled ? "Disable Provider" : "Enable Provider"}
                                         >
                                             {p.isEnabled ? <Pause size={16} /> : <Play size={16} />}
                                         </button>
@@ -527,8 +585,16 @@ export const AiControlTower: React.FC = () => {
                                                 <span className="text-xs opacity-50 font-mono">...{key.key.slice(-6)}</span>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-4 text-xs">
-                                            <div className="flex flex-col items-end">
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <button
+                                                onClick={() => verifyKey(key)}
+                                                disabled={testingKeyId === key.id}
+                                                className="bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 px-3 py-1.5 rounded flex items-center gap-1 transition-colors"
+                                            >
+                                                {testingKeyId === key.id ? <RefreshCw size={12} className="animate-spin" /> : <Zap size={12} />}
+                                                Test
+                                            </button>
+                                            <div className="flex flex-col items-end mx-2">
                                                 <span className="opacity-50">Usage</span>
                                                 <span className="font-bold">{key.usageCount} calls</span>
                                             </div>
