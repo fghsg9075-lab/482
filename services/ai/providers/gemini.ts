@@ -24,7 +24,7 @@ export class GeminiProvider extends BaseAIProvider {
         const genAI = new GoogleGenerativeAI(apiKey);
 
         // Sanitize Model ID (Strip models/ prefix and version suffixes like -001)
-        let cleanModelId = options.model.modelId.replace(/^models\//, '');
+        let cleanModelId = options.model.modelId.replace(/^models\//, '').trim();
         // Strip specific version suffixes to use the rolling alias (e.g. gemini-1.5-pro-001 -> gemini-1.5-pro)
         // This helps avoid 404s when specific versions are deprecated or if v1beta expects the alias
         cleanModelId = cleanModelId.replace(/-[0-9]{3}$/, '').replace(/-latest$/, '');
@@ -34,7 +34,7 @@ export class GeminiProvider extends BaseAIProvider {
             model: cleanModelId,
             systemInstruction: options.systemPrompt,
             tools: options.tools ? this.mapTools(options.tools) : undefined
-        });
+        }, { apiVersion: 'v1' });
 
         const generationConfig: any = {};
         if (options.temperature) generationConfig.temperature = options.temperature;

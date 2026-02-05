@@ -23,7 +23,7 @@ import { MiniPlayer } from './MiniPlayer'; // Imported for Audio Flow
 import { HistoryPage } from './HistoryPage';
 import { Leaderboard } from './Leaderboard';
 import { SpinWheel } from './SpinWheel';
-import { fetchChapters, generateCustomNotes } from '../services/groq'; // Needed for Video Flow
+import { fetchChapters, generateCustomNotes, generateCustomMCQ } from '../services/groq'; // Needed for Video Flow
 import { FileText, CheckSquare } from 'lucide-react'; // Icons
 import { LoadingOverlay } from './LoadingOverlay';
 import { CreditConfirmationModal } from './CreditConfirmationModal';
@@ -182,6 +182,8 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
   const [aiTopic, setAiTopic] = useState('');
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiResult, setAiResult] = useState<string | null>(null);
+  const [aiMode, setAiMode] = useState<'NOTES' | 'MCQ'>('NOTES');
+  const [customMcqData, setCustomMcqData] = useState<any[] | null>(null);
 
   // Custom Daily Target Logic
   const [dailyTargetSeconds, setDailyTargetSeconds] = useState(3 * 3600);
@@ -471,27 +473,50 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
 
       setAiGenerating(true);
       try {
-          const notes = await generateCustomNotes(aiTopic, settings?.aiNotesPrompt || '');
-          setAiResult(notes);
+          if (aiMode === 'NOTES') {
+              const notes = await generateCustomNotes(aiTopic, settings?.aiNotesPrompt || '');
+              setAiResult(notes);
+
+              // SAVE TO HISTORY
+              saveAiInteraction({
+                  id: `ai-note-${Date.now()}`,
+                  userId: user.id,
+                  userName: user.name,
+                  type: 'AI_NOTES',
+                  query: aiTopic,
+                  response: notes,
+                  timestamp: new Date().toISOString()
+              });
+              showAlert("Notes Generated Successfully!", "SUCCESS");
+          } else {
+              // MCQ Mode
+              const mcqs = await generateCustomMCQ(aiTopic, 10);
+              setCustomMcqData(mcqs);
+
+              // Setup View for MCQ
+              setSelectedSubject({ id: 'ai', name: 'AI Generator' } as any);
+              setSelectedChapter({ id: 'ai-gen', title: aiTopic, description: 'AI Generated Test' } as any);
+              setContentViewStep('PLAYER');
+              onTabChange('MCQ');
+              setShowAiModal(false);
+
+              saveAiInteraction({
+                  id: `ai-mcq-${Date.now()}`,
+                  userId: user.id,
+                  userName: user.name,
+                  type: 'AI_NOTES', // Keeping type compatible or add new
+                  query: aiTopic,
+                  response: `Generated ${mcqs.length} MCQs`,
+                  timestamp: new Date().toISOString()
+              });
+          }
 
           // Increment Usage
           localStorage.setItem(usageKey, (currentUsage + 1).toString());
 
-          // SAVE TO HISTORY
-          saveAiInteraction({
-              id: `ai-note-${Date.now()}`,
-              userId: user.id,
-              userName: user.name,
-              type: 'AI_NOTES',
-              query: aiTopic,
-              response: notes,
-              timestamp: new Date().toISOString()
-          });
-
-          showAlert("Notes Generated Successfully!", "SUCCESS");
       } catch (e) {
           console.error(e);
-          showAlert("Failed to generate notes. Please try again.", "ERROR");
+          showAlert("Failed to generate content. Please try again.", "ERROR");
       } finally {
           setAiGenerating(false);
       }
@@ -911,7 +936,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
           } else if (type === 'AUDIO') {
             return <AudioPlaylistView chapter={selectedChapter} subject={selectedSubject} user={user} board={user.board || 'CBSE'} classLevel={user.classLevel || '10'} stream={user.stream || null} onBack={handlePlayerBack} onUpdateUser={handleUserUpdate} settings={settings} onPlayAudio={setCurrentAudioTrack} initialSyllabusMode={syllabusMode} />;
           } else {
-            return <McqView chapter={selectedChapter} subject={selectedSubject} user={user} board={user.board || 'CBSE'} classLevel={user.classLevel || '10'} stream={user.stream || null} onBack={handlePlayerBack} onUpdateUser={handleUserUpdate} settings={settings} />;
+            return <McqView chapter={selectedChapter} subject={selectedSubject} user={user} board={user.board || 'CBSE'} classLevel={user.classLevel || '10'} stream={user.stream || null} onBack={handlePlayerBack} onUpdateUser={handleUserUpdate} settings={settings} customData={customMcqData} />;
           }
       }
 
@@ -1094,7 +1119,6 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
 
              {/* Explore More Button */}
              <button onClick={() => onTabChange('EXPLORE' as any)} className="bg-slate-900 text-white p-4 rounded-2xl shadow-xl shadow-slate-200 border border-slate-700 flex flex-col items-start gap-2 hover:scale-[1.02] transition-transform text-left group relative overflow-hidden">
-                 {showDiscountBanner && <div className="absolute top-0 right-0 bg-red-600 text-white text-[9px] font-black px-2 py-0.5 rounded-bl-lg animate-pulse">SALE LIVE</div>}
                  <div className="p-2 bg-white/10 rounded-lg text-white group-hover:bg-white/20 transition-colors">
                      <Layout size={18} />
                  </div>
@@ -1104,6 +1128,26 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                  </div>
              </button>
          </div>
+
+         {/* SPECIAL DISCOUNT BUTTON (Visible Only When Active) */}
+         {showDiscountBanner && (
+             <div className="w-full px-4 mt-3 animate-in slide-in-from-bottom fade-in">
+                 <button onClick={() => onTabChange('STORE')} className="w-full bg-gradient-to-r from-red-600 to-orange-600 p-4 rounded-2xl shadow-lg shadow-red-200 border border-red-500 flex items-center justify-between group">
+                     <div className="flex items-center gap-3">
+                         <div className="p-2 bg-white/20 rounded-lg text-white animate-pulse">
+                             <Sparkles size={20} fill="currentColor" />
+                         </div>
+                         <div className="text-left">
+                             <p className="text-[10px] font-bold text-red-100 uppercase tracking-wider">Limited Time Offer</p>
+                             <p className="text-sm font-black text-white">Unlock Premium - Sale Live!</p>
+                         </div>
+                     </div>
+                     <div className="bg-white text-red-600 px-3 py-1 rounded-lg text-xs font-black">
+                         {discountTimer || 'NOW'}
+                     </div>
+                 </button>
+             </div>
+         )}
       </div>
     );
   };
@@ -1880,7 +1924,13 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                     {!aiResult ? (
                         <div className="space-y-4">
                             <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase block mb-2">What topic do you want notes for?</label>
+                                <label className="text-xs font-bold text-slate-500 uppercase block mb-2">Select Content Type</label>
+                                <div className="flex gap-2 mb-4 bg-slate-100 p-1 rounded-xl">
+                                    <button onClick={() => setAiMode('NOTES')} className={`flex-1 py-2 rounded-lg font-bold text-xs transition-all ${aiMode === 'NOTES' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Detailed Notes</button>
+                                    <button onClick={() => setAiMode('MCQ')} className={`flex-1 py-2 rounded-lg font-bold text-xs transition-all ${aiMode === 'MCQ' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>MCQ Test</button>
+                                </div>
+
+                                <label className="text-xs font-bold text-slate-500 uppercase block mb-2">Enter Topic</label>
                                 <textarea
                                     value={aiTopic}
                                     onChange={(e) => setAiTopic(e.target.value)}
@@ -1904,7 +1954,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                                 className="w-full py-4 bg-indigo-600 text-white font-black rounded-xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all flex items-center justify-center gap-2"
                             >
                                 {aiGenerating ? <Sparkles className="animate-spin" /> : <Sparkles />}
-                                {aiGenerating ? "Generating Magic..." : "Generate Notes"}
+                                {aiGenerating ? "Generating Magic..." : (aiMode === 'NOTES' ? "Generate Notes" : "Generate Test")}
                             </button>
                         </div>
                     ) : (

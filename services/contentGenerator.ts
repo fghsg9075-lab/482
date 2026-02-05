@@ -366,6 +366,20 @@ export const generateCustomNotes = async (userTopic: string, adminPrompt: string
     return await executeCanonical({ canonicalModel: 'NOTES_ENGINE', prompt });
 };
 
+export const generateCustomMCQ = async (userTopic: string, count: number = 10): Promise<MCQItem[]> => {
+    const prompt = `Create ${count} MCQs on the topic: "${userTopic}".
+    Return STRICT JSON array of objects: {question, options[], correctAnswer(index), explanation}.
+    Ensure options array has 4 strings. correctAnswer should be 0, 1, 2, or 3.`;
+
+    const text = await executeCanonical({
+        canonicalModel: 'MCQ_ENGINE',
+        prompt,
+        jsonMode: true
+    });
+
+    return JSON.parse(cleanJson(text));
+};
+
 export const generateUltraAnalysis = async (data: any, settings?: SystemSettings): Promise<string> => {
     let customInstruction = settings?.aiInstruction || "";
     const prompt = `${customInstruction} ROLE: Expert Educational Mentor. Analyze performance: ${JSON.stringify(data)} Return STRICT JSON {topics:[], motivation:"", nextSteps:{}, weakToStrongPath:[]}`;

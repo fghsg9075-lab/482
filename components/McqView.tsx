@@ -21,10 +21,11 @@ interface Props {
   onBack: () => void;
   onUpdateUser: (user: User) => void;
   settings?: SystemSettings; // New Prop
+  customData?: any; // For AI Generated / Manual Content
 }
 
 export const McqView: React.FC<Props> = ({ 
-  chapter, subject, user, board, classLevel, stream, onBack, onUpdateUser, settings
+  chapter, subject, user, board, classLevel, stream, onBack, onUpdateUser, settings, customData
 }) => {
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'SELECTION' | 'PRACTICE' | 'TEST'>('SELECTION');
@@ -41,6 +42,12 @@ export const McqView: React.FC<Props> = ({
   const [pendingStart, setPendingStart] = useState<{mode: 'PRACTICE' | 'TEST', data: any} | null>(null);
 
   const handleStart = async (mode: 'PRACTICE' | 'TEST') => {
+      // 0. Use Custom Data if available
+      if (customData) {
+          triggerMcqStart(mode, { manualMcqData: customData });
+          return;
+      }
+
       // 1. Fetch Data First (To avoid charging for empty chapters)
       setLoading(true);
       
