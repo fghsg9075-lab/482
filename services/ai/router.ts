@@ -23,21 +23,34 @@ const ensureConfigLoaded = async () => {
             settingsCache = JSON.parse(stored);
 
             // --- SELF-HEALING / MIGRATION LOGIC ---
+            let hasChanges = false;
             if (settingsCache?.aiCanonicalMap) {
-                // 1. Fix Gemini 404 Error (gemini-1.5-flash-latest -> gemini-1.5-flash)
+                // 1. Fix Gemini 404 Error (gemini-1.5-flash-latest/gemini-1.5-flash -> gemini-1.5-flash-001)
                 Object.keys(settingsCache.aiCanonicalMap).forEach(key => {
                     const mapping = settingsCache!.aiCanonicalMap[key];
-                    if (mapping.modelId === 'gemini-1.5-flash-latest') {
-                        console.warn(`[AI Router] Auto-fixing deprecated model for ${key}: gemini-1.5-flash-latest -> gemini-1.5-flash`);
-                        mapping.modelId = 'gemini-1.5-flash';
+                    if (mapping.modelId === 'gemini-1.5-flash-latest' || mapping.modelId === 'gemini-1.5-flash') {
+                        console.warn(`[AI Router] Auto-fixing deprecated model for ${key}: ${mapping.modelId} -> gemini-1.5-flash-001`);
+                        mapping.modelId = 'gemini-1.5-flash-001';
+                        hasChanges = true;
                     }
                 });
 
                 // 2. Ensure ADMIN_ENGINE exists
                 if (!settingsCache.aiCanonicalMap['ADMIN_ENGINE']) {
                      console.warn(`[AI Router] Injecting missing ADMIN_ENGINE mapping.`);
-                     settingsCache.aiCanonicalMap['ADMIN_ENGINE'] = DEFAULT_AI_MAPPINGS['ADMIN_ENGINE'];
+                     // Use deep copy to avoid reference issues
+                     settingsCache.aiCanonicalMap['ADMIN_ENGINE'] = JSON.parse(JSON.stringify(DEFAULT_AI_MAPPINGS['ADMIN_ENGINE']));
+                     // Ensure default mapping uses correct ID if not updated in defaults yet (safety)
+                     if (settingsCache.aiCanonicalMap['ADMIN_ENGINE'].modelId === 'gemini-1.5-flash') {
+                         settingsCache.aiCanonicalMap['ADMIN_ENGINE'].modelId = 'gemini-1.5-flash-001';
+                     }
+                     hasChanges = true;
                 }
+            }
+
+            if (hasChanges) {
+                localStorage.setItem('nst_system_settings', JSON.stringify(settingsCache));
+                console.log("[AI Router] Persisted auto-fixes to localStorage.");
             }
         } else {
             // Fallback mock settings if empty
@@ -114,7 +127,7 @@ export const executeCanonicalRaw = async (options: RouterExecuteOptions): Promis
     // In a future update, this could be configurable in SystemSettings.
     const fallbackCandidates = [
         { providerId: primaryProviderId, modelId: primaryModelId }, // 1. Primary
-        { providerId: 'gemini', modelId: 'gemini-1.5-flash' },      // 2. Fast/Free Tier
+        { providerId: 'gemini', modelId: 'gemini-1.5-flash-001' },  // 2. Fast/Free Tier
         { providerId: 'groq', modelId: 'llama-3.1-8b-instant' },    // 3. Ultra Fast
         { providerId: 'openai', modelId: 'gpt-4o-mini' }            // 4. Reliable Backup
     ];
