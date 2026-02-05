@@ -38,6 +38,95 @@ const TabButton = ({ id, label, icon: Icon, activeTab, setActiveTab }: any) => (
     </button>
 );
 
+// --- Sub Component for Keys Management to avoid Hook Rules Violation ---
+interface KeysManagerProps {
+    providers: AIProvider[];
+    addKey: (providerId: AIProviderID, key: string) => void;
+    deleteKey: (providerId: AIProviderID, index: number) => void;
+}
+
+const KeysManager: React.FC<KeysManagerProps> = ({ providers, addKey, deleteKey }) => {
+    const [tempKey, setTempKey] = useState('');
+    const [selectedProvider, setSelectedProvider] = useState<AIProviderID>('openai');
+
+    return (
+        <div className="space-y-6 animate-in fade-in">
+            <div className="bg-gray-900/50 p-6 rounded-xl border border-white/10">
+                <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Key size={18} className="text-yellow-400"/> Add New API Key</h3>
+                <div className="flex gap-4 items-end">
+                    <div className="flex-1">
+                        <label className="text-xs text-gray-400 mb-1 block uppercase">Select Provider</label>
+                        <select
+                            value={selectedProvider}
+                            onChange={(e) => setSelectedProvider(e.target.value as AIProviderID)}
+                            className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none"
+                        >
+                            {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                    </div>
+                    <div className="flex-[2]">
+                        <label className="text-xs text-gray-400 mb-1 block uppercase">API Key / Token</label>
+                        <div className="relative">
+                            <input
+                                type="text"
+                                value={tempKey}
+                                onChange={(e) => setTempKey(e.target.value)}
+                                placeholder="sk-..."
+                                className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none pr-10"
+                            />
+                            <Lock size={14} className="absolute right-3 top-3.5 text-gray-500" />
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => { addKey(selectedProvider, tempKey); setTempKey(''); }}
+                        className="bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2"
+                    >
+                        <Plus size={18} /> Add
+                    </button>
+                </div>
+            </div>
+
+            <div className="space-y-4">
+                {providers.filter(p => (p.apiKeys || []).length > 0).map(p => (
+                    <div key={p.id} className="bg-gray-800/30 p-4 rounded-xl border border-white/5">
+                        <div className="flex items-center gap-2 mb-3">
+                            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                            <h4 className="font-bold text-gray-300">{p.name} Keys</h4>
+                        </div>
+                        <div className="grid gap-2">
+                            {(p.apiKeys || []).map((k, idx) => (
+                                <div key={idx} className="flex justify-between items-center bg-black/20 p-3 rounded border border-white/5">
+                                    <div className="flex flex-col">
+                                        <span className="font-mono text-sm text-gray-400">
+                                            {k.key.slice(0, 4)}...{k.key.slice(-4)}
+                                        </span>
+                                        <span className="text-[10px] text-gray-600">Added: {new Date(k.addedAt).toLocaleDateString()}</span>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="text-right">
+                                            <div className="text-xs font-bold text-gray-400">{k.usageCount} Calls</div>
+                                            <div className={`text-[10px] ${k.isExhausted ? 'text-red-500' : 'text-green-500'}`}>
+                                                {k.isExhausted ? 'EXHAUSTED' : 'ACTIVE'}
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => deleteKey(p.id, idx)}
+                                            className="p-2 text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+
 export const AiControlTower: React.FC<Props> = ({ settings, onUpdateSettings }) => {
     const [activeTab, setActiveTab] = useState<'STATUS' | 'PROVIDERS' | 'KEYS' | 'MAPPING'>('STATUS');
     const [providers, setProviders] = useState<AIProvider[]>([]);
@@ -242,87 +331,6 @@ export const AiControlTower: React.FC<Props> = ({ settings, onUpdateSettings }) 
         </div>
     );
 
-    const renderKeysManager = () => {
-        const [tempKey, setTempKey] = useState('');
-        const [selectedProvider, setSelectedProvider] = useState<AIProviderID>('openai');
-
-        return (
-            <div className="space-y-6 animate-in fade-in">
-                <div className="bg-gray-900/50 p-6 rounded-xl border border-white/10">
-                    <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Key size={18} className="text-yellow-400"/> Add New API Key</h3>
-                    <div className="flex gap-4 items-end">
-                        <div className="flex-1">
-                            <label className="text-xs text-gray-400 mb-1 block uppercase">Select Provider</label>
-                            <select
-                                value={selectedProvider}
-                                onChange={(e) => setSelectedProvider(e.target.value as AIProviderID)}
-                                className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none"
-                            >
-                                {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                            </select>
-                        </div>
-                        <div className="flex-[2]">
-                            <label className="text-xs text-gray-400 mb-1 block uppercase">API Key / Token</label>
-                            <div className="relative">
-                                <input
-                                    type="text"
-                                    value={tempKey}
-                                    onChange={(e) => setTempKey(e.target.value)}
-                                    placeholder="sk-..."
-                                    className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none pr-10"
-                                />
-                                <Lock size={14} className="absolute right-3 top-3.5 text-gray-500" />
-                            </div>
-                        </div>
-                        <button
-                            onClick={() => { addKey(selectedProvider, tempKey); setTempKey(''); }}
-                            className="bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2"
-                        >
-                            <Plus size={18} /> Add
-                        </button>
-                    </div>
-                </div>
-
-                <div className="space-y-4">
-                    {providers.filter(p => (p.apiKeys || []).length > 0).map(p => (
-                        <div key={p.id} className="bg-gray-800/30 p-4 rounded-xl border border-white/5">
-                            <div className="flex items-center gap-2 mb-3">
-                                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                                <h4 className="font-bold text-gray-300">{p.name} Keys</h4>
-                            </div>
-                            <div className="grid gap-2">
-                                {(p.apiKeys || []).map((k, idx) => (
-                                    <div key={idx} className="flex justify-between items-center bg-black/20 p-3 rounded border border-white/5">
-                                        <div className="flex flex-col">
-                                            <span className="font-mono text-sm text-gray-400">
-                                                {k.key.slice(0, 4)}...{k.key.slice(-4)}
-                                            </span>
-                                            <span className="text-[10px] text-gray-600">Added: {new Date(k.addedAt).toLocaleDateString()}</span>
-                                        </div>
-                                        <div className="flex items-center gap-4">
-                                            <div className="text-right">
-                                                <div className="text-xs font-bold text-gray-400">{k.usageCount} Calls</div>
-                                                <div className={`text-[10px] ${k.isExhausted ? 'text-red-500' : 'text-green-500'}`}>
-                                                    {k.isExhausted ? 'EXHAUSTED' : 'ACTIVE'}
-                                                </div>
-                                            </div>
-                                            <button
-                                                onClick={() => deleteKey(p.id, idx)}
-                                                className="p-2 text-red-400 hover:bg-red-500/10 rounded transition-colors"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
-    };
-
     return (
         <div className="flex flex-col h-full bg-[#0F172A] text-white p-6 rounded-3xl border border-white/10 shadow-2xl relative overflow-hidden min-h-[600px]">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-50" />
@@ -350,7 +358,7 @@ export const AiControlTower: React.FC<Props> = ({ settings, onUpdateSettings }) 
                 {activeTab === 'STATUS' && renderStatus()}
                 {activeTab === 'PROVIDERS' && renderProvidersList()}
                 {activeTab === 'MAPPING' && renderMappings()}
-                {activeTab === 'KEYS' && renderKeysManager()}
+                {activeTab === 'KEYS' && <KeysManager providers={providers} addKey={addKey} deleteKey={deleteKey} />}
             </div>
         </div>
     );
