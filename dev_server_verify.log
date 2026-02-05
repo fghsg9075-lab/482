@@ -12,3 +12,8 @@
 7:06:01 AM [vite] (client) hmr update /components/admin/AiControlTower.tsx
 9:09:52 AM [vite] (client) hmr update /App.tsx, /components/MarksheetCard.tsx, /components/StudentDashboard.tsx, /components/AdminDashboard.tsx, /components/StudentAiAssistant.tsx, /components/admin/ChallengeCreator20.tsx, /components/AdminAiAssistant.tsx
 9:55:30 AM [vite] (client) hmr update /components/AdminDashboard.tsx
+11:34:28 AM [vite] (client) hmr update /App.tsx, /components/SubjectSelection.tsx, /components/StudentDashboard.tsx, /components/MarksheetCard.tsx, /components/AdminDashboard.tsx, /components/StudentAiAssistant.tsx, /components/admin/ChallengeCreator20.tsx, /components/AdminAiAssistant.tsx, /components/PdfView.tsx, /components/admin/AiControlTower.tsx
+11:34:58 AM [vite] (client) hmr update /components/StudentDashboard.tsx
+11:36:09 AM [vite] (client) hmr update /components/AdminDashboard.tsx
+11:36:41 AM [vite] (client) hmr update /components/AdminDashboard.tsx
+11:44:10 AM [vite] (client) hmr update /components/admin/AiControlTower.tsx

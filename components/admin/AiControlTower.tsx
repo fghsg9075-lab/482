@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { MASTER_AI_PROVIDERS } from '../../constants';
 import { AIProvider, SystemSettings, AIModel, AIProviderID } from '../../types';
-import { RefreshCw, Plus, Trash2, CheckCircle, XCircle, Activity, Server, Key, Brain, RotateCcw, Save, AlertTriangle, Play, Pause, Rocket, Zap, Edit3, Lock } from 'lucide-react';
+import { subscribeToAILogs } from '../../services/ai/db';
+import { AILog } from '../../services/ai/types';
+import { RefreshCw, Plus, Trash2, CheckCircle, XCircle, Activity, Server, Key, Brain, RotateCcw, Save, AlertTriangle, Play, Pause, Rocket, Zap, Edit3, Lock, FileText, ScrollText } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -128,8 +130,18 @@ const KeysManager: React.FC<KeysManagerProps> = ({ providers, addKey, deleteKey 
 
 
 export const AiControlTower: React.FC<Props> = ({ settings, onUpdateSettings }) => {
-    const [activeTab, setActiveTab] = useState<'STATUS' | 'PROVIDERS' | 'KEYS' | 'MAPPING'>('STATUS');
+    const [activeTab, setActiveTab] = useState<'STATUS' | 'PROVIDERS' | 'KEYS' | 'MAPPING' | 'LOGS'>('STATUS');
     const [providers, setProviders] = useState<AIProvider[]>([]);
+    const [logs, setLogs] = useState<AILog[]>([]);
+
+    useEffect(() => {
+        if (activeTab === 'LOGS') {
+            const unsub = subscribeToAILogs((data) => {
+                setLogs(data);
+            });
+            return () => unsub();
+        }
+    }, [activeTab]);
 
     // Initialize or Sync Providers
     useEffect(() => {
@@ -260,6 +272,62 @@ export const AiControlTower: React.FC<Props> = ({ settings, onUpdateSettings }) 
         );
     };
 
+    const renderLogs = () => (
+        <div className="space-y-4 animate-in fade-in">
+            <div className="flex justify-between items-center mb-2">
+                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Real-time Interaction Stream</h3>
+                <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    <span className="text-xs text-green-400 font-mono">LIVE</span>
+                </div>
+            </div>
+
+            <div className="bg-black/20 rounded-xl border border-white/5 overflow-hidden">
+                <table className="w-full text-left text-xs">
+                    <thead className="bg-white/5 text-gray-400 font-bold uppercase">
+                        <tr>
+                            <th className="p-3">Time</th>
+                            <th className="p-3">Provider</th>
+                            <th className="p-3">Model</th>
+                            <th className="p-3">Status</th>
+                            <th className="p-3 text-right">Latency</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                        {logs.length === 0 && (
+                            <tr><td colSpan={5} className="p-8 text-center text-gray-500 italic">No logs received yet. Waiting for traffic...</td></tr>
+                        )}
+                        {logs.map((log) => (
+                            <tr key={log.id} className="hover:bg-white/5 transition-colors font-mono">
+                                <td className="p-3 text-gray-400">
+                                    {new Date(log.timestamp).toLocaleTimeString()}
+                                </td>
+                                <td className="p-3">
+                                    <span className="text-blue-300 font-bold">{log.providerId}</span>
+                                </td>
+                                <td className="p-3 text-gray-300">
+                                    {log.modelId}
+                                </td>
+                                <td className="p-3">
+                                    <span className={cn(
+                                        "px-2 py-0.5 rounded text-[10px] font-bold",
+                                        log.status === 'SUCCESS' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                                    )}>
+                                        {log.status}
+                                    </span>
+                                    {log.errorMessage && <div className="text-[9px] text-red-400 mt-1 max-w-[200px] truncate">{log.errorMessage}</div>}
+                                </td>
+                                <td className="p-3 text-right text-gray-400">
+                                    {log.latencyMs}ms
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+
     const renderStatus = () => {
         const totalKeys = providers.reduce((acc, p) => acc + (p.apiKeys?.length || 0), 0);
         const activeProviders = providers.filter(p => p.isEnabled).length;
@@ -351,6 +419,7 @@ export const AiControlTower: React.FC<Props> = ({ settings, onUpdateSettings }) 
                 <TabButton id="PROVIDERS" label="Providers & Models" icon={Server} activeTab={activeTab} setActiveTab={setActiveTab} />
                 <TabButton id="MAPPING" label="Routing Engine" icon={RotateCcw} activeTab={activeTab} setActiveTab={setActiveTab} />
                 <TabButton id="KEYS" label="API Key Vault" icon={Key} activeTab={activeTab} setActiveTab={setActiveTab} />
+                <TabButton id="LOGS" label="Live Logs" icon={ScrollText} activeTab={activeTab} setActiveTab={setActiveTab} />
             </div>
 
             {/* CONTENT */}
@@ -359,6 +428,7 @@ export const AiControlTower: React.FC<Props> = ({ settings, onUpdateSettings }) 
                 {activeTab === 'PROVIDERS' && renderProvidersList()}
                 {activeTab === 'MAPPING' && renderMappings()}
                 {activeTab === 'KEYS' && <KeysManager providers={providers} addKey={addKey} deleteKey={deleteKey} />}
+                {activeTab === 'LOGS' && renderLogs()}
             </div>
         </div>
     );
