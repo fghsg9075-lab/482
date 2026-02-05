@@ -25,12 +25,12 @@ const ensureConfigLoaded = async () => {
             // --- SELF-HEALING / MIGRATION LOGIC ---
             let hasChanges = false;
             if (settingsCache?.aiCanonicalMap) {
-                // 1. Fix Gemini 404 Error (gemini-1.5-flash-latest/gemini-1.5-flash -> gemini-1.5-flash-001)
+                // 1. Fix Gemini 404 Error (gemini-1.5-flash-latest/001 -> gemini-1.5-flash)
                 Object.keys(settingsCache.aiCanonicalMap).forEach(key => {
                     const mapping = settingsCache!.aiCanonicalMap[key];
-                    if (mapping.modelId === 'gemini-1.5-flash-latest' || mapping.modelId === 'gemini-1.5-flash') {
-                        console.warn(`[AI Router] Auto-fixing deprecated model for ${key}: ${mapping.modelId} -> gemini-1.5-flash-001`);
-                        mapping.modelId = 'gemini-1.5-flash-001';
+                    if (mapping.modelId === 'gemini-1.5-flash-latest' || mapping.modelId === 'gemini-1.5-flash-001') {
+                        console.warn(`[AI Router] Auto-fixing deprecated model for ${key}: ${mapping.modelId} -> gemini-1.5-flash`);
+                        mapping.modelId = 'gemini-1.5-flash';
                         hasChanges = true;
                     }
                 });
@@ -41,8 +41,8 @@ const ensureConfigLoaded = async () => {
                      // Use deep copy to avoid reference issues
                      settingsCache.aiCanonicalMap['ADMIN_ENGINE'] = JSON.parse(JSON.stringify(DEFAULT_AI_MAPPINGS['ADMIN_ENGINE']));
                      // Ensure default mapping uses correct ID if not updated in defaults yet (safety)
-                     if (settingsCache.aiCanonicalMap['ADMIN_ENGINE'].modelId === 'gemini-1.5-flash') {
-                         settingsCache.aiCanonicalMap['ADMIN_ENGINE'].modelId = 'gemini-1.5-flash-001';
+                     if (settingsCache.aiCanonicalMap['ADMIN_ENGINE'].modelId === 'gemini-1.5-flash-001') {
+                         settingsCache.aiCanonicalMap['ADMIN_ENGINE'].modelId = 'gemini-1.5-flash';
                      }
                      hasChanges = true;
                 }
@@ -127,16 +127,17 @@ export const executeCanonicalRaw = async (options: RouterExecuteOptions): Promis
     // In a future update, this could be configurable in SystemSettings.
     const fallbackCandidates = [
         { providerId: primaryProviderId, modelId: primaryModelId }, // 1. Primary
-        { providerId: 'gemini', modelId: 'gemini-1.5-flash-001' },  // 2. Fast/Free Tier
-        { providerId: 'groq', modelId: 'llama-3.1-8b-instant' },    // 3. Ultra Fast
-        { providerId: 'openai', modelId: 'gpt-4o-mini' }            // 4. Reliable Backup
+        { providerId: 'gemini', modelId: 'gemini-1.5-flash' },      // 2. Fast/Free Tier
+        { providerId: 'gemini', modelId: 'gemini-1.5-pro' },        // 3. High Capability Backup
+        { providerId: 'groq', modelId: 'llama-3.1-8b-instant' },    // 4. Ultra Fast
+        { providerId: 'openai', modelId: 'gpt-4o-mini' }            // 5. Reliable Backup
     ];
 
     // Deduplicate and filter out the primary if it's already in the list (it is, but we want unique attempts)
-    // We only want to add fallbacks that are NOT the primary
+    // Allow same provider if the modelId is different (e.g. gemini-flash failed -> try gemini-pro)
     const uniqueCandidates = [
         { providerId: primaryProviderId, modelId: primaryModelId },
-        ...fallbackCandidates.filter(c => c.providerId !== primaryProviderId)
+        ...fallbackCandidates.filter(c => !(c.providerId === primaryProviderId && c.modelId === primaryModelId))
     ];
 
     const attempts: { providerId: string, reason: string }[] = [];
