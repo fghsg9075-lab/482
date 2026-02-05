@@ -1,5 +1,5 @@
 
-import { Subject } from './types';
+import { Subject, AIProvider } from './types';
 // @ts-ignore
 import { COMPETITION_DATA } from './competition_syllabus';
 
@@ -376,3 +376,267 @@ export const ALL_APP_FEATURES = [
     { id: 'f102', title: 'Voice Search', enabled: true },
     { id: 'f103', title: 'Gesture Control', enabled: true }
 ];
+
+export const MASTER_AI_PROVIDERS: AIProvider[] = [
+    {
+        id: 'openai',
+        name: 'OpenAI',
+        isEnabled: true,
+        priority: 1,
+        apiKeys: [],
+        models: [
+            { id: 'gpt-4o', name: 'GPT-4o (Best Default)', costPerToken: 0.005 },
+            { id: 'gpt-4o-mini', name: 'GPT-4o Mini', costPerToken: 0.0005 },
+            { id: 'gpt-4.1', name: 'GPT-4.1' },
+            { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo (Legacy)', isLegacy: true }
+        ]
+    },
+    {
+        id: 'gemini',
+        name: 'Gemini (Google)',
+        isEnabled: true,
+        priority: 2,
+        apiKeys: [],
+        models: [
+            { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro (Safe)' },
+            { id: 'gemini-1.5-flash-latest', name: 'Gemini 1.5 Flash (Fast)' },
+            { id: 'gemini-1.0-pro', name: 'Gemini 1.0 Pro' }
+        ]
+    },
+    {
+        id: 'claude',
+        name: 'Claude (Anthropic)',
+        isEnabled: true,
+        priority: 3,
+        apiKeys: [],
+        models: [
+            { id: 'claude-3-5-sonnet-latest', name: 'Claude 3.5 Sonnet (Best)' },
+            { id: 'claude-3-opus-latest', name: 'Claude 3 Opus' },
+            { id: 'claude-3-haiku-latest', name: 'Claude 3 Haiku' }
+        ]
+    },
+    {
+        id: 'groq',
+        name: 'Groq',
+        isEnabled: true,
+        priority: 4,
+        apiKeys: [],
+        models: [
+            { id: 'llama-3.1-70b-versatile', name: 'Llama 3.1 70B (Best)' },
+            { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B (Fast)' },
+            { id: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B' }
+        ]
+    },
+    {
+        id: 'together',
+        name: 'Together AI',
+        isEnabled: false,
+        priority: 5,
+        apiKeys: [],
+        models: [
+            { id: 'meta-llama/Llama-3.1-70B-Instruct-Turbo', name: 'Llama 3.1 70B Turbo' },
+            { id: 'meta-llama/Llama-3.1-8B-Instruct-Turbo', name: 'Llama 3.1 8B Turbo' },
+            { id: 'Qwen/Qwen2.5-72B-Instruct', name: 'Qwen 2.5 72B' }
+        ]
+    },
+    {
+        id: 'fireworks',
+        name: 'Fireworks AI',
+        isEnabled: false,
+        priority: 6,
+        apiKeys: [],
+        models: [
+            { id: 'accounts/fireworks/models/llama-v3p1-70b-instruct', name: 'Llama 3.1 70B' },
+            { id: 'accounts/fireworks/models/llama-v3p1-405b-instruct', name: 'Llama 3.1 405B' }
+        ]
+    },
+    {
+        id: 'anyscale',
+        name: 'Anyscale',
+        isEnabled: false,
+        priority: 7,
+        apiKeys: [],
+        models: [
+            { id: 'meta-llama/Llama-3.1-70B-Instruct', name: 'Llama 3.1 70B' },
+            { id: 'meta-llama/Llama-3.1-405B-Instruct', name: 'Llama 3.1 405B' }
+        ]
+    },
+    {
+        id: 'mistral',
+        name: 'Mistral',
+        isEnabled: false,
+        priority: 8,
+        apiKeys: [],
+        models: [
+            { id: 'mistral-large-2407', name: 'Mistral Large 2407' },
+            { id: 'mistral-small-2402', name: 'Mistral Small 2402' }
+        ]
+    },
+    {
+        id: 'deepseek',
+        name: 'DeepSeek',
+        isEnabled: false,
+        priority: 9,
+        apiKeys: [],
+        models: [
+            { id: 'deepseek-chat', name: 'DeepSeek Chat' },
+            { id: 'deepseek-coder', name: 'DeepSeek Coder' },
+            { id: 'deepseek-v3', name: 'DeepSeek V3' }
+        ]
+    },
+    {
+        id: 'qwen',
+        name: 'Qwen (Alibaba)',
+        isEnabled: false,
+        priority: 10,
+        apiKeys: [],
+        models: [
+            { id: 'qwen-2.5-72b-instruct', name: 'Qwen 2.5 72B' },
+            { id: 'qwen-2.5-32b-instruct', name: 'Qwen 2.5 32B' }
+        ]
+    },
+    {
+        id: 'yi',
+        name: 'Yi (01.AI)',
+        isEnabled: false,
+        priority: 11,
+        apiKeys: [],
+        models: [
+            { id: 'yi-1.5-34b-chat', name: 'Yi 1.5 34B' },
+            { id: 'yi-1.5-9b-chat', name: 'Yi 1.5 9B' }
+        ]
+    },
+    {
+        id: 'baichuan',
+        name: 'Baichuan',
+        isEnabled: false,
+        priority: 12,
+        apiKeys: [],
+        models: [
+            { id: 'baichuan-2-13b-chat', name: 'Baichuan 2 13B' },
+            { id: 'baichuan-2-7b-chat', name: 'Baichuan 2 7B' }
+        ]
+    },
+    {
+        id: 'zhipu',
+        name: 'Zhipu (ChatGLM)',
+        isEnabled: false,
+        priority: 13,
+        apiKeys: [],
+        models: [
+            { id: 'glm-4', name: 'GLM-4' },
+            { id: 'glm-3-turbo', name: 'GLM-3 Turbo' }
+        ]
+    },
+    {
+        id: 'perplexity',
+        name: 'Perplexity',
+        isEnabled: false,
+        priority: 14,
+        apiKeys: [],
+        models: [
+            { id: 'sonar-pro', name: 'Sonar Pro' },
+            { id: 'sonar-small', name: 'Sonar Small' }
+        ]
+    },
+    {
+        id: 'openrouter',
+        name: 'OpenRouter',
+        isEnabled: false,
+        priority: 15,
+        apiKeys: [],
+        models: [
+            { id: 'openrouter/auto', name: 'Auto' }
+        ]
+    },
+    // LOCAL AI
+    {
+        id: 'ollama',
+        name: 'Ollama (Local)',
+        isEnabled: false,
+        priority: 16,
+        apiKeys: [],
+        models: [
+            { id: 'llama3.1', name: 'Llama 3.1' },
+            { id: 'qwen2.5', name: 'Qwen 2.5' },
+            { id: 'mistral', name: 'Mistral' },
+            { id: 'deepseek', name: 'DeepSeek' }
+        ],
+        baseUrl: 'http://localhost:11434'
+    },
+    {
+        id: 'lm_studio',
+        name: 'LM Studio (Local)',
+        isEnabled: false,
+        priority: 17,
+        apiKeys: [],
+        models: [
+            { id: 'openai-compatible', name: 'OpenAI Compatible' }
+        ],
+        baseUrl: 'http://localhost:1234/v1'
+    },
+    {
+        id: 'vllm',
+        name: 'vLLM',
+        isEnabled: false,
+        priority: 18,
+        apiKeys: [],
+        models: [ { id: 'openai-compatible', name: 'Default' } ]
+    },
+    {
+        id: 'gpt4all',
+        name: 'GPT4All',
+        isEnabled: false,
+        priority: 19,
+        apiKeys: [],
+        models: [ { id: 'gpt4all-falcon', name: 'Falcon' } ]
+    },
+    {
+        id: 'localai',
+        name: 'LocalAI',
+        isEnabled: false,
+        priority: 20,
+        apiKeys: [],
+        models: [ { id: 'openai-compatible', name: 'Default' } ]
+    },
+    {
+        id: 'huggingface',
+        name: 'HuggingFace',
+        isEnabled: false,
+        priority: 21,
+        apiKeys: [],
+        models: [
+            { id: 'meta-llama/Llama-3.1-70B-Instruct', name: 'Llama 3.1 70B' },
+            { id: 'Qwen/Qwen2.5-72B-Instruct', name: 'Qwen 2.5 72B' }
+        ]
+    },
+    {
+        id: 'replicate',
+        name: 'Replicate',
+        isEnabled: false,
+        priority: 22,
+        apiKeys: [],
+        models: [
+            { id: 'meta/llama-3.1-70b-instruct', name: 'Llama 3.1 70B' }
+        ]
+    },
+    {
+        id: 'modal',
+        name: 'Modal',
+        isEnabled: false,
+        priority: 23,
+        apiKeys: [],
+        models: [
+            { id: 'your-org/llama3.1', name: 'Custom Llama 3.1' },
+            { id: 'your-org/qwen2.5', name: 'Custom Qwen 2.5' }
+        ]
+    }
+];
+
+export const DEFAULT_AI_MAPPINGS = {
+    'NOTES_ENGINE': { providerId: 'groq', modelId: 'llama-3.1-70b-versatile' },
+    'MCQ_ENGINE': { providerId: 'groq', modelId: 'llama-3.1-8b-instant' },
+    'CHAT_ENGINE': { providerId: 'groq', modelId: 'llama-3.1-70b-versatile' },
+    'ANALYSIS_ENGINE': { providerId: 'gemini', modelId: 'gemini-1.5-flash-latest' },
+    'VISION_ENGINE': { providerId: 'gemini', modelId: 'gemini-1.5-flash-latest' }
+};

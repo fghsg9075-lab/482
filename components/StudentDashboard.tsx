@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User, Subject, StudentTab, SystemSettings, CreditPackage, WeeklyTest, Chapter, MCQItem, Challenge20 } from '../types';
 import { updateUserStatus, db, saveUserToLive, getChapterData, rtdb, saveAiInteraction } from '../firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -11,7 +11,7 @@ import { generateMorningInsight } from '../services/morningInsight';
 import { RedeemSection } from './RedeemSection';
 import { PrizeList } from './PrizeList';
 import { Store } from './Store';
-import { Layout, Gift, Sparkles, Megaphone, Lock, BookOpen, AlertCircle, Edit, Settings, Play, Pause, RotateCcw, MessageCircle, Gamepad2, Timer, CreditCard, Send, CheckCircle, Mail, X, Ban, Smartphone, Trophy, ShoppingBag, ArrowRight, Video, Youtube, Home, User as UserIcon, Book, BookOpenText, List, BarChart3, Award, Bell, Headphones, LifeBuoy, WifiOff, Zap, Star, Crown, History, ListChecks, Rocket, Ticket, TrendingUp, BrainCircuit } from 'lucide-react';
+import { Layout, Gift, Sparkles, Megaphone, Lock, BookOpen, AlertCircle, Edit, Settings, Play, Pause, RotateCcw, MessageCircle, Gamepad2, Timer, CreditCard, Send, CheckCircle, Mail, X, Ban, Smartphone, Trophy, ShoppingBag, ArrowRight, Video, Youtube, Home, User as UserIcon, Book, BookOpenText, List, BarChart3, Award, Bell, Headphones, LifeBuoy, WifiOff, Zap, Star, Crown, History, ListChecks, Rocket, Ticket, TrendingUp, BrainCircuit, Menu } from 'lucide-react';
 import { SubjectSelection } from './SubjectSelection';
 import { BannerCarousel } from './BannerCarousel';
 import { ChapterSelection } from './ChapterSelection'; // Imported for Video Flow
@@ -73,7 +73,6 @@ const DEFAULT_PACKAGES: CreditPackage[] = [
 ];
 
 export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onSubjectSelect, onRedeemSuccess, settings, onStartWeeklyTest, activeTab, onTabChange, setFullScreen, onNavigate, isImpersonating, onNavigateToChapter, isDarkMode, onToggleDarkMode }) => {
-  
   // CUSTOM ALERT STATE (Moved up to be available for early hooks)
   const [alertConfig, setAlertConfig] = useState<{isOpen: boolean, type: 'SUCCESS'|'ERROR'|'INFO', title?: string, message: string}>({isOpen: false, type: 'INFO', message: ''});
   const showAlert = (msg: string, type: 'SUCCESS'|'ERROR'|'INFO' = 'INFO', title?: string) => {
@@ -152,6 +151,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
   // Monthly Report
   const [showMonthlyReport, setShowMonthlyReport] = useState(false);
   const [showReferralPopup, setShowReferralPopup] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   // --- REFERRAL POPUP CHECK ---
   useEffect(() => {
@@ -668,16 +668,19 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
     return () => unsub();
   }, [user.id]); 
 
+  const secondsRef = useRef(dailyStudySeconds);
+  useEffect(() => { secondsRef.current = dailyStudySeconds; }, [dailyStudySeconds]);
+
   useEffect(() => {
       const interval = setInterval(() => {
-          updateUserStatus(user.id, dailyStudySeconds);
+          updateUserStatus(user.id, secondsRef.current);
           const todayStr = new Date().toDateString();
-          localStorage.setItem(`activity_${user.id}_${todayStr}`, dailyStudySeconds.toString());
+          localStorage.setItem(`activity_${user.id}_${todayStr}`, secondsRef.current.toString());
           
           const accountAgeHours = (Date.now() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60);
           const firstDayBonusClaimed = localStorage.getItem(`first_day_ultra_${user.id}`);
           
-          if (accountAgeHours < 24 && dailyStudySeconds >= 3600 && !firstDayBonusClaimed) {
+          if (accountAgeHours < 24 && secondsRef.current >= 3600 && !firstDayBonusClaimed) {
               const endDate = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 Hour
               const updatedUser: User = { 
                   ...user, 
@@ -699,7 +702,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
           
       }, 60000); 
       return () => clearInterval(interval);
-  }, [dailyStudySeconds, user.id, user.createdAt]);
+  }, []);
 
   // Inbox
   const [showInbox, setShowInbox] = useState(false);
@@ -986,166 +989,295 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
       );
   };
 
+  const renderHeroLayer = () => {
+    const radius = 80;
+    const circumference = 2 * Math.PI * radius;
+    // Calculate progress based on dailyStudySeconds vs dailyTargetSeconds
+    const progress = Math.min(dailyStudySeconds / (dailyTargetSeconds || 10800), 1);
+    const strokeDashoffset = circumference - progress * circumference;
+
+    return (
+      <div className="flex flex-col items-center justify-start pt-6 pb-8 min-h-[70vh]">
+         {/* 1. STUDY TIMER (Apple Watch Ring) */}
+         <div className="relative mb-8">
+             <svg width="200" height="200" className="transform -rotate-90">
+                {/* Background Ring */}
+                <circle cx="100" cy="100" r={radius} stroke="#e2e8f0" strokeWidth="12" fill="transparent" />
+                {/* Progress Ring */}
+                <circle
+                    cx="100" cy="100" r={radius}
+                    stroke="var(--primary, #3b82f6)"
+                    strokeWidth="12"
+                    fill="transparent"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={strokeDashoffset}
+                    strokeLinecap="round"
+                    className="transition-all duration-1000 ease-in-out"
+                />
+             </svg>
+             <div className="absolute inset-0 flex flex-col items-center justify-center">
+                 <span className="text-4xl font-black text-slate-800 font-mono tracking-tighter">
+                    {formatTime(dailyStudySeconds)}
+                 </span>
+                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Study Time</span>
+             </div>
+
+             {/* Timer Controls */}
+             <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 flex gap-2 w-max">
+                 <button className="px-3 py-1 bg-slate-900 text-white rounded-full text-[10px] font-bold shadow-lg hover:scale-105 transition-transform border border-slate-700">15m</button>
+                 <button className="px-3 py-1 bg-slate-900 text-white rounded-full text-[10px] font-bold shadow-lg hover:scale-105 transition-transform border border-slate-700">30m</button>
+                 <button className="px-3 py-1 bg-slate-900 text-white rounded-full text-[10px] font-bold shadow-lg hover:scale-105 transition-transform border border-slate-700">1h</button>
+             </div>
+         </div>
+
+         {/* 2. AI PERSONAL TUTOR (Hero Card) */}
+         <div className="w-full px-4 mb-6">
+             <div className="bg-gradient-to-r from-indigo-600 to-violet-600 p-5 rounded-3xl shadow-xl shadow-indigo-200 text-white relative overflow-hidden group cursor-pointer" onClick={() => onTabChange('AI_CHAT' as any)}>
+                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-colors"></div>
+                 <div className="relative z-10">
+                     <div className="flex items-center gap-3 mb-3">
+                         <div className="p-2 bg-white/20 rounded-xl backdrop-blur-md">
+                             <Sparkles size={20} className="text-yellow-300" />
+                         </div>
+                         <h3 className="text-lg font-black italic">AI Personal Tutor</h3>
+                     </div>
+                     <p className="text-sm text-indigo-100 mb-4 font-medium">Stuck on a doubt? Ask anything, I'll teach you.</p>
+
+                     <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-3 flex items-center justify-between">
+                         <span className="text-xs text-indigo-200">Tap to start chatting...</span>
+                         <div className="bg-white text-indigo-600 p-1.5 rounded-lg">
+                             <ArrowRight size={14} strokeWidth={3} />
+                         </div>
+                     </div>
+                 </div>
+             </div>
+         </div>
+
+         {/* 3. CONTINUE & CHALLENGE GRID */}
+         <div className="w-full px-4 grid grid-cols-2 gap-3">
+             {/* Continue Learning */}
+             <button onClick={() => onTabChange('COURSES')} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-start gap-2 hover:bg-slate-50 transition-colors text-left group">
+                 <div className="p-2 bg-orange-100 rounded-lg text-orange-600 group-hover:bg-orange-200 transition-colors">
+                     <Play size={18} fill="currentColor" />
+                 </div>
+                 <div>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase">Continue</p>
+                     <p className="text-xs font-black text-slate-800 leading-tight line-clamp-2">Courses Library</p>
+                 </div>
+             </button>
+
+             {/* Daily Challenge */}
+             <button onClick={() => startAutoChallenge('DAILY')} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-start gap-2 hover:bg-slate-50 transition-colors text-left group">
+                 <div className="p-2 bg-blue-100 rounded-lg text-blue-600 group-hover:bg-blue-200 transition-colors">
+                     <Rocket size={18} />
+                 </div>
+                 <div>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase">Daily Task</p>
+                     <p className="text-xs font-black text-slate-800 leading-tight">Mixed Quiz (15m)</p>
+                 </div>
+             </button>
+         </div>
+      </div>
+    );
+  };
+
+  const renderPowerZoneDrawer = () => {
+     if (!isDrawerOpen) return null;
+
+     return (
+        <div className="fixed inset-0 z-[60] flex animate-in fade-in duration-200">
+           {/* Backdrop */}
+           <div
+             className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+             onClick={() => setIsDrawerOpen(false)}
+           ></div>
+
+           {/* Drawer Content */}
+           <div className="relative w-[85%] max-w-sm h-full bg-slate-50 overflow-y-auto shadow-2xl animate-in slide-in-from-left duration-300">
+              <div className="p-4 space-y-6 pb-24">
+                 <div className="flex items-center justify-between mb-2">
+                    <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                        <Layout size={24} className="text-blue-600" /> Power Zone
+                    </h2>
+                    <button onClick={() => setIsDrawerOpen(false)} className="p-2 bg-slate-200 rounded-full hover:bg-slate-300">
+                        <X size={20} className="text-slate-600" />
+                    </button>
+                 </div>
+
+                 {/* PROFILE HEADER (Moved from Home) */}
+                 <DashboardSectionWrapper id="section_profile_header" label="Profile Header">
+                    <div
+                        onClick={() => onTabChange('ANALYTICS')}
+                        className="bg-gradient-to-br from-slate-900 to-slate-800 p-4 rounded-3xl shadow-lg border border-white/10 relative overflow-hidden cursor-pointer"
+                    >
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl"></div>
+
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
+                                    <UserIcon size={24} className="text-white" />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-black text-white leading-tight">{user.name}</h2>
+                                    <p className="text-white/60 text-[10px] font-bold uppercase">{user.classLevel} • {user.board}</p>
+                                </div>
+                            </div>
+
+                            {/* Stats Summary */}
+                             <div className="grid grid-cols-2 gap-2">
+                                <div className="bg-white/5 p-2 rounded-xl border border-white/10">
+                                    <p className="text-[9px] text-white/50 uppercase font-bold">Credits</p>
+                                    <p className="text-lg font-mono font-bold text-yellow-400">{user.credits}</p>
+                                </div>
+                                <div className="bg-white/5 p-2 rounded-xl border border-white/10">
+                                    <p className="text-[9px] text-white/50 uppercase font-bold">Streak</p>
+                                    <p className="text-lg font-mono font-bold text-orange-400">{user.streak} Days</p>
+                                </div>
+                             </div>
+                        </div>
+                    </div>
+                 </DashboardSectionWrapper>
+
+                 {/* QUICK ACTIONS GRID */}
+                 <DashboardSectionWrapper id="services_grid" label="Services Grid">
+                      <div>
+                          <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
+                              <Layout size={18} /> Quick Actions
+                          </h3>
+                          <div className="grid grid-cols-3 gap-3">
+                              {/* Row 1 */}
+                              <DashboardTileWrapper id="tile_inbox" label="Inbox">
+                              <button onClick={() => { setShowInbox(true); setIsDrawerOpen(false); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform relative group">
+                                  <Mail size={20} style={{ color: 'var(--primary)' }} />
+                                  <span className="text-[9px] font-black text-slate-700 uppercase tracking-wider">Inbox</span>
+                                  {unreadCount > 0 && <span className="absolute top-2 right-2 w-4 h-4 bg-yellow-400 text-black text-[9px] font-bold flex items-center justify-center rounded-full shadow-sm animate-pulse">{unreadCount}</span>}
+                              </button>
+                              </DashboardTileWrapper>
+
+                              <DashboardTileWrapper id="tile_analytics" label="Analytics">
+                              <button onClick={() => { onTabChange('ANALYTICS'); setIsDrawerOpen(false); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
+                                  <BarChart3 size={20} style={{ color: 'var(--primary)' }} />
+                                  <span className="text-[9px] font-black text-slate-700 uppercase tracking-wider">Analytics</span>
+                              </button>
+                              </DashboardTileWrapper>
+
+                              <DashboardTileWrapper id="tile_marksheet" label="Marksheet">
+                              <button onClick={() => { setShowMonthlyReport(true); setIsDrawerOpen(false); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
+                                  <FileText size={20} style={{ color: 'var(--primary)' }} />
+                                  <span className="text-[9px] font-black text-slate-700 uppercase tracking-wider">Marksheet</span>
+                              </button>
+                              </DashboardTileWrapper>
+
+                              {(user.role === 'ADMIN' || isImpersonating) && (
+                                <DashboardTileWrapper id="tile_admin" label="Admin App">
+                                <button onClick={() => { handleSwitchToAdmin(); setIsDrawerOpen(false); }} className="h-20 w-full bg-slate-900 border border-slate-800 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
+                                    <Layout size={20} className="text-yellow-400" />
+                                    <span className="text-[9px] font-black text-white uppercase tracking-wider">Admin</span>
+                                </button>
+                                </DashboardTileWrapper>
+                              )}
+
+                              <DashboardTileWrapper id="tile_history" label="History">
+                              <button onClick={() => { onTabChange('HISTORY'); setIsDrawerOpen(false); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
+                                  <History size={20} style={{ color: 'var(--primary)' }} />
+                                  <span className="text-[9px] font-black text-slate-700 uppercase tracking-wider">History</span>
+                              </button>
+                              </DashboardTileWrapper>
+
+                              <DashboardTileWrapper id="tile_ai_history" label="AI History">
+                              <button onClick={() => { onTabChange('AI_HISTORY'); setIsDrawerOpen(false); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
+                                  <BrainCircuit size={20} style={{ color: 'var(--primary)' }} />
+                                  <span className="text-[9px] font-black text-slate-700 uppercase tracking-wider">AI Logs</span>
+                              </button>
+                              </DashboardTileWrapper>
+
+                              {/* Row 2 */}
+                              <DashboardTileWrapper id="tile_premium" label="Store">
+                              <button onClick={() => { onTabChange('STORE'); setIsDrawerOpen(false); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
+                                  <Crown size={20} style={{ color: 'var(--primary)' }} />
+                                  <span className="text-[9px] font-black text-slate-700 uppercase tracking-wider">Premium</span>
+                              </button>
+                              </DashboardTileWrapper>
+
+                              <DashboardTileWrapper id="tile_my_plan" label="My Plan">
+                              <button onClick={() => { onTabChange('SUB_HISTORY' as any); setIsDrawerOpen(false); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
+                                  <CreditCard size={20} style={{ color: 'var(--primary)' }} />
+                                  <span className="text-[9px] font-black text-slate-700 uppercase tracking-wider">My Plan</span>
+                              </button>
+                              </DashboardTileWrapper>
+
+                              {isGameEnabled && (
+                                <DashboardTileWrapper id="tile_game" label="Game">
+                                <button onClick={() => { onTabChange('GAME'); setIsDrawerOpen(false); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
+                                    <Gamepad2 size={20} style={{ color: 'var(--primary)' }} />
+                                    <span className="text-[9px] font-black text-slate-700 uppercase tracking-wider">Game</span>
+                                </button>
+                                </DashboardTileWrapper>
+                              )}
+
+                              {/* Row 3 */}
+                              <DashboardTileWrapper id="tile_redeem" label="Redeem">
+                              <button onClick={() => { onTabChange('REDEEM'); setIsDrawerOpen(false); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
+                                  <Gift size={20} style={{ color: 'var(--primary)' }} />
+                                  <span className="text-[9px] font-black text-slate-700 uppercase tracking-wider">Redeem</span>
+                              </button>
+                              </DashboardTileWrapper>
+
+                              <DashboardTileWrapper id="tile_prizes" label="Prizes">
+                              <button onClick={() => { onTabChange('PRIZES'); setIsDrawerOpen(false); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
+                                  <Award size={20} style={{ color: 'var(--primary)' }} />
+                                  <span className="text-[9px] font-black text-slate-700 uppercase tracking-wider">Prizes</span>
+                              </button>
+                              </DashboardTileWrapper>
+
+                              <DashboardTileWrapper id="tile_leaderboard" label="Ranks">
+                              <button onClick={() => { onTabChange('LEADERBOARD'); setIsDrawerOpen(false); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
+                                  <Trophy size={20} style={{ color: 'var(--primary)' }} />
+                                  <span className="text-[9px] font-black text-slate-700 uppercase tracking-wider">Ranks</span>
+                              </button>
+                              </DashboardTileWrapper>
+                          </div>
+                      </div>
+                 </DashboardSectionWrapper>
+              </div>
+           </div>
+        </div>
+     );
+  };
+
   // --- RENDER BASED ON ACTIVE TAB ---
   const renderMainContent = () => {
       // 1. HOME TAB
-      if (activeTab === 'HOME') { 
+      if (activeTab === 'HOME') {
           const isPremium = user.isPremium && user.subscriptionEndDate && new Date(user.subscriptionEndDate) > new Date();
 
           return (
-              <div className="space-y-6 pb-24">
-                {/* NEW: USER PROFILE DASHBOARD HEADER */}
-                <DashboardSectionWrapper id="section_profile_header" label="Profile Header">
-                <div 
-                    onClick={() => onTabChange('ANALYTICS')}
-                    className="mx-1 bg-gradient-to-br from-slate-900 to-slate-800 p-6 rounded-3xl shadow-2xl border border-white/10 relative overflow-hidden cursor-pointer hover:scale-[1.01] transition-transform"
-                >
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-                    <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
-                    
-                    <div className="relative z-10">
-                        <div className="flex items-center gap-4 mb-6">
-                            <div className="relative">
-                                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-white/20 to-white/5 border border-white/30 flex items-center justify-center shadow-xl">
-                                    <UserIcon size={32} className="text-white" />
-                                </div>
-                                {user.isPremium && (
-                                    <div className="absolute -top-2 -right-2 bg-yellow-400 text-slate-900 p-1 rounded-lg shadow-lg border-2 border-slate-900 animate-bounce">
-                                        <Crown size={12} />
-                                    </div>
-                                )}
-                            </div>
-                            <div className="flex-1">
-                                <h2 className="text-xl font-black text-white leading-tight flex items-center gap-2">
-                                    {user.name}
-                                    {user.subscriptionLevel === 'ULTRA' && <Zap size={16} className="text-yellow-400 fill-yellow-400" />}
-                                </h2>
-                                <div className="flex items-center gap-2">
-                                    <p className="text-white/60 text-xs font-bold uppercase tracking-wider">
-                                        {user.role} • {user.board} {user.classLevel}
-                                    </p>
-                                    {user.streak >= 5 && (
-                                        <span className="bg-blue-500/20 text-blue-300 text-[9px] font-black px-2 py-0.5 rounded border border-blue-500/30 flex items-center gap-1">
-                                            <Crown size={10} /> CONSISTENCY KING
-                                        </span>
-                                    )}
-                                    {/* Check if any recent test > 90% */}
-                                    {(user.mcqHistory || []).slice(0, 5).some(h => h.totalQuestions > 0 && (h.score/h.totalQuestions) >= 0.9) && (
-                                        <span className="bg-yellow-500/20 text-yellow-300 text-[9px] font-black px-2 py-0.5 rounded border border-yellow-500/30 flex items-center gap-1">
-                                            <Star size={10} /> SCHOLARSHIP WINNER
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                            <button 
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEditMode(true);
-                                }}
-                                className="p-2.5 bg-white/10 hover:bg-white/20 rounded-xl border border-white/20 transition-all active:scale-95"
-                            >
-                                <Settings size={20} className="text-white" />
-                            </button>
-                        </div>
+              <div className="space-y-6 pb-24 relative">
+                {/* 3-LAYER SYSTEM INTEGRATION */}
 
-                        {/* TOPIC STRENGTH & TRENDS */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* PERFORMANCE TREND */}
-                            <div 
-                                className="bg-white/5 backdrop-blur-md p-4 rounded-2xl border border-white/10 cursor-default"
-                            >
-                                <div className="flex justify-between items-center mb-3">
-                                    <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
-                                        <TrendingUp size={14} /> Growth Chart
-                                    </h4>
-                                </div>
-                                {user.mcqHistory && user.mcqHistory.length > 0 ? (
-                                    <div className="space-y-3">
-                                        {(user.mcqHistory || []).slice(0, 5).map((h, i, arr) => {
-                                            const score = h.totalQuestions > 0 ? Math.round((h.correctCount / h.totalQuestions) * 100) : 0;
-                                            
-                                            // Calculate Improvement vs Previous Test (which is i+1 in descending list)
-                                            let improvement = 0;
-                                            let showImp = false;
-                                            if (i < arr.length - 1) {
-                                                const prev = arr[i+1];
-                                                const prevScore = prev.totalQuestions > 0 ? Math.round((prev.correctCount / prev.totalQuestions) * 100) : 0;
-                                                improvement = score - prevScore;
-                                                showImp = true;
-                                            }
+                {/* Layer 3: Power Zone (Drawer) */}
+                {renderPowerZoneDrawer()}
 
-                                            return (
-                                                <div key={i} className="space-y-1">
-                                                    <div className="flex justify-between items-end">
-                                                        <span className="text-[9px] font-bold text-white/80 truncate max-w-[50%] leading-none">
-                                                            {h.chapterTitle || 'Test'}
-                                                        </span>
-                                                        <div className="flex items-center gap-2">
-                                                            {showImp && (
-                                                                <span className={`text-[8px] font-bold px-1 rounded ${improvement > 0 ? 'text-green-400 bg-green-900/30' : improvement < 0 ? 'text-red-400 bg-red-900/30' : 'text-slate-400 bg-white/10'}`}>
-                                                                    {improvement > 0 ? '+' : ''}{improvement}%
-                                                                </span>
-                                                            )}
-                                                            <span className={`text-[9px] font-black leading-none ${score >= 80 ? 'text-green-400' : score >= 50 ? 'text-blue-400' : 'text-red-400'}`}>
-                                                                {score}%
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                    <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                                                        <div 
-                                                            className={`h-full rounded-full transition-all duration-1000 ${score >= 80 ? 'bg-gradient-to-r from-green-500 to-emerald-400' : score >= 50 ? 'bg-gradient-to-r from-blue-500 to-cyan-400' : 'bg-gradient-to-r from-red-500 to-orange-400'}`} 
-                                                            style={{ width: `${score}%` }} 
-                                                        />
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                ) : (
-                                    <p className="text-[10px] text-white/40 italic py-4 text-center">No test history yet</p>
-                                )}
-                            </div>
+                {/* Layer 1 Header (Menu + Stats) */}
+                <div className="flex items-center justify-between px-2 pt-2">
+                    <button onClick={() => setIsDrawerOpen(true)} className="p-3 bg-white rounded-xl shadow-sm border border-slate-100 text-slate-700 hover:bg-slate-50">
+                        <Menu size={24} />
+                    </button>
 
-                            {/* TOPIC STRENGTH */}
-                            <div 
-                                className="bg-white/5 backdrop-blur-md p-4 rounded-2xl border border-white/10 cursor-default opacity-80"
-                            >
-                                <div className="flex justify-between items-center mb-3">
-                                    <h4 className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2">
-                                        <BookOpen size={14} /> Topic Strength Areas
-                                    </h4>
-                                </div>
-                                {user.topicStrength && Object.keys(user.topicStrength).length > 0 ? (
-                                    <div className="space-y-2">
-                                        {Object.entries(user.topicStrength).filter(([topic, stats]) => {
-                                            const pct = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
-                                            return pct < 60; // Keep in trend list if performance < 60%
-                                        }).map(([topic, stats]) => {
-                                            const pct = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
-                                            return (
-                                                <div key={topic} className="space-y-1">
-                                                    <div className="flex justify-between text-[9px] font-bold">
-                                                        <span className="text-white/60 truncate mr-2">{topic}</span>
-                                                        <span className="text-white">{pct}%</span>
-                                                    </div>
-                                                    <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                                                        <div 
-                                                            className={`h-full transition-all duration-1000 ${pct >= 80 ? 'bg-green-500' : pct >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`} 
-                                                            style={{ width: `${pct}%` }} 
-                                                        />
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                ) : (
-                                    <p className="text-[10px] text-white/40 italic py-4 text-center">Analyze topics by taking tests</p>
-                                )}
-                            </div>
-                        </div>
+                    <div className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-xl shadow-lg">
+                        <Zap size={16} className="text-yellow-400 fill-yellow-400" />
+                        <span className="font-mono font-bold text-sm">{user.streak} Day Streak</span>
                     </div>
                 </div>
-                </DashboardSectionWrapper>
+
+                {renderHeroLayer()}
+
+                {/* Layer 2: SMART SLIDE (Swipe Up Layer) */}
+                {/* Layer 2: SMART SLIDE (Swipe Up Layer) */}
+                <div className="bg-slate-50 rounded-t-[2.5rem] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] pt-8 pb-32 -mt-6 relative z-10 min-h-screen">
+                    <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6"></div> {/* Swipe Handle */}
+
+                    <div className="px-2 space-y-4">
 
                 {/* HERO SECTION */}
                   <div className="space-y-4 mb-6">
@@ -1399,34 +1531,6 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                       </DashboardSectionWrapper>
                   </div>
 
-          {/* STATS HEADER (Compact) */}
-          <DashboardSectionWrapper id="stats_header" label="Stats Header">
-                  <div className="bg-slate-900 rounded-xl p-3 text-white shadow-lg relative overflow-hidden">
-                      <div className="flex items-center justify-between relative z-10">
-                          <div className="flex items-center gap-3">
-                              <div className="bg-slate-800 p-2 rounded-lg">
-                                  <Timer size={16} className="text-green-400" />
-                              </div>
-                              <div>
-                                  <p className="text-[9px] text-slate-400 font-bold uppercase">Study Time</p>
-                                  <p className="text-lg font-mono font-bold text-white leading-none">
-                                      {formatTime(dailyStudySeconds)}
-                                  </p>
-                              </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                              <div className="text-right">
-                                  <p className="text-[9px] text-slate-400 font-bold uppercase">Credits</p>
-                                  <p className="text-lg font-black text-yellow-400 leading-none">{user.credits}</p>
-                              </div>
-                              <div className="bg-slate-800 p-2 rounded-lg">
-                                  <Crown size={16} className="text-yellow-400" />
-                              </div>
-                          </div>
-                      </div>
-                  </div>
-                  </DashboardSectionWrapper>
-
                   {/* CONTENT REQUEST (DEMAND) SECTION */}
                   <DashboardSectionWrapper id="request_content" label="Request Content">
                   <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-4 rounded-2xl border border-pink-100 shadow-sm mt-4">
@@ -1446,117 +1550,14 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                       </button>
                   </div>
                   </DashboardSectionWrapper>
-
-                      {/* MORE SERVICES GRID (Redesigned - Audio Learning 2.0 Style) */}
-                      <DashboardSectionWrapper id="services_grid" label="Services Grid">
-                      <div>
-                          <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2 px-1">
-                              <Layout size={18} /> Quick Actions
-                          </h3>
-                          <div className="grid grid-cols-3 gap-3">
-                              {/* Row 1 */}
-                              <DashboardTileWrapper id="tile_inbox" label="Inbox">
-                              <button onClick={() => setShowInbox(true)} className="h-16 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform relative group">
-                                  <Mail size={18} style={{ color: 'var(--primary)' }} />
-                                  <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider">Inbox</span>
-                                  {unreadCount > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 text-black text-[9px] font-bold flex items-center justify-center rounded-full shadow-sm animate-pulse">{unreadCount}</span>}
-                              </button>
-                              </DashboardTileWrapper>
-                              
-                              <DashboardTileWrapper id="tile_analytics" label="Analytics">
-                              <button onClick={() => onTabChange('ANALYTICS')} className="h-16 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
-                                  <BarChart3 size={18} style={{ color: 'var(--primary)' }} />
-                                  <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider">Analytics</span>
-                              </button>
-                              </DashboardTileWrapper>
-
-                              <DashboardTileWrapper id="tile_marksheet" label="Marksheet">
-                              <button onClick={() => setShowMonthlyReport(true)} className="h-16 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
-                                  <FileText size={18} style={{ color: 'var(--primary)' }} />
-                                  <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider">Marksheet</span>
-                              </button>
-                              </DashboardTileWrapper>
-
-                              {(user.role === 'ADMIN' || isImpersonating) && (
-                                <DashboardTileWrapper id="tile_admin" label="Admin App">
-                                <button onClick={handleSwitchToAdmin} className="h-16 w-full bg-slate-900 border border-slate-800 rounded-xl shadow-sm flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
-                                    <Layout size={18} className="text-yellow-400" />
-                                    <span className="text-[10px] font-black text-white uppercase tracking-wider">Admin App</span>
-                                </button>
-                                </DashboardTileWrapper>
-                              )}
-
-                              <DashboardTileWrapper id="tile_history" label="History">
-                              <button onClick={() => onTabChange('HISTORY')} className="h-16 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
-                                  <History size={18} style={{ color: 'var(--primary)' }} />
-                                  <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider">History</span>
-                              </button>
-                              </DashboardTileWrapper>
-
-                              <DashboardTileWrapper id="tile_ai_history" label="AI History">
-                              <button onClick={() => onTabChange('AI_HISTORY')} className="h-16 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
-                                  <BrainCircuit size={18} style={{ color: 'var(--primary)' }} />
-                                  <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider">AI History</span>
-                              </button>
-                              </DashboardTileWrapper>
-
-                              {/* Row 2 */}
-                              <DashboardTileWrapper id="tile_premium" label="Store">
-                              <button onClick={() => onTabChange('STORE')} className="h-16 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
-                                  <Crown size={18} style={{ color: 'var(--primary)' }} />
-                                  <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider">Premium</span>
-                              </button>
-                              </DashboardTileWrapper>
-
-                              <DashboardTileWrapper id="tile_my_plan" label="My Plan">
-                              <button onClick={() => onTabChange('SUB_HISTORY' as any)} className="h-16 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
-                                  <CreditCard size={18} style={{ color: 'var(--primary)' }} />
-                                  <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider">My Plan</span>
-                              </button>
-                              </DashboardTileWrapper>
-
-                              {isGameEnabled && (
-                                <DashboardTileWrapper id="tile_game" label="Game">
-                                <button onClick={() => onTabChange('GAME')} className="h-16 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
-                                    <Gamepad2 size={18} style={{ color: 'var(--primary)' }} />
-                                    <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider">Game</span>
-                                </button>
-                                </DashboardTileWrapper>
-                              )}
-
-                              {/* Row 3 */}
-                              <DashboardTileWrapper id="tile_redeem" label="Redeem">
-                              <button onClick={() => onTabChange('REDEEM')} className="h-16 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
-                                  <Gift size={18} style={{ color: 'var(--primary)' }} />
-                                  <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider">Redeem</span>
-                              </button>
-                              </DashboardTileWrapper>
-                              
-                              <DashboardTileWrapper id="tile_prizes" label="Prizes">
-                              <button onClick={() => onTabChange('PRIZES')} className="h-16 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
-                                  <Award size={18} style={{ color: 'var(--primary)' }} />
-                                  <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider">Prizes</span>
-                              </button>
-                              </DashboardTileWrapper>
-
-                              <DashboardTileWrapper id="tile_leaderboard" label="Ranks">
-                              <button onClick={() => onTabChange('LEADERBOARD')} className="h-16 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
-                                  <Trophy size={18} style={{ color: 'var(--primary)' }} />
-                                  <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider">Ranks</span>
-                              </button>
-                              </DashboardTileWrapper>
-                          </div>
-                      </div>
-                      </DashboardSectionWrapper>
-                  </div>
-              );
-          }
-
-
+              </div>
+              </div>
+              </div>
+          );
+      }
       // 2. COURSES TAB (Handles Video, Notes, MCQ Selection)
+      // 2. COURSES TAB
       if (activeTab === 'COURSES') {
-          // If viewing a specific content type (from drilled down), show it
-          // Note: Clicking a subject switches tab to VIDEO/PDF/MCQ, so COURSES just shows the Hub.
           const visibleSubjects = getSubjectsList(user.classLevel || '10', user.stream || null)
                                     .filter(s => !(settings?.hiddenSubjects || []).includes(s.id));
 
@@ -1568,8 +1569,6 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                               <Trophy size={14} /> Rank List
                           </button>
                       </div>
-
-                      {/* SYLLABUS SELECTOR REMOVED FROM COURSES */}
                       
                       {/* Video Section */}
                       {settings?.contentVisibility?.VIDEO !== false && (
@@ -1635,7 +1634,6 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                   </div>
               );
       }
-
       // 4. LEGACY TABS (Mapped to new structure or kept as sub-views)
       if (activeTab === 'CUSTOM_PAGE') return <CustomBloggerPage onBack={() => onTabChange('HOME')} />;
       if (activeTab === 'DEEP_ANALYSIS') return <AiDeepAnalysis user={user} settings={settings} onUpdateUser={handleUserUpdate} onBack={() => onTabChange('HOME')} />;
