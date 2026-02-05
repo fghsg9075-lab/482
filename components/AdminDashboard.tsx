@@ -3649,6 +3649,42 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
               <SubjectSelector />
               {selSubject && (
                   <div className="space-y-6">
+                      {/* ACTION BAR */}
+                      <div className="flex justify-end mb-2">
+                          <button
+                              onClick={async () => {
+                                  if (confirm(`⚠️ DANGER: Are you sure you want to DELETE ALL CONTENT for ${selSubject.name} (${selClass})?\n\nThis will remove chapters, notes, videos and MCQs for this subject.`)) {
+                                      if (confirm("This cannot be undone. Confirm delete?")) {
+                                          // Delete syllabus list
+                                          const streamKey = (selClass === '11' || selClass === '12') && selStream ? `-${selStream}` : '';
+                                          const baseKey = `${selBoard}-${selClass}${streamKey}-${selSubject.name}`;
+
+                                          // Delete Syllabus
+                                          localStorage.removeItem(`nst_custom_chapters_${baseKey}-English`);
+                                          localStorage.removeItem(`nst_custom_chapters_${baseKey}-Hindi`);
+
+                                          // Delete Content for each chapter
+                                          for (const ch of selChapters) {
+                                              const contentKey = `nst_content_${selBoard}_${selClass}${streamKey}_${selSubject.name}_${ch.id}`;
+                                              await storage.removeItem(contentKey);
+                                          }
+
+                                          if (isFirebaseConnected) {
+                                              await deleteCustomSyllabus(`${baseKey}-English`);
+                                              await deleteCustomSyllabus(`${baseKey}-Hindi`);
+                                          }
+
+                                          setSelChapters([]);
+                                          alert("✅ Subject Content Cleared.");
+                                      }
+                                  }
+                              }}
+                              className="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-xs font-bold border border-red-200 hover:bg-red-100 flex items-center gap-2"
+                          >
+                              <Trash2 size={14} /> Clear Subject Content
+                          </button>
+                      </div>
+
                       {/* BULK UPLOAD SECTION */}
                       <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 animate-in fade-in">
                           <h4 className="font-bold text-indigo-900 mb-2 flex items-center gap-2">
@@ -8419,17 +8455,37 @@ Capital of India?       Mumbai  Delhi   Kolkata Chennai 2       Delhi is the cap
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {Object.values({...DEFAULT_SUBJECTS, ...customSubjects}).map((sub: any) => (
-                      <div key={sub.id} className="p-4 border rounded-xl flex items-center gap-3 bg-white">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${sub.color}`}>
-                              <Book size={20} />
+                  {Object.values({...DEFAULT_SUBJECTS, ...customSubjects}).map((sub: any) => {
+                      const isCustom = customSubjects[sub.id] !== undefined;
+                      return (
+                          <div key={sub.id} className="p-4 border rounded-xl flex items-center justify-between bg-white group">
+                              <div className="flex items-center gap-3">
+                                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${sub.color}`}>
+                                      <Book size={20} />
+                                  </div>
+                                  <div>
+                                      <p className="font-bold text-sm">{sub.name}</p>
+                                      <p className="text-[10px] text-slate-400 uppercase">{sub.id}</p>
+                                  </div>
+                              </div>
+                              {isCustom && (
+                                  <button
+                                      onClick={() => {
+                                          if (confirm(`Delete Subject "${sub.name}"?`)) {
+                                              const updated = { ...customSubjects };
+                                              delete updated[sub.id];
+                                              setCustomSubjects(updated);
+                                              localStorage.setItem('nst_custom_subjects_pool', JSON.stringify(updated));
+                                          }
+                                      }}
+                                      className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-2"
+                                  >
+                                      <Trash2 size={16} />
+                                  </button>
+                              )}
                           </div>
-                          <div>
-                              <p className="font-bold text-sm">{sub.name}</p>
-                              <p className="text-[10px] text-slate-400 uppercase">{sub.id}</p>
-                          </div>
-                      </div>
-                  ))}
+                      );
+                  })}
               </div>
           </div>
       )}

@@ -1001,7 +1001,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
     const strokeDashoffset = circumference - progress * circumference;
 
     return (
-      <div ref={heroRef} className="flex flex-col items-center justify-start pt-6 pb-8 min-h-[70vh] relative">
+      <div ref={heroRef} className="flex flex-col items-center justify-start pt-6 pb-8 min-h-screen relative">
          {/* 1. STUDY TIMER (Apple Watch Ring) */}
          <div className="relative mb-8">
              <svg width="200" height="200" className="transform -rotate-90">

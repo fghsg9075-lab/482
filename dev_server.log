@@ -8,3 +8,8 @@
   ➜  Local:   http://localhost:3000/
   ➜  Network: http://192.168.0.2:3000/
 [BABEL] Note: The code generator has deoptimised the styling of /app/components/AdminDashboard.tsx as it exceeds the max of 500KB.
+11:34:28 AM [vite] (client) hmr update /App.tsx, /components/SubjectSelection.tsx, /components/StudentDashboard.tsx, /components/AdminDashboard.tsx, /components/PdfView.tsx, /components/MarksheetCard.tsx, /components/StudentAiAssistant.tsx, /components/admin/ChallengeCreator20.tsx, /components/AdminAiAssistant.tsx, /components/admin/AiControlTower.tsx
+11:34:58 AM [vite] (client) hmr update /components/StudentDashboard.tsx
+11:36:09 AM [vite] (client) hmr update /components/AdminDashboard.tsx
+11:36:41 AM [vite] (client) hmr update /components/AdminDashboard.tsx
+11:44:10 AM [vite] (client) hmr update /components/admin/AiControlTower.tsx
