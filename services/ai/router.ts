@@ -108,6 +108,7 @@ export const executeCanonicalRaw = async (options: RouterExecuteOptions): Promis
         ...fallbackCandidates.filter(c => c.providerId !== primaryProviderId)
     ];
 
+    const attempts: { providerId: string, reason: string }[] = [];
     let lastError: any = null;
 
     for (const candidate of uniqueCandidates) {
@@ -118,6 +119,7 @@ export const executeCanonicalRaw = async (options: RouterExecuteOptions): Promis
 
         // Skip if provider doesn't exist or is disabled
         if (!providerConfig || !providerConfig.isEnabled) {
+            attempts.push({ providerId, reason: "Disabled or Not Configured" });
             continue;
         }
 
@@ -135,6 +137,7 @@ export const executeCanonicalRaw = async (options: RouterExecuteOptions): Promis
         const keysToTry = 2;
         let success = false;
         let response: AIResponse | null = null;
+        let keyFound = false;
 
         for (let k = 0; k < keysToTry; k++) {
             const keyObj = getNextKey(providerId);
@@ -143,6 +146,7 @@ export const executeCanonicalRaw = async (options: RouterExecuteOptions): Promis
                 // No keys active for this provider, try next provider
                 break;
             }
+            keyFound = true;
 
             const startTime = Date.now();
             try {
@@ -202,13 +206,19 @@ export const executeCanonicalRaw = async (options: RouterExecuteOptions): Promis
 
         if (success && response) {
             return response;
+        } else if (!keyFound) {
+            attempts.push({ providerId, reason: "No Active Keys Found" });
+        } else {
+            attempts.push({ providerId, reason: lastError?.message || "Execution Failed" });
         }
 
         // If we get here, this provider failed (all keys).
         // Loop continues to next candidate.
     }
 
-    throw new Error(`All AI Providers Failed. Last error: ${lastError?.message || "Unknown Error"}`);
+    // Construct a more helpful error message
+    const attemptSummary = attempts.map(a => `${a.providerId}: ${a.reason}`).join(' | ');
+    throw new Error(`AI Generation Failed. Providers tried: [${attemptSummary}]. Please check Admin Dashboard > AI Control Tower.`);
 };
 
 // Helper for simple text response
