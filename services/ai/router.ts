@@ -24,12 +24,12 @@ const ensureConfigLoaded = async () => {
 
             // --- SELF-HEALING / MIGRATION LOGIC ---
             if (settingsCache?.aiCanonicalMap) {
-                // 1. Fix Gemini 404 Error (gemini-1.5-flash-latest -> gemini-1.5-flash)
+                // 1. Fix Gemini 404 Error (gemini-1.5-flash* -> gemini-1.5-flash-001)
                 Object.keys(settingsCache.aiCanonicalMap).forEach(key => {
                     const mapping = settingsCache!.aiCanonicalMap[key];
-                    if (mapping.modelId === 'gemini-1.5-flash-latest') {
-                        console.warn(`[AI Router] Auto-fixing deprecated model for ${key}: gemini-1.5-flash-latest -> gemini-1.5-flash`);
-                        mapping.modelId = 'gemini-1.5-flash';
+                    if (mapping.modelId === 'gemini-1.5-flash-latest' || mapping.modelId === 'gemini-1.5-flash') {
+                        // console.warn(`[AI Router] Auto-fixing deprecated model for ${key}: ${mapping.modelId} -> gemini-1.5-flash-001`);
+                        mapping.modelId = 'gemini-1.5-flash-001';
                     }
                 });
 
@@ -111,15 +111,15 @@ export const executeCanonicalRaw = async (options: RouterExecuteOptions): Promis
     let primaryModelId = mapping.modelId;
 
     // FIX: Force correct model ID for Gemini if deprecated one is found
-    if (primaryModelId === 'gemini-1.5-flash-latest') {
-        primaryModelId = 'gemini-1.5-flash';
+    if (primaryModelId === 'gemini-1.5-flash-latest' || primaryModelId === 'gemini-1.5-flash') {
+        primaryModelId = 'gemini-1.5-flash-001';
     }
 
     // Define Fallback Chain (Hardcoded strategy for robustness if primary fails)
     // In a future update, this could be configurable in SystemSettings.
     const fallbackCandidates = [
         { providerId: primaryProviderId, modelId: primaryModelId }, // 1. Primary
-        { providerId: 'gemini', modelId: 'gemini-1.5-flash' },      // 2. Fast/Free Tier
+        { providerId: 'gemini', modelId: 'gemini-1.5-flash-001' },      // 2. Fast/Free Tier
         { providerId: 'groq', modelId: 'llama-3.1-8b-instant' },    // 3. Ultra Fast
         { providerId: 'openai', modelId: 'gpt-4o-mini' }            // 4. Reliable Backup
     ];

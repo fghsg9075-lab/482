@@ -802,7 +802,7 @@ export interface LessonContent {
   competitionPremiumNotesHtml?: string;
 }
 
-export type ViewState = 'BOARDS' | 'CLASSES' | 'STREAMS' | 'SUBJECTS' | 'CHAPTERS' | 'LESSON' | 'ADMIN_DASHBOARD' | 'AUDIO_STUDIO' | 'STUDENT_DASHBOARD' | 'UNIVERSAL_CHAT' | 'RULES' | 'IIC' | 'LEADERBOARD';
+export type ViewState = 'BOARDS' | 'CLASSES' | 'STREAMS' | 'SUBJECTS' | 'CHAPTERS' | 'LESSON' | 'ADMIN_DASHBOARD' | 'AUDIO_STUDIO' | 'STUDENT_DASHBOARD' | 'AI_TOOLS' | 'UNIVERSAL_CHAT' | 'RULES' | 'IIC' | 'LEADERBOARD';
 
 export interface WeeklyTest {
   id: string;

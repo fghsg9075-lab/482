@@ -15,6 +15,8 @@ import { LessonView } from './components/LessonView';
 import { Auth } from './components/Auth';
 import { AdminDashboard } from './components/AdminDashboard';
 import { StudentDashboard } from './components/StudentDashboard';
+import { AITools } from './components/AITools'; // NEW
+import { BottomNav } from './components/BottomNav'; // NEW
 import { AudioStudio } from './components/AudioStudio';
 import { PremiumModal } from './components/PremiumModal';
 import { LoadingOverlay } from './components/LoadingOverlay';
@@ -1607,8 +1609,8 @@ const App: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-white font-sans relative pt-[env(safe-area-inset-top,24px)] pb-[env(safe-area-inset-bottom,32px)]">
       {/* STATUS BAR BACKGROUND */}
       <div className="fixed top-0 left-0 right-0 h-[env(safe-area-inset-top,24px)] bg-slate-900 z-[100]"></div>
-      {/* BOTTOM SAFE AREA BACKGROUND */}
-      <div className="fixed bottom-0 left-0 right-0 h-[env(safe-area-inset-bottom,32px)] bg-slate-900 z-[100]"></div>
+      {/* BOTTOM SAFE AREA BACKGROUND - Lowered Z-Index to avoid blocking Nav */}
+      <div className="fixed bottom-0 left-0 right-0 h-[env(safe-area-inset-bottom,32px)] bg-slate-900 z-[40]"></div>
       
       {/* GLOBAL LIVE DASHBOARD 1 (TOP) */}
       {state.settings.liveMessage1 && (
@@ -1688,24 +1690,33 @@ const App: React.FC = () => {
                         }} 
                     />
                 ) : (
-                    state.view === 'STUDENT_DASHBOARD' as any && (
-                        <StudentDashboard 
-                            user={state.user} 
-                            dailyStudySeconds={dailyStudySeconds} 
-                            onSubjectSelect={handleSubjectSelect} 
-                            onRedeemSuccess={u => setState(prev => ({...prev, user: u}))} 
-                            settings={state.settings} 
-                            onStartWeeklyTest={handleStartWeeklyTest} 
-                            activeTab={studentTab} 
-                            onTabChange={setStudentTab} 
-                            setFullScreen={setIsFullScreen} // PASSED PROP
-                            onNavigate={(v) => setState(prev => ({...prev, view: v}))}
-                            isImpersonating={!!state.originalAdmin}
-                            onNavigateToChapter={handleNavigateToChapterFromHistory}
-                            isDarkMode={darkMode}
-                            onToggleDarkMode={setDarkMode}
-                        />
-                    )
+                    <>
+                        {state.view === 'STUDENT_DASHBOARD' as any && (
+                            <StudentDashboard
+                                user={state.user}
+                                dailyStudySeconds={dailyStudySeconds}
+                                onSubjectSelect={handleSubjectSelect}
+                                onRedeemSuccess={u => setState(prev => ({...prev, user: u}))}
+                                settings={state.settings}
+                                onStartWeeklyTest={handleStartWeeklyTest}
+                                activeTab={studentTab}
+                                onTabChange={setStudentTab}
+                                setFullScreen={setIsFullScreen} // PASSED PROP
+                                onNavigate={(v) => setState(prev => ({...prev, view: v}))}
+                                isImpersonating={!!state.originalAdmin}
+                                onNavigateToChapter={handleNavigateToChapterFromHistory}
+                                isDarkMode={darkMode}
+                                onToggleDarkMode={setDarkMode}
+                            />
+                        )}
+                        {state.view === 'AI_TOOLS' as any && (
+                            <AITools
+                                user={state.user}
+                                settings={state.settings}
+                                onBack={() => setState(prev => ({...prev, view: 'STUDENT_DASHBOARD'}))}
+                            />
+                        )}
+                    </>
                 )}
                 
                 {(!activeWeeklyTest && state.view === 'BOARDS') && <BoardSelection onSelect={handleBoardSelect} onBack={goBack} />}
@@ -1756,13 +1767,23 @@ const App: React.FC = () => {
           <PremiumModal user={state.user} chapter={tempSelectedChapter} credits={state.user.credits || 0} isAdmin={state.user.role === 'ADMIN'} onSelect={handleContentGeneration} onClose={() => setShowPremiumModal(false)} />
       )}
       
-      {/* FLOATING DOCK */}
-      {state.user && !activeWeeklyTest && !isFullScreen && (
+      {/* BOTTOM NAV (Replaces Floating Dock for Student) */}
+      {state.user && !activeWeeklyTest && !isFullScreen && (state.user.role === 'STUDENT' || !!state.originalAdmin) && (
+          <BottomNav
+             currentView={state.view}
+             studentTab={studentTab}
+             onNavigate={(v) => setState(prev => ({...prev, view: v}))}
+             onTabChange={setStudentTab}
+          />
+      )}
+
+      {/* FLOATING DOCK (Keep only for Admin/Other uses if needed, otherwise hidden for students) */}
+      {state.user && !activeWeeklyTest && !isFullScreen && state.user.role !== 'STUDENT' && !state.originalAdmin && (
           <FloatingDock 
             onTabSelect={setStudentTab} 
             onGoHome={goHome} 
             onGoBack={goBack} 
-            isStudent={state.user.role === 'STUDENT' || !!state.originalAdmin} 
+            isStudent={false}
             settings={state.settings}
           />
       )}
