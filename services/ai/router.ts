@@ -23,6 +23,7 @@ const ensureConfigLoaded = async () => {
             settingsCache = JSON.parse(stored);
 
             // --- SELF-HEALING / MIGRATION LOGIC ---
+            let hasChanges = false;
             if (settingsCache?.aiCanonicalMap) {
                 // 1. Fix Gemini 404 Error (gemini-1.5-flash-latest -> gemini-1.5-flash)
                 Object.keys(settingsCache.aiCanonicalMap).forEach(key => {
@@ -30,6 +31,7 @@ const ensureConfigLoaded = async () => {
                     if (mapping.modelId === 'gemini-1.5-flash-latest') {
                         console.warn(`[AI Router] Auto-fixing deprecated model for ${key}: gemini-1.5-flash-latest -> gemini-1.5-flash`);
                         mapping.modelId = 'gemini-1.5-flash';
+                        hasChanges = true;
                     }
                 });
 
@@ -37,7 +39,13 @@ const ensureConfigLoaded = async () => {
                 if (!settingsCache.aiCanonicalMap['ADMIN_ENGINE']) {
                      console.warn(`[AI Router] Injecting missing ADMIN_ENGINE mapping.`);
                      settingsCache.aiCanonicalMap['ADMIN_ENGINE'] = DEFAULT_AI_MAPPINGS['ADMIN_ENGINE'];
+                     hasChanges = true;
                 }
+            }
+
+            if (hasChanges) {
+                localStorage.setItem('nst_system_settings', JSON.stringify(settingsCache));
+                console.log("[AI Router] Persisted auto-fixes to localStorage.");
             }
         } else {
             // Fallback mock settings if empty
