@@ -5,7 +5,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { Chapter, User, Subject, SystemSettings, HtmlModule, PremiumNoteSlot } from '../types';
-import { FileText, Lock, ArrowLeft, Crown, Star, CheckCircle, AlertCircle, Globe, Maximize, Layers, HelpCircle, Minus, Plus, Volume2, Square, Zap } from 'lucide-react';
+import { FileText, Lock, ArrowLeft, Crown, Star, CheckCircle, AlertCircle, Globe, Maximize, Layers, HelpCircle, Minus, Plus, Volume2, Square, Zap, BrainCircuit } from 'lucide-react';
 import { CustomAlert } from './CustomDialogs';
 import { getChapterData, saveUserToLive } from '../firebase';
 import { CreditConfirmationModal } from './CreditConfirmationModal';
@@ -35,6 +35,7 @@ export const PdfView: React.FC<Props> = ({
   const [activePdf, setActivePdf] = useState<string | null>(null);
   const [activeLang, setActiveLang] = useState<'ENGLISH' | 'HINDI'>('ENGLISH'); // NEW: Language State
   const [pendingPdf, setPendingPdf] = useState<{type: string, price: number, link: string} | null>(null);
+  const [isExamMode, setIsExamMode] = useState(false); // NEW: Exam Mode
   
   // ZOOM STATE
   const [zoom, setZoom] = useState(1);
@@ -482,6 +483,17 @@ export const PdfView: React.FC<Props> = ({
                </div>
            )}
 
+           {/* EXAM MODE TOGGLE */}
+           {activePdf && !activePdf.startsWith('http') && (
+               <button
+                   onClick={() => setIsExamMode(!isExamMode)}
+                   className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-black transition-all ${isExamMode ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-slate-100 text-slate-600'}`}
+               >
+                   <BrainCircuit size={14} />
+                   <span className="hidden sm:inline">Exam Mode</span>
+               </button>
+           )}
+
            {/* TTS CONTROLS (Only for Text Content) */}
            {activePdf && !activePdf.startsWith('http') && (
                <div className="flex items-center gap-1 mr-2">
@@ -661,6 +673,20 @@ export const PdfView: React.FC<Props> = ({
                                    if (parts.length >= 2) {
                                        contentToRender = activeLang === 'ENGLISH' ? parts[0] : parts[1];
                                    }
+                               }
+
+                               // EXAM MODE FILTER
+                               if (isExamMode) {
+                                   const lines = contentToRender.split('\n');
+                                   const filtered = lines.filter(line =>
+                                       line.includes('★') ||
+                                       line.includes('[FORMULA]') ||
+                                       line.includes('[IMP-Q]') ||
+                                       line.trim().startsWith('#') // Keep Headings
+                                   );
+                                   contentToRender = filtered.length > 0
+                                       ? `### 🧠 Exam Mode Active\nShowing only High Yield Points, Formulas & Questions.\n\n---\n\n${filtered.join('\n\n')}`
+                                       : `### 🧠 Exam Mode Active\nNo specific exam highlights found in this note.`;
                                }
 
                                return contentToRender.trim().startsWith('<') || (contentToRender.includes('</div>') && !contentToRender.includes('```')) ? (

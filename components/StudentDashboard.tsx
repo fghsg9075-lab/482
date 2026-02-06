@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Subject, StudentTab, SystemSettings, CreditPackage, WeeklyTest, Chapter, MCQItem, Challenge20 } from '../types';
+import { User, Subject, StudentTab, SystemSettings, CreditPackage, WeeklyTest, Chapter, MCQItem, Challenge20, Board } from '../types';
 import { updateUserStatus, db, saveUserToLive, getChapterData, rtdb, saveAiInteraction } from '../firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { ref, query, limitToLast, onValue } from 'firebase/database';
@@ -23,7 +23,7 @@ import { MiniPlayer } from './MiniPlayer'; // Imported for Audio Flow
 import { HistoryPage } from './HistoryPage';
 import { Leaderboard } from './Leaderboard';
 import { SpinWheel } from './SpinWheel';
-import { fetchChapters, generateCustomNotes } from '../services/groq'; // Needed for Video Flow
+import { fetchChapters, generateCustomNotes } from '../services/contentGenerator'; // UPDATED IMPORT
 import { FileText, CheckSquare } from 'lucide-react'; // Icons
 import { LoadingOverlay } from './LoadingOverlay';
 import { CreditConfirmationModal } from './CreditConfirmationModal';
@@ -118,6 +118,9 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
   const [syllabusMode, setSyllabusMode] = useState<'SCHOOL' | 'COMPETITION'>('SCHOOL');
   const [currentAudioTrack, setCurrentAudioTrack] = useState<{url: string, title: string} | null>(null);
 
+  // --- BOARD SELECTOR STATE ---
+  const [selectedBoard, setSelectedBoard] = useState<Board>(user.board || 'CBSE');
+  useEffect(() => { if (user.board) setSelectedBoard(user.board); }, [user.board]);
 
   // LOADING STATE FOR 10S RULE
   const [isLoadingContent, setIsLoadingContent] = useState(false);
@@ -471,7 +474,11 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
 
       setAiGenerating(true);
       try {
-          const notes = await generateCustomNotes(aiTopic, settings?.aiNotesPrompt || '');
+          const notes = await generateCustomNotes(aiTopic, settings?.aiNotesPrompt || '', {
+              board: selectedBoard,
+              classLevel: user.classLevel || '10',
+              subject: 'General'
+          });
           setAiResult(notes);
 
           // Increment Usage
@@ -822,7 +829,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
       setLoadingChapters(true);
       setContentViewStep('CHAPTERS');
       try {
-          const ch = await fetchChapters(user.board || 'CBSE', user.classLevel || '10', user.stream || 'Science', subject, 'English');
+          const ch = await fetchChapters(selectedBoard || 'CBSE', user.classLevel || '10', user.stream || 'Science', subject, 'English');
           setChapters(ch);
       } catch(e) { console.error(e); }
       setLoadingChapters(false);
@@ -905,13 +912,13 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
 
       if (contentViewStep === 'PLAYER' && selectedChapter && selectedSubject) {
           if (type === 'VIDEO') {
-            return <VideoPlaylistView chapter={selectedChapter} subject={selectedSubject} user={user} board={user.board || 'CBSE'} classLevel={user.classLevel || '10'} stream={user.stream || null} onBack={handlePlayerBack} onUpdateUser={handleUserUpdate} settings={settings} initialSyllabusMode={syllabusMode} />;
+            return <VideoPlaylistView chapter={selectedChapter} subject={selectedSubject} user={user} board={selectedBoard || 'CBSE'} classLevel={user.classLevel || '10'} stream={user.stream || null} onBack={handlePlayerBack} onUpdateUser={handleUserUpdate} settings={settings} initialSyllabusMode={syllabusMode} />;
           } else if (type === 'PDF') {
-            return <PdfView chapter={selectedChapter} subject={selectedSubject} user={user} board={user.board || 'CBSE'} classLevel={user.classLevel || '10'} stream={user.stream || null} onBack={handlePlayerBack} onUpdateUser={handleUserUpdate} settings={settings} initialSyllabusMode={syllabusMode} />;
+            return <PdfView chapter={selectedChapter} subject={selectedSubject} user={user} board={selectedBoard || 'CBSE'} classLevel={user.classLevel || '10'} stream={user.stream || null} onBack={handlePlayerBack} onUpdateUser={handleUserUpdate} settings={settings} initialSyllabusMode={syllabusMode} />;
           } else if (type === 'AUDIO') {
-            return <AudioPlaylistView chapter={selectedChapter} subject={selectedSubject} user={user} board={user.board || 'CBSE'} classLevel={user.classLevel || '10'} stream={user.stream || null} onBack={handlePlayerBack} onUpdateUser={handleUserUpdate} settings={settings} onPlayAudio={setCurrentAudioTrack} initialSyllabusMode={syllabusMode} />;
+            return <AudioPlaylistView chapter={selectedChapter} subject={selectedSubject} user={user} board={selectedBoard || 'CBSE'} classLevel={user.classLevel || '10'} stream={user.stream || null} onBack={handlePlayerBack} onUpdateUser={handleUserUpdate} settings={settings} onPlayAudio={setCurrentAudioTrack} initialSyllabusMode={syllabusMode} />;
           } else {
-            return <McqView chapter={selectedChapter} subject={selectedSubject} user={user} board={user.board || 'CBSE'} classLevel={user.classLevel || '10'} stream={user.stream || null} onBack={handlePlayerBack} onUpdateUser={handleUserUpdate} settings={settings} />;
+            return <McqView chapter={selectedChapter} subject={selectedSubject} user={user} board={selectedBoard || 'CBSE'} classLevel={user.classLevel || '10'} stream={user.stream || null} onBack={handlePlayerBack} onUpdateUser={handleUserUpdate} settings={settings} />;
           }
       }
 
@@ -1276,6 +1283,20 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                     <button onClick={() => setIsDrawerOpen(true)} className="p-3 bg-white rounded-xl shadow-sm border border-slate-100 text-slate-700 hover:bg-slate-50">
                         <Menu size={24} />
                     </button>
+
+                    {/* BOARD SELECTOR */}
+                    <div className="flex items-center gap-2 bg-white/50 backdrop-blur-sm px-2 py-1 rounded-xl shadow-sm border border-white/20">
+                        <select
+                            value={selectedBoard}
+                            onChange={(e) => setSelectedBoard(e.target.value as Board)}
+                            className="bg-transparent text-slate-800 text-xs font-bold py-1 px-1 focus:outline-none"
+                        >
+                            <option value="CBSE">CBSE</option>
+                            <option value="BSEB">Bihar Board</option>
+                        </select>
+                        <div className="h-4 w-px bg-slate-300"></div>
+                        <span className="text-xs font-bold text-slate-600">Class {user.classLevel}</span>
+                    </div>
 
                     <div className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-xl shadow-lg">
                         <Zap size={16} className="text-yellow-400 fill-yellow-400" />
