@@ -186,9 +186,14 @@ export const fetchLessonContent = async (
           const s = JSON.parse(stored) as SystemSettings;
           if (s.aiInstruction) customInstruction = `IMPORTANT INSTRUCTION: ${s.aiInstruction}`;
 
-          // RAG: Fetch Web Context if enabled
+          // RAG: Fetch Web Context if enabled (Board Aware)
           if (s.isWebSearchEnabled && s.googleSearchApiKey && s.googleSearchCx && allowAiGeneration) {
-              const query = `${chapter.title} class ${classLevel} ${subject.name} detailed notes facts`;
+              let query = "";
+              if (board === 'BSEB') {
+                  query = `${chapter.title} class ${classLevel} ${subject.name} Bihar Board notes hindi examples fact`;
+              } else {
+                  query = `${chapter.title} class ${classLevel} ${subject.name} NCERT detailed notes examples fact`;
+              }
               webContext = await searchWeb(query, s.googleSearchApiKey, s.googleSearchCx);
           }
 
@@ -286,75 +291,85 @@ export const fetchLessonContent = async (
               prompt = `${customInstruction} ${adminPromptOverride || ""}
 ${webContext}
 
-ROLE: Expert CBSE/NCERT Teacher & Content Designer (Coaching Level - Allen/Aakash Style).
+ROLE: Expert Teacher & Exam Strategist for ${board}.
 TASK: Generate PREMIUM COACHING MATERIAL for ${board} Class ${classLevel} ${subject.name}, Chapter: "${chapter.title}".
-LANGUAGE: ${language} (Simple Hinglish for explanations, English for terms).
+LANGUAGE: ${language}.
 LENGTH: 2000-2500 Words (Strict Minimum).
 
-REQUIRED STRUCTURE (Follow Strictly):
+BOARD SPECIFIC RULES (Strictly Follow):
+1. If Board is BSEB (Bihar Board):
+   - Use simplified Hinglish (easy Hindi mixed with English terms).
+   - Use local/contextual examples relevant to Bihar/India.
+   - Focus on Bihar Board Exam Pattern (Direct Questions).
+   - Difficulty Level: Easy to Moderate.
+2. If Board is CBSE (NCERT):
+   - Follow NCERT textbook strictly.
+   - Use standard scientific terminology.
+   - Add national-level examples.
+   - Focus on CBSE Exam Pattern (Conceptual & Application).
+   - Difficulty Level: Moderate to High.
+
+REQUIRED STRUCTURE:
 SECTION 1: QUICK OVERVIEW
-- 5-6 lines summary of the entire chapter.
-- Key weightage in exams.
+- 5-6 lines summary.
+- Key weightage in ${board} exams.
 
 SECTION 2: CORE THEORY (The Meat)
 - Deep Dive into every subtopic.
 - Use Bullet points, Bold Keywords, and Headings.
-- Real-life examples for every concept.
 - [DIAGRAM GUIDE] For every major topic, provide a text-based "How to Draw" guide (Step 1 -> Step 2 -> Step 3).
 
 SECTION 3: VISUAL LEARNING (Text Based)
-- Flowcharts: Use ASCII arrows (A -> B -> C).
-- Difference Tables: Compare confusing terms (e.g., X vs Y).
-- Process Chains: Step-by-step mechanisms.
+- Flowcharts: Use ASCII arrows.
+- Difference Tables: Compare confusing terms (X vs Y).
 
 SECTION 4: EXAM ZONE (Score Booster)
-- 15 Important Board Questions (Short & Long Answers).
+- 15 Important ${board} Questions (Short & Long).
 - 10 MCQs (with detailed reasoning).
 - 5 Case-Based / Assertion-Reason Questions.
-- 5 HOTS (High Order Thinking Skills) Questions.
+- 5 HOTS (High Order Thinking Skills).
 
 SECTION 5: REVISION ZONE
-- 10 "Golden Lines" (One-liners for rapid revision).
-- List of all Important Formulas / Equations.
-- Mind Map Summary (Text Tree format).
+- 10 "Golden Lines" (One-liners).
+- Formulas / Equations.
+- Mind Map Summary (Text Tree).
 
 STYLE RULES:
 - ${competitionConstraints}
 - Do NOT summarize. Be exhaustive.
-- Mark important lines with ★.
-- Tone: Engaging, motivating, and authoritative.`;
+- Mark important lines with ★.`;
           } else {
               prompt = `${customInstruction} ${adminPromptOverride || ""}
 ${webContext}
 
-ROLE: Expert CBSE/NCERT Teacher.
+ROLE: Expert Teacher for ${board}.
 TASK: Write STANDARD COACHING NOTES for ${board} Class ${classLevel} ${subject.name}, Chapter: "${chapter.title}".
 LANGUAGE: Simple Hinglish.
 LENGTH: 600-900 Words.
+
+BOARD SPECIFIC FOCUS:
+- BSEB: Simplified explanation, local examples, direct definitions.
+- CBSE: Strict NCERT keywords, conceptual clarity.
 
 REQUIRED STRUCTURE:
 SECTION 1: QUICK OVERVIEW
 - Brief summary & Exam relevance.
 
-SECTION 2: CORE CONCEPTS (NCERT Aligned)
-- Explain key topics clearly with bullets.
+SECTION 2: CORE CONCEPTS (${board} Aligned)
+- Explain key topics clearly.
 - Definitions, Units, and Basic Examples.
-- [DIAGRAM GUIDE] Step-by-step description of 1-2 main diagrams.
+- [DIAGRAM GUIDE] Description of 1-2 main diagrams.
 
 SECTION 3: VISUALS
-- Simple Flowcharts (Text based).
-- 1 Comparison Table (if applicable).
+- Simple Flowcharts.
+- 1 Comparison Table.
 
 SECTION 4: EXAM PRACTICE
-- 5 Important Board Questions.
+- 5 Important ${board} Board Questions.
 - 2 Practice MCQs.
 
 SECTION 5: REVISION
-- 5 Key Points to Remember.
-
-STYLE RULES:
-- Focus on clarity and retention.
-- Keep it exam-oriented.`;
+- 5 Key Points to Remember.`;
           }
       }
 
