@@ -450,6 +450,9 @@ export interface SystemSettings {
   aiPilotRatio?: number; // NEW: 80/20 Rule
   aiDailyLimitPerKey?: number; // NEW: Quota Management
   isAutoPilotEnabled?: boolean; // NEW: AI Auto-Pilot Toggle
+  isWebSearchEnabled?: boolean; // NEW: RAG Toggle
+  googleSearchApiKey?: string; // NEW: Google Custom Search API Key
+  googleSearchCx?: string; // NEW: Google Custom Search Engine ID
   autoPilotConfig?: {           // NEW: AI Auto-Pilot Configuration
       targetClasses: string[];
       targetBoards: string[];

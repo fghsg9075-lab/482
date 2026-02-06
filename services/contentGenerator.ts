@@ -4,6 +4,7 @@ import { getChapterData, getCustomSyllabus } from "../firebase";
 import { storage } from "../utils/storage";
 import { executeCanonical } from "./ai/router";
 import { CanonicalModel } from "./ai/types";
+import { searchWeb } from "./search";
 
 const chapterCache: Record<string, Chapter[]> = {};
 
@@ -177,12 +178,19 @@ export const fetchLessonContent = async (
   let promptNotes = "";
   let promptNotesPremium = "";
   let promptMCQ = "";
+  let webContext = "";
 
   try {
       const stored = localStorage.getItem('nst_system_settings');
       if (stored) {
           const s = JSON.parse(stored) as SystemSettings;
           if (s.aiInstruction) customInstruction = `IMPORTANT INSTRUCTION: ${s.aiInstruction}`;
+
+          // RAG: Fetch Web Context if enabled
+          if (s.isWebSearchEnabled && s.googleSearchApiKey && s.googleSearchCx && allowAiGeneration) {
+              const query = `${chapter.title} class ${classLevel} ${subject.name} detailed notes facts`;
+              webContext = await searchWeb(query, s.googleSearchApiKey, s.googleSearchCx);
+          }
 
           if (syllabusMode === 'COMPETITION') {
               if (board === 'CBSE') {
@@ -273,34 +281,80 @@ export const fetchLessonContent = async (
            prompt = processTemplate(template, { board: board || '', class: classLevel, stream: stream || '', subject: subject.name, chapter: chapter.title, language: language, instruction: customInstruction });
       } else {
           const competitionConstraints = syllabusMode === 'COMPETITION' ? "STYLE: Fact-Heavy, Direct. HIGHLIGHT PYQs." : "STYLE: Strict NCERT Pattern.";
+
           if (detailed) {
               prompt = `${customInstruction} ${adminPromptOverride || ""}
-ROLE: Senior Professor & Exam Strategist.
-TASK: Generate EXTREMELY DETAILED, MONSTER NOTES for ${board} Class ${classLevel} ${subject.name}, Chapter: "${chapter.title}".
-LANGUAGE: ${language}.
-LENGTH: 1800-2500 Words (Strict Minimum).
-RULES:
-- Cover NCERT + Coaching Level Depth.
-- Real-life examples & Applications.
-- Step-by-step processes for complex topics.
-- Difference Tables (Comparison Charts) for confusing terms.
-- Advantages / Disadvantages where applicable.
-- [DIAGRAM FOR EXAM] Give step-by-step text description for drawing important diagrams after every major topic.
-- 15 Exam Questions (Short & Long) with model answers.
-- 5 HOT MCQs with detailed explanations.
-STYLE: Like Allen/Aakash Modules. Structured, Bulleted, High-Yield. ${competitionConstraints}`;
+${webContext}
+
+ROLE: Expert CBSE/NCERT Teacher & Content Designer (Coaching Level - Allen/Aakash Style).
+TASK: Generate PREMIUM COACHING MATERIAL for ${board} Class ${classLevel} ${subject.name}, Chapter: "${chapter.title}".
+LANGUAGE: ${language} (Simple Hinglish for explanations, English for terms).
+LENGTH: 2000-2500 Words (Strict Minimum).
+
+REQUIRED STRUCTURE (Follow Strictly):
+SECTION 1: QUICK OVERVIEW
+- 5-6 lines summary of the entire chapter.
+- Key weightage in exams.
+
+SECTION 2: CORE THEORY (The Meat)
+- Deep Dive into every subtopic.
+- Use Bullet points, Bold Keywords, and Headings.
+- Real-life examples for every concept.
+- [DIAGRAM GUIDE] For every major topic, provide a text-based "How to Draw" guide (Step 1 -> Step 2 -> Step 3).
+
+SECTION 3: VISUAL LEARNING (Text Based)
+- Flowcharts: Use ASCII arrows (A -> B -> C).
+- Difference Tables: Compare confusing terms (e.g., X vs Y).
+- Process Chains: Step-by-step mechanisms.
+
+SECTION 4: EXAM ZONE (Score Booster)
+- 15 Important Board Questions (Short & Long Answers).
+- 10 MCQs (with detailed reasoning).
+- 5 Case-Based / Assertion-Reason Questions.
+- 5 HOTS (High Order Thinking Skills) Questions.
+
+SECTION 5: REVISION ZONE
+- 10 "Golden Lines" (One-liners for rapid revision).
+- List of all Important Formulas / Equations.
+- Mind Map Summary (Text Tree format).
+
+STYLE RULES:
+- ${competitionConstraints}
+- Do NOT summarize. Be exhaustive.
+- Mark important lines with ★.
+- Tone: Engaging, motivating, and authoritative.`;
           } else {
               prompt = `${customInstruction} ${adminPromptOverride || ""}
-ROLE: Senior Teacher.
-TASK: Write Universal Free Notes for ${board} Class ${classLevel} ${subject.name}, Chapter: "${chapter.title}".
-LANGUAGE: Simple Hinglish (Easy to understand).
+${webContext}
+
+ROLE: Expert CBSE/NCERT Teacher.
+TASK: Write STANDARD COACHING NOTES for ${board} Class ${classLevel} ${subject.name}, Chapter: "${chapter.title}".
+LANGUAGE: Simple Hinglish.
 LENGTH: 600-900 Words.
-STRUCTURE:
-1. NCERT Aligned Key Concepts (Headings & Bullets).
-2. [DIAGRAM FOR EXAM] Give step-by-step text description of 2 important diagrams (Student should be able to draw by reading).
-3. 5 Important Exam Questions.
-4. 2 Practice MCQs.
-NOTE: Keep it clean, fast to read, and exam-focused.`;
+
+REQUIRED STRUCTURE:
+SECTION 1: QUICK OVERVIEW
+- Brief summary & Exam relevance.
+
+SECTION 2: CORE CONCEPTS (NCERT Aligned)
+- Explain key topics clearly with bullets.
+- Definitions, Units, and Basic Examples.
+- [DIAGRAM GUIDE] Step-by-step description of 1-2 main diagrams.
+
+SECTION 3: VISUALS
+- Simple Flowcharts (Text based).
+- 1 Comparison Table (if applicable).
+
+SECTION 4: EXAM PRACTICE
+- 5 Important Board Questions.
+- 2 Practice MCQs.
+
+SECTION 5: REVISION
+- 5 Key Points to Remember.
+
+STYLE RULES:
+- Focus on clarity and retention.
+- Keep it exam-oriented.`;
           }
       }
 
