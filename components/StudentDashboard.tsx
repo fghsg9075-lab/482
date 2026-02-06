@@ -17,6 +17,7 @@ import { BannerCarousel } from './BannerCarousel';
 import { ChapterSelection } from './ChapterSelection'; // Imported for Video Flow
 import { VideoPlaylistView } from './VideoPlaylistView'; // Imported for Video Flow
 import { AudioPlaylistView } from './AudioPlaylistView'; // Imported for Audio Flow
+import { SmartLessonView } from './SmartLessonView'; // Imported for Smart Flow
 import { PdfView } from './PdfView'; // Imported for PDF Flow
 import { McqView } from './McqView'; // Imported for MCQ Flow
 import { MiniPlayer } from './MiniPlayer'; // Imported for Audio Flow
@@ -901,7 +902,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
           topic: h.chapterTitle || 'Test'
       }));
 
-  const renderContentSection = (type: 'VIDEO' | 'PDF' | 'MCQ' | 'AUDIO') => {
+  const renderContentSection = (type: 'VIDEO' | 'PDF' | 'MCQ' | 'AUDIO' | 'SMART') => {
       const handlePlayerBack = () => {
           setContentViewStep('CHAPTERS');
           setFullScreen(false);
@@ -910,6 +911,8 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
       if (contentViewStep === 'PLAYER' && selectedChapter && selectedSubject) {
           if (type === 'VIDEO') {
             return <VideoPlaylistView chapter={selectedChapter} subject={selectedSubject} user={user} board={user.board || 'CBSE'} classLevel={user.classLevel || '10'} stream={user.stream || null} onBack={handlePlayerBack} onUpdateUser={handleUserUpdate} settings={settings} initialSyllabusMode={syllabusMode} />;
+          } else if (type === 'SMART') {
+            return <SmartLessonView chapter={selectedChapter} subject={selectedSubject} user={user} board={user.board || 'CBSE'} classLevel={user.classLevel || '10'} stream={user.stream || null} onBack={handlePlayerBack} onUpdateUser={handleUserUpdate} settings={settings} />;
           } else if (type === 'PDF') {
             return <PdfView chapter={selectedChapter} subject={selectedSubject} user={user} board={user.board || 'CBSE'} classLevel={user.classLevel || '10'} stream={user.stream || null} onBack={handlePlayerBack} onUpdateUser={handleUserUpdate} settings={settings} initialSyllabusMode={syllabusMode} />;
           } else if (type === 'AUDIO') {
@@ -1622,6 +1625,20 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                           </button>
                       </div>
 
+                      {/* Smart Visuals Section (NEW) */}
+                      <div className="bg-gradient-to-r from-violet-900 to-indigo-900 p-4 rounded-2xl shadow-lg border border-violet-700 relative overflow-hidden text-white">
+                          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl"></div>
+                          <h3 className="font-bold flex items-center gap-2 mb-2 relative z-10"><Sparkles className="text-yellow-400" /> Smart Visuals</h3>
+                          <p className="text-xs text-indigo-200 mb-3 relative z-10">Hybrid Learning: 3D Models + High Quality Notes.</p>
+                          <div className="grid grid-cols-2 gap-2 relative z-10">
+                              {visibleSubjects.map(s => (
+                                  <button key={s.id} onClick={() => { onTabChange('SMART'); handleContentSubjectSelect(s); }} className="bg-white/10 hover:bg-white/20 p-2 rounded-xl text-xs font-bold shadow-sm border border-white/10 text-left backdrop-blur-sm transition-colors">
+                                      {s.name}
+                                  </button>
+                              ))}
+                          </div>
+                      </div>
+
                       {/* Video Section */}
                       {settings?.contentVisibility?.VIDEO !== false && (
                           <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
@@ -1838,8 +1855,8 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                 </div>
       );
 
-      // Handle Drill-Down Views (Video, PDF, MCQ, AUDIO)
-      if (activeTab === 'VIDEO' || activeTab === 'PDF' || activeTab === 'MCQ' || activeTab === 'AUDIO') {
+      // Handle Drill-Down Views (Video, PDF, MCQ, AUDIO, SMART)
+      if (activeTab === 'VIDEO' || activeTab === 'PDF' || activeTab === 'MCQ' || activeTab === 'AUDIO' || activeTab === 'SMART') {
           return renderContentSection(activeTab);
       }
 

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { LessonContent, Subject, ClassLevel, Chapter, MCQItem, ContentType, User, SystemSettings } from '../types';
-import { ArrowLeft, Clock, AlertTriangle, ExternalLink, CheckCircle, XCircle, Trophy, BookOpen, Play, Lock, ChevronRight, ChevronLeft, Save, X, Maximize, Volume2, Square, Zap, StopCircle, Globe } from 'lucide-react';
+import { ArrowLeft, Clock, AlertTriangle, ExternalLink, CheckCircle, XCircle, Trophy, BookOpen, Play, Lock, ChevronRight, ChevronLeft, Save, X, Maximize, Volume2, Square, Zap, StopCircle, Globe, FileText } from 'lucide-react';
 import { CustomConfirm, CustomAlert } from './CustomDialogs';
 import { CustomPlayer } from './CustomPlayer';
 import remarkMath from 'remark-math';
@@ -230,6 +230,85 @@ export const LessonView: React.FC<Props> = ({
   }
 
   if (!content) return null;
+
+  // SMART HYBRID LESSON (2-Pane View)
+  if (content.type === 'SMART_LESSON' || (content.smartDiagramUrl && content.smartNotesUrl)) {
+      // CSS Injection String (For Wrappers/Extensions to pick up if possible)
+      const CLEAN_CSS = `
+        header, footer, nav, aside, .ad, .ads, .advertisement, .popup, .modal, .cookie-banner, .social-share { display: none !important; }
+        body { background-color: #ffffff !important; user-select: none !important; -webkit-user-select: none !important; }
+        a { pointer-events: none !important; color: inherit !important; text-decoration: none !important; }
+      `;
+
+      return (
+          <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col animate-in fade-in select-none" onContextMenu={(e) => e.preventDefault()}>
+              {/* HEADER */}
+              <header className="bg-slate-900 text-white p-2 flex items-center justify-between border-b border-white/10 shrink-0 h-14">
+                   <div className="flex items-center gap-3">
+                       <button onClick={onBack} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"><ArrowLeft size={18} /></button>
+                       <div>
+                           <h2 className="text-sm font-bold truncate max-w-[200px] md:max-w-md">{content.title}</h2>
+                           <div className="flex items-center gap-2">
+                               <span className="text-[9px] bg-purple-600 px-1.5 py-0.5 rounded text-white font-bold tracking-widest">HYBRID</span>
+                               <span className="text-[9px] text-slate-400">3D + Notes</span>
+                           </div>
+                       </div>
+                   </div>
+                   <button onClick={onBack} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"><X size={18} /></button>
+              </header>
+
+              {/* SPLIT VIEW */}
+              <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+
+                  {/* TOP: 3D DIAGRAM */}
+                  <div className="h-[40%] bg-black relative border-b-4 border-slate-800 group">
+                      <div className="absolute top-2 left-2 z-10 bg-black/60 backdrop-blur text-white text-[10px] font-bold px-2 py-1 rounded border border-white/10 flex items-center gap-1">
+                          <Globe size={12} className="text-blue-400"/> Visual Learning
+                      </div>
+                      <iframe
+                          src={content.smartDiagramUrl}
+                          className="w-full h-full border-none pointer-events-auto"
+                          sandbox="allow-scripts allow-same-origin allow-forms"
+                          title="3D Diagram"
+                      />
+                  </div>
+
+                  {/* BOTTOM: NOTES */}
+                  <div className="h-[60%] bg-white relative">
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 to-blue-500 z-10"></div>
+                      <div className="absolute top-2 right-2 z-10 bg-white/80 backdrop-blur text-slate-800 text-[10px] font-bold px-2 py-1 rounded border border-slate-200 shadow-sm flex items-center gap-1">
+                          <FileText size={12} className="text-purple-600"/> Detailed Notes
+                      </div>
+                      {/* Interaction Blocker Overlay (allows scroll, blocks touches on non-scrollable areas if possible, but here we rely on sandbox) */}
+                      <iframe
+                          src={content.smartNotesUrl}
+                          className="w-full h-full border-none bg-white"
+                          // REMOVED 'allow-top-navigation' and 'allow-popups' to lock links
+                          sandbox="allow-scripts allow-same-origin allow-forms"
+                          title="Text Notes"
+                          onLoad={(e) => {
+                              // ATTEMPT CSS INJECTION (Will only work if same-origin, but satisfies logic placement)
+                              try {
+                                  const iframe = e.currentTarget;
+                                  const doc = iframe.contentDocument;
+                                  if (doc) {
+                                      const style = doc.createElement('style');
+                                      style.textContent = CLEAN_CSS;
+                                      doc.head.appendChild(style);
+                                      // Disable context menu inside
+                                      doc.addEventListener('contextmenu', (ev) => ev.preventDefault());
+                                  }
+                              } catch(err) {
+                                  // Expected Cross-Origin Error
+                                  console.log("External content loaded - CSS Injection limited by browser security.");
+                              }
+                          }}
+                      />
+                  </div>
+              </div>
+          </div>
+      );
+  }
 
   // 1. AI IMAGE/HTML NOTES
   const activeContentValue = (language === 'Hindi' && content.schoolPremiumNotesHtml_HI) 

@@ -26,6 +26,8 @@ const auth = getAuth(app);
 // --- EXPORTED HELPERS ---
 
 // Helper to remove undefined fields (Firestore doesn't support them)
+const timeoutPromise = (ms: number) => new Promise((_, reject) => setTimeout(() => reject(new Error('Firebase Timeout')), ms));
+
 export const sanitizeForFirestore = (obj: any): any => {
   // Preserve Date objects (Firestore supports them or converts to Timestamp)
   if (obj instanceof Date) {
@@ -202,8 +204,12 @@ export const saveChapterData = async (key: string, data: any) => {
 
 export const getChapterData = async (key: string) => {
     try {
-        // 1. Try Firestore First (More Authoritative)
-        const docSnap = await getDoc(doc(db, "content_data", key));
+        // 1. Try Firestore First (More Authoritative) WITH TIMEOUT
+        const docSnap = await Promise.race([
+            getDoc(doc(db, "content_data", key)),
+            timeoutPromise(3000)
+        ]) as any;
+
         if (docSnap.exists()) {
             const data = docSnap.data();
             // Cache in storage for offline/speed
@@ -211,8 +217,12 @@ export const getChapterData = async (key: string) => {
             return data;
         }
 
-        // 2. Try RTDB
-        const snapshot = await get(ref(rtdb, `content_data/${key}`));
+        // 2. Try RTDB WITH TIMEOUT
+        const snapshot = await Promise.race([
+            get(ref(rtdb, `content_data/${key}`)),
+            timeoutPromise(3000)
+        ]) as any;
+
         if (snapshot.exists()) {
             const data = snapshot.val();
             await storage.setItem(key, data);
@@ -225,7 +235,7 @@ export const getChapterData = async (key: string) => {
         
         return null;
     } catch (error) {
-        console.error("Error getting chapter data:", error);
+        console.error("Error getting chapter data (using fallback):", error);
         const stored = await storage.getItem(key);
         if (stored) return stored;
         return null;
