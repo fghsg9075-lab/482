@@ -123,14 +123,13 @@ export const executeCanonicalRaw = async (options: RouterExecuteOptions): Promis
     const primaryProviderId = mapping.providerId;
     const primaryModelId = mapping.modelId;
 
-    // Define Fallback Chain (Hardcoded strategy for robustness if primary fails)
+    // Define Fallback Chain (Simplifed: Groq <-> Gemini)
     // In a future update, this could be configurable in SystemSettings.
     const fallbackCandidates = [
         { providerId: primaryProviderId, modelId: primaryModelId }, // 1. Primary
-        { providerId: 'gemini', modelId: 'gemini-1.5-flash' },      // 2. Fast/Free Tier
-        { providerId: 'gemini', modelId: 'gemini-1.5-pro' },        // 3. High Capability Backup
-        { providerId: 'groq', modelId: 'llama-3.1-8b-instant' },    // 4. Ultra Fast
-        { providerId: 'openai', modelId: 'gpt-4o-mini' }            // 5. Reliable Backup
+        { providerId: 'groq', modelId: 'llama-3.1-8b-instant' },    // 2. Ultra Fast (Groq)
+        { providerId: 'gemini', modelId: 'gemini-1.5-flash' },      // 3. Fast/Free Tier (Gemini)
+        { providerId: 'gemini', modelId: 'gemini-1.5-pro' }         // 4. High Capability Backup (Gemini)
     ];
 
     // Deduplicate and filter out the primary if it's already in the list (it is, but we want unique attempts)
