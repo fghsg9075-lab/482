@@ -274,9 +274,9 @@ export const fetchLessonContent = async (
       } else {
           const competitionConstraints = syllabusMode === 'COMPETITION' ? "STYLE: Fact-Heavy, Direct. HIGHLIGHT PYQs." : "STYLE: Strict NCERT Pattern.";
           if (detailed) {
-              prompt = `${customInstruction} ${adminPromptOverride || ""} Write PREMIUM DEEP DIVE NOTES for ${board} Class ${classLevel} ${subject.name}, Chapter: "${chapter.title}". Language: ${language}. ${competitionConstraints} STRICT TARGET: 1000-1500 Words. Comprehensive, structured, with examples.`;
+              prompt = `${customInstruction} ${adminPromptOverride || ""} Write PREMIUM DEEP DIVE NOTES for ${board} Class ${classLevel} ${subject.name}, Chapter: "${chapter.title}". Language: ${language}. ${competitionConstraints} STRICT TARGET: 2000 Words. Comprehensive, structured, with examples.`;
           } else {
-              prompt = `${customInstruction} ${adminPromptOverride || ""} Write SHORT SUMMARY NOTES for ${board} Class ${classLevel} ${subject.name}, Chapter: "${chapter.title}". Language: ${language}. STRICT TARGET: 200-300 Words. Key points only.`;
+              prompt = `${customInstruction} ${adminPromptOverride || ""} Write SHORT SUMMARY NOTES for ${board} Class ${classLevel} ${subject.name}, Chapter: "${chapter.title}". Language: ${language}. STRICT TARGET: 300 Words. Key points only.`;
           }
       }
 
