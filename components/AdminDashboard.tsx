@@ -4,6 +4,7 @@ import { User, ViewState, SystemSettings, Subject, Chapter, MCQItem, RecoveryReq
 import { LayoutDashboard, Users, Search, Trash2, Save, X, Eye, EyeOff, Shield, Megaphone, CheckCircle, ListChecks, Database, FileText, Monitor, Sparkles, Banknote, BrainCircuit, AlertOctagon, ArrowLeft, Key, Bell, ShieldCheck, Lock, Globe, Layers, Zap, PenTool, RefreshCw, RotateCcw, Plus, LogOut, Download, Upload, CreditCard, Ticket, Video, Image as ImageIcon, Type, Link, FileJson, Activity, AlertTriangle, Gift, Book, Mail, Edit3, MessageSquare, ShoppingBag, Cloud, Rocket, Code2, Layers as LayersIcon, Wifi, WifiOff, Copy, Crown, Gamepad2, Calendar, BookOpen, Image, HelpCircle, Youtube, Play, Star, Trophy, Palette, Settings, Headphones, Layout, Bot, LayoutDashboard as DashboardIcon } from 'lucide-react';
 import { getSubjectsList, DEFAULT_SUBJECTS, DEFAULT_APP_FEATURES, DEFAULT_CONTENT_INFO_CONFIG, ADMIN_PERMISSIONS, APP_VERSION } from '../constants';
 import { fetchChapters, fetchLessonContent } from '../services/groq';
+import { executeCanonical } from '../services/ai/router';
 import { runAutoPilot, runCommandMode } from '../services/autoPilot';
 import { saveChapterData, bulkSaveLinks, checkFirebaseConnection, saveSystemSettings, subscribeToUsers, rtdb, saveUserToLive, db, getChapterData, saveCustomSyllabus, deleteCustomSyllabus, subscribeToUniversalAnalysis, saveAiInteraction, saveSecureKeys, getSecureKeys, subscribeToApiUsage, subscribeToDrafts } from '../firebase'; // IMPORT FIREBASE
 import { ref, set, onValue, update, push, get } from "firebase/database";
@@ -519,6 +520,13 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
 
   // --- BULK UPLOAD STATE ---
   const [bulkData, setBulkData] = useState<Record<string, {free: string, premium: string, price: number}>>({});
+
+  // --- BULK AI DISTRIBUTOR STATE ---
+  const [bulkUploadMode, setBulkUploadMode] = useState<'LINKS' | 'CONTENT_AI'>('LINKS');
+  const [bulkContentInput, setBulkContentInput] = useState('');
+  const [bulkContentType, setBulkContentType] = useState<'NOTES_FREE' | 'NOTES_PREMIUM' | 'MCQ'>('NOTES_PREMIUM');
+  const [bulkParseResult, setBulkParseResult] = useState<any[]>([]);
+  const [isBulkAnalyzing, setIsBulkAnalyzing] = useState(false);
 
   // --- EDITING STATE ---
   const [editingChapterId, setEditingChapterId] = useState<string | null>(null);
@@ -1886,6 +1894,167 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
       }
   };
 
+
+  // --- BULK AI DISTRIBUTOR FUNCTIONS ---
+  const handleBulkAnalyze = async () => {
+      if (!selSubject) {
+          alert("Please select a subject first.");
+          return;
+      }
+      if (!bulkContentInput.trim()) {
+          alert("Please enter some content.");
+          return;
+      }
+
+      setIsBulkAnalyzing(true);
+      try {
+          const prompt = `
+          You are a strict data parser.
+          I will provide a raw text containing educational content for multiple chapters.
+
+          Your task:
+          1. Identify separate chapters based on headers (e.g., "Chapter 1: Force", "Light", "Acids Bases").
+          2. Extract the content for each chapter.
+          ${bulkContentType === 'MCQ' ?
+          `3. Format the content as a JSON array of MCQ objects.
+             Each MCQ object must have: { question: string, options: string[], correctAnswer: number (0-3), explanation: string }.
+             The output structure should be:
+             [
+               { "chapterName": "Detected Name", "mcqs": [ ... ] }
+             ]
+          ` :
+          `3. Format the content as a raw HTML string (use headers <h3>, <ul>, <p>, <b> etc).
+             The output structure should be:
+             [
+               { "chapterName": "Detected Name", "content": "<h1>Title</h1><p>...</p>" }
+             ]
+          `}
+
+          CRITICAL: Return ONLY valid JSON. No markdown formatting.
+
+          Input Text:
+          ${bulkContentInput}
+          `;
+
+          const responseText = await executeCanonical({
+              canonicalModel: 'ADMIN_ENGINE',
+              prompt: prompt,
+              jsonMode: true,
+              temperature: 0.2
+          });
+
+          // Parse JSON
+          let parsedData: any[] = [];
+          try {
+              // Clean potential markdown code blocks if AI adds them despite instruction
+              const cleanText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+              parsedData = JSON.parse(cleanText);
+          } catch (e) {
+              console.error("JSON Parse Error", e);
+              alert("Failed to parse AI response. Please try again.");
+              setIsBulkAnalyzing(false);
+              return;
+          }
+
+          if (!Array.isArray(parsedData)) {
+              alert("AI returned invalid format. Expected array.");
+              setIsBulkAnalyzing(false);
+              return;
+          }
+
+          // Match with System Chapters
+          const results = parsedData.map((item: any) => {
+              const detectedName = item.chapterName || "Unknown";
+              // Fuzzy Match (Case Insensitive & Substring)
+              // We try to find if the detected name is inside the system title OR system title is inside detected name
+              const match = selChapters.find(ch =>
+                  ch.title.toLowerCase().replace(/[^a-z0-9]/g, '').includes(detectedName.toLowerCase().replace(/[^a-z0-9]/g, '')) ||
+                  detectedName.toLowerCase().replace(/[^a-z0-9]/g, '').includes(ch.title.toLowerCase().replace(/[^a-z0-9]/g, ''))
+              );
+
+              return {
+                  chapterId: match?.id || null,
+                  chapterName: match?.title || null,
+                  originalName: detectedName,
+                  content: bulkContentType === 'MCQ' ? item.mcqs : item.content,
+                  status: match ? 'MATCHED' : 'UNMATCHED'
+              };
+          });
+
+          setBulkParseResult(results);
+
+      } catch (error: any) {
+          console.error("Bulk Analyze Error", error);
+          alert("AI Error: " + error.message);
+      } finally {
+          setIsBulkAnalyzing(false);
+      }
+  };
+
+  const handleBulkSaveDistributedContent = async () => {
+      const matchedItems = bulkParseResult.filter(r => r.status === 'MATCHED');
+      if (matchedItems.length === 0) return;
+
+      if (!confirm(`Are you sure you want to save content for ${matchedItems.length} chapters? This will overwrite existing content in the selected fields.`)) return;
+
+      let savedCount = 0;
+      const streamKey = (selClass === '11' || selClass === '12') && selStream ? `-${selStream}` : '';
+
+      for (const item of matchedItems) {
+          const key = `nst_content_${selBoard}_${selClass}${streamKey}_${selSubject?.name}_${item.chapterId}`;
+
+          try {
+              // Get existing data
+              const existing = await storage.getItem(key);
+              let existingData = existing || {};
+
+              // If not in storage, try cloud (safety check)
+              if (!existing && isFirebaseConnected) {
+                   const cloudData = await getChapterData(key);
+                   if (cloudData) existingData = cloudData;
+              }
+
+              const updates = { ...existingData };
+
+              // Apply Updates based on Content Type & Mode
+              if (bulkContentType === 'MCQ') {
+                  const currentMcqs = updates.manualMcqData || [];
+                  const newMcqs = Array.isArray(item.content) ? item.content : [];
+                  updates.manualMcqData = [...currentMcqs, ...newMcqs];
+              } else if (bulkContentType === 'NOTES_PREMIUM') {
+                  if (syllabusMode === 'COMPETITION') {
+                      updates.competitionPremiumNotesHtml = item.content;
+                      updates.is_premium = true;
+                  } else {
+                      updates.schoolPremiumNotesHtml = item.content;
+                      updates.is_premium = true;
+                  }
+                  // Legacy Sync (School only)
+                  if (syllabusMode === 'SCHOOL') updates.premiumNotesHtml = item.content;
+              } else if (bulkContentType === 'NOTES_FREE') {
+                  if (syllabusMode === 'COMPETITION') {
+                      updates.competitionFreeNotesHtml = item.content;
+                      updates.is_free = true;
+                  } else {
+                      updates.schoolFreeNotesHtml = item.content;
+                      updates.is_free = true;
+                  }
+                  // Legacy Sync
+                  if (syllabusMode === 'SCHOOL') updates.freeNotesHtml = item.content;
+              }
+
+              await saveChapterData(key, updates);
+              savedCount++;
+
+          } catch (e) {
+              console.error(`Failed to save ${item.chapterName}`, e);
+          }
+      }
+
+      alert(`✅ Successfully saved content for ${savedCount} chapters!`);
+      setBulkParseResult([]); // Clear results
+      setBulkContentInput(''); // Clear input
+  };
 
   // --- UPDATED BULK SAVE FUNCTION (WRITES TO FIREBASE) ---
   const saveBulkData = async () => {
@@ -3584,55 +3753,181 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
           <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 animate-in slide-in-from-right">
               <div className="flex items-center gap-4 mb-6 border-b pb-4">
                   <button onClick={() => setActiveTab('DASHBOARD')} className="bg-slate-100 p-2 rounded-full hover:bg-slate-200"><ArrowLeft size={20} /></button>
-                  <h3 className="text-xl font-black text-slate-800">Daily Bulk Upload</h3>
+                  <h3 className="text-xl font-black text-slate-800">Bulk Content Manager</h3>
               </div>
-              <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100 mb-6 text-sm text-yellow-800">
-                  <strong>Instructions:</strong> Paste your links here. If Firebase is configured, clicking Save will sync for ALL students instantly. No need to redeploy.
-              </div>
-              
-              <SubjectSelector />
 
-              {selSubject && selChapters.length > 0 && (
-                  <div className="space-y-4">
-                      <div className="flex justify-between items-center bg-slate-100 p-3 rounded-lg font-bold text-slate-600 text-xs uppercase">
-                          <div className="w-8">#</div>
-                          <div className="flex-1">Chapter</div>
-                          <div className="w-1/3">Premium Link (Paid)</div>
-                          <div className="w-16">Price</div>
+              {/* MODE SWITCHER */}
+              <div className="flex gap-2 mb-6">
+                  <button
+                      onClick={() => setBulkUploadMode('LINKS')}
+                      className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${bulkUploadMode === 'LINKS' ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                  >
+                      <Link size={16} className="inline mr-2" /> Link Manager (PDF/Video)
+                  </button>
+                  <button
+                      onClick={() => setBulkUploadMode('CONTENT_AI')}
+                      className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${bulkUploadMode === 'CONTENT_AI' ? 'bg-purple-600 text-white shadow-lg' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                  >
+                      <BrainCircuit size={16} className="inline mr-2" /> AI Content Distributor (Notes/MCQ)
+                  </button>
+              </div>
+
+              {bulkUploadMode === 'LINKS' && (
+                  <>
+                      <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100 mb-6 text-sm text-yellow-800">
+                          <strong>Instructions:</strong> Paste your links here. If Firebase is configured, clicking Save will sync for ALL students instantly. No need to redeploy.
                       </div>
                       
-                      {selChapters.map((ch, idx) => {
-                          const data = bulkData[ch.id] || { free: '', premium: '', price: 5 };
-                          return (
-                              <div key={ch.id} className="flex gap-2 items-center">
-                                  <div className="w-8 text-center text-xs font-bold text-slate-400">{idx + 1}</div>
-                                  <div className="flex-1 text-sm font-bold text-slate-700 truncate">{ch.title}</div>
-                                  <div className="w-1/3">
-                                      <input 
-                                          type="text" 
-                                          placeholder="Paste Premium PDF Link..." 
-                                          value={data.premium}
-                                          onChange={e => setBulkData({...bulkData, [ch.id]: { ...data, premium: e.target.value }})}
-                                          className="w-full p-2 border border-purple-200 bg-purple-50 rounded text-xs focus:ring-1 focus:ring-purple-500 outline-none"
-                                      />
+                      <SubjectSelector />
+
+                      {selSubject && selChapters.length > 0 && (
+                          <div className="space-y-4">
+                              <div className="flex justify-between items-center bg-slate-100 p-3 rounded-lg font-bold text-slate-600 text-xs uppercase">
+                                  <div className="w-8">#</div>
+                                  <div className="flex-1">Chapter</div>
+                                  <div className="w-1/3">Premium Link (Paid)</div>
+                                  <div className="w-16">Price</div>
+                              </div>
+
+                              {selChapters.map((ch, idx) => {
+                                  const data = bulkData[ch.id] || { free: '', premium: '', price: 5 };
+                                  return (
+                                      <div key={ch.id} className="flex gap-2 items-center">
+                                          <div className="w-8 text-center text-xs font-bold text-slate-400">{idx + 1}</div>
+                                          <div className="flex-1 text-sm font-bold text-slate-700 truncate">{ch.title}</div>
+                                          <div className="w-1/3">
+                                              <input
+                                                  type="text"
+                                                  placeholder="Paste Premium PDF Link..."
+                                                  value={data.premium}
+                                                  onChange={e => setBulkData({...bulkData, [ch.id]: { ...data, premium: e.target.value }})}
+                                                  className="w-full p-2 border border-purple-200 bg-purple-50 rounded text-xs focus:ring-1 focus:ring-purple-500 outline-none"
+                                              />
+                                          </div>
+                                          <div className="w-16">
+                                              <input
+                                                  type="number"
+                                                  value={data.price}
+                                                  onChange={e => setBulkData({...bulkData, [ch.id]: { ...data, price: Number(e.target.value) }})}
+                                                  className="w-full p-2 border border-slate-200 rounded text-xs text-center font-bold"
+                                              />
+                                          </div>
+                                      </div>
+                                  );
+                              })}
+
+                              <div className="pt-6 border-t mt-4">
+                                  <button onClick={saveBulkData} className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2">
+                                      <Save size={20} /> Save All & Sync
+                                  </button>
+                              </div>
+                          </div>
+                      )}
+                  </>
+              )}
+
+              {bulkUploadMode === 'CONTENT_AI' && (
+                  <div className="animate-in fade-in slide-in-from-right">
+                      <div className="bg-purple-50 p-4 rounded-xl border border-purple-100 mb-6 text-sm text-purple-800">
+                          <strong>AI Smart Distributor:</strong> Paste content for multiple chapters below. The AI will automatically identify the chapter names and distribute the content to the correct lesson.
+                      </div>
+
+                      <SubjectSelector />
+
+                      {selSubject && (
+                          <div className="space-y-6">
+                              <div className="flex gap-4">
+                                  <div className="flex-1">
+                                      <label className="text-xs font-bold text-slate-500 uppercase block mb-2">Content Type</label>
+                                      <select
+                                          value={bulkContentType}
+                                          onChange={(e) => setBulkContentType(e.target.value as any)}
+                                          className="w-full p-3 rounded-xl border border-slate-200 font-bold text-slate-700"
+                                      >
+                                          <option value="NOTES_PREMIUM">Premium Notes (HTML/Text)</option>
+                                          <option value="NOTES_FREE">Free Notes (HTML/Text)</option>
+                                          <option value="MCQ">MCQ Questions (JSON/Text)</option>
+                                      </select>
                                   </div>
-                                  <div className="w-16">
-                                      <input 
-                                          type="number" 
-                                          value={data.price}
-                                          onChange={e => setBulkData({...bulkData, [ch.id]: { ...data, price: Number(e.target.value) }})}
-                                          className="w-full p-2 border border-slate-200 rounded text-xs text-center font-bold"
-                                      />
+                                  <div className="flex items-end">
+                                      <button
+                                          onClick={handleBulkAnalyze}
+                                          disabled={isBulkAnalyzing || !bulkContentInput.trim()}
+                                          className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                      >
+                                          {isBulkAnalyzing ? <RefreshCw className="animate-spin" size={20} /> : <BrainCircuit size={20} />}
+                                          {isBulkAnalyzing ? 'Analyzing...' : 'Analyze & Match'}
+                                      </button>
                                   </div>
                               </div>
-                          );
-                      })}
 
-                      <div className="pt-6 border-t mt-4">
-                          <button onClick={saveBulkData} className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2">
-                              <Save size={20} /> Save All & Sync
-                          </button>
-                      </div>
+                              <div>
+                                  <label className="text-xs font-bold text-slate-500 uppercase block mb-2">Bulk Content Input</label>
+                                  <textarea
+                                      value={bulkContentInput}
+                                      onChange={(e) => setBulkContentInput(e.target.value)}
+                                      placeholder={`Example Format:\n\nChapter: Light Reflection\nLight travels in straight lines...\n\nChapter: Human Eye\nThe human eye is like a camera...`}
+                                      className="w-full h-64 p-4 rounded-xl border border-slate-200 font-mono text-sm focus:ring-2 focus:ring-purple-500"
+                                  />
+                              </div>
+
+                              {/* PREVIEW TABLE */}
+                              {bulkParseResult.length > 0 && (
+                                  <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                                      <div className="p-3 bg-slate-50 border-b border-slate-200 font-bold text-slate-600 text-xs uppercase flex justify-between">
+                                          <span>Distribution Preview</span>
+                                          <span>{bulkParseResult.filter(r => r.status === 'MATCHED').length} Matched</span>
+                                      </div>
+                                      <div className="max-h-64 overflow-y-auto">
+                                          <table className="w-full text-left text-xs">
+                                              <thead className="bg-slate-50 text-slate-500 sticky top-0">
+                                                  <tr>
+                                                      <th className="p-3">Detected Name</th>
+                                                      <th className="p-3">Matched Chapter</th>
+                                                      <th className="p-3">Status</th>
+                                                      <th className="p-3 text-right">Action</th>
+                                                  </tr>
+                                              </thead>
+                                              <tbody className="divide-y divide-slate-100">
+                                                  {bulkParseResult.map((res, idx) => (
+                                                      <tr key={idx} className={res.status === 'MATCHED' ? 'bg-green-50/50' : 'bg-red-50/50'}>
+                                                          <td className="p-3 font-medium">{res.originalName}</td>
+                                                          <td className="p-3 font-bold text-slate-700">{res.chapterName || '-'}</td>
+                                                          <td className="p-3">
+                                                              {res.status === 'MATCHED'
+                                                                  ? <span className="text-green-600 font-bold flex items-center gap-1"><CheckCircle size={14}/> Ready</span>
+                                                                  : <span className="text-red-500 font-bold">No Match</span>
+                                                              }
+                                                          </td>
+                                                          <td className="p-3 text-right">
+                                                              <button
+                                                                  onClick={() => {
+                                                                      const updated = bulkParseResult.filter((_, i) => i !== idx);
+                                                                      setBulkParseResult(updated);
+                                                                  }}
+                                                                  className="text-slate-400 hover:text-red-500"
+                                                              >
+                                                                  <Trash2 size={16} />
+                                                              </button>
+                                                          </td>
+                                                      </tr>
+                                                  ))}
+                                              </tbody>
+                                          </table>
+                                      </div>
+                                      <div className="p-4 bg-slate-50 border-t border-slate-200">
+                                          <button
+                                              onClick={handleBulkSaveDistributedContent}
+                                              disabled={bulkParseResult.filter(r => r.status === 'MATCHED').length === 0}
+                                              className="w-full py-3 bg-green-600 text-white font-bold rounded-xl shadow hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                          >
+                                              <Save size={20} /> Confirm & Save to {bulkParseResult.filter(r => r.status === 'MATCHED').length} Chapters
+                                          </button>
+                                      </div>
+                                  </div>
+                              )}
+                          </div>
+                      )}
                   </div>
               )}
           </div>
