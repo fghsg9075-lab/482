@@ -454,25 +454,42 @@ SECTION 5: REVISION
   };
 };
 
-export const generateCustomNotes = async (userTopic: string, adminPrompt: string): Promise<string> => {
+export const generateCustomNotes = async (userTopic: string, adminPrompt: string, context?: { classLevel?: string, board?: string, subject?: string }): Promise<string> => {
     let prompt: string;
+    const { classLevel = "10", board = "CBSE", subject = "" } = context || {};
 
     if (adminPrompt && adminPrompt.trim().length > 0) {
-        if (adminPrompt.includes("{topic}")) {
-             prompt = adminPrompt.replace(/{topic}/gi, userTopic);
-        } else {
-             // Append topic if placeholder is missing, but avoid extra prescriptive instructions
-             prompt = `${adminPrompt}\n\nTOPIC: ${userTopic}`;
-        }
-    } else {
-        // Default Prompt: Focus on Comprehensive Chapter Coverage
-        prompt = `Generate comprehensive, detailed notes for the entire chapter/lesson titled: "${userTopic}".
+        let p = adminPrompt;
+        // Replace placeholders if they exist
+        p = p.replace(/{topic}/gi, userTopic);
+        p = p.replace(/{class}/gi, classLevel);
+        p = p.replace(/{board}/gi, board);
+        p = p.replace(/{subject}/gi, subject);
 
-INSTRUCTIONS:
-1. COVERAGE: Cover ALL subtopics, key concepts, formulas, reactions, and examples found in this chapter.
-2. DEPTH: Do NOT just define the title. Explain the full content of the lesson as taught in Class 10 (or appropriate level).
-3. STRUCTURE: Use clear headings, bullet points, and numbered lists.
-4. FORMAT: Start with an introduction, then detailed sections for each subtopic, and end with a summary.`;
+        // If topic placeholder was missing, append it
+        if (!adminPrompt.includes("{topic}")) {
+             p = `${p}\n\nTOPIC: ${userTopic}`;
+        }
+        prompt = p;
+    } else {
+        // STRONG DEFAULT PROMPT
+        prompt = `
+You are an expert teacher for ${board} Class ${classLevel}.
+Your task is to generate COMPLETE CHAPTER NOTES for the lesson/chapter: "${userTopic}".
+
+CRITICAL INSTRUCTIONS:
+1. SCOPE: Treat "${userTopic}" as the name of a FULL CHAPTER. Do NOT just define it as a single term.
+2. CONTENT: You must cover ALL topics, sub-topics, theories, reactions (if Science), formulas (if Math/Physics), and key concepts included in the standard ${board} syllabus for this chapter.
+3. DEPTH: The notes must be detailed and exam-oriented.
+4. STRUCTURE:
+   - **Chapter Overview**: Brief summary.
+   - **Core Concepts**: Explain every sub-topic in detail one by one.
+   - **Important Formulas/Reactions**: List them clearly.
+   - **Key Differences**: Comparisons (if any).
+   - **Exam Important Questions**: 5 frequently asked questions.
+
+Output the notes in clean Markdown format.
+`;
     }
 
     return await executeCanonical({ canonicalModel: 'NOTES_ENGINE', prompt });
