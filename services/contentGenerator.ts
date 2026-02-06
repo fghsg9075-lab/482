@@ -362,7 +362,26 @@ export const fetchLessonContent = async (
 };
 
 export const generateCustomNotes = async (userTopic: string, adminPrompt: string): Promise<string> => {
-    const prompt = `${adminPrompt || 'Generate detailed notes for the following topic:'} TOPIC: ${userTopic} Ensure the content is well-structured with headings and bullet points.`;
+    let prompt: string;
+
+    if (adminPrompt && adminPrompt.trim().length > 0) {
+        if (adminPrompt.includes("{topic}")) {
+             prompt = adminPrompt.replace(/{topic}/gi, userTopic);
+        } else {
+             // Append topic if placeholder is missing, but avoid extra prescriptive instructions
+             prompt = `${adminPrompt}\n\nTOPIC: ${userTopic}`;
+        }
+    } else {
+        // Default Prompt: Focus on Comprehensive Chapter Coverage
+        prompt = `Generate comprehensive, detailed notes for the entire chapter/lesson titled: "${userTopic}".
+
+INSTRUCTIONS:
+1. COVERAGE: Cover ALL subtopics, key concepts, formulas, reactions, and examples found in this chapter.
+2. DEPTH: Do NOT just define the title. Explain the full content of the lesson as taught in Class 10 (or appropriate level).
+3. STRUCTURE: Use clear headings, bullet points, and numbered lists.
+4. FORMAT: Start with an introduction, then detailed sections for each subtopic, and end with a summary.`;
+    }
+
     return await executeCanonical({ canonicalModel: 'NOTES_ENGINE', prompt });
 };
 
