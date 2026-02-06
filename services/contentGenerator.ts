@@ -3,6 +3,7 @@ import { STATIC_SYLLABUS } from "../constants";
 import { getChapterData, getCustomSyllabus } from "../firebase";
 import { storage } from "../utils/storage";
 import { executeCanonical } from "./ai/router";
+import { performWebSearch } from "./search";
 import { CanonicalModel } from "./ai/types";
 
 const chapterCache: Record<string, Chapter[]> = {};
@@ -17,6 +18,96 @@ const processTemplate = (template: string, replacements: Record<string, string>)
         result = result.replace(new RegExp(`{${key}}`, 'gi'), value);
     }
     return result;
+};
+
+// --- UNIVERSAL BOARD PROMPT GENERATOR ---
+const generateBoardPrompt = async (
+    classLevel: string,
+    subject: string,
+    board: string,
+    chapter: string,
+    topic: string,
+    mode: 'NOTES' | 'MCQ',
+    settings?: SystemSettings
+): Promise<string> => {
+    // 1. BOARD RULES
+    let boardRules = "";
+    let searchContext = "";
+
+    if (board === 'CBSE') {
+        boardRules = `
+        1. Follow NCERT pattern strictly.
+        2. Focus on Conceptual Understanding + Application.
+        3. Include: Competency Based Questions, Assertion-Reason, HOTS.
+        4. Style: To-the-point, clear definitions, diagrams descriptions.
+        `;
+    } else if (board === 'BSEB') {
+        boardRules = `
+        1. Follow Bihar Board (BSEB) syllabus & exam pattern.
+        2. Focus on Direct Theory + Exam Pattern Questions.
+        3. Include: Short Answer (2 Marks), Long Answer (5 Marks), Objective (MCQ).
+        4. Style: Simple Hinglish (Hindi + English mix), Bullet points, easy to memorize.
+        `;
+    } else {
+        boardRules = "Follow standard Indian school curriculum pattern.";
+    }
+
+    // 2. LIVE SEARCH (RAG)
+    let searchQuery = "";
+    if (board === 'CBSE') searchQuery = `NCERT Class ${classLevel} ${subject} ${chapter} ${topic} notes 2025`;
+    else if (board === 'BSEB') searchQuery = `Bihar Board Class ${classLevel} ${subject} ${chapter} important questions 2025`;
+
+    if (searchQuery) {
+        searchContext = await performWebSearch(searchQuery, settings);
+    }
+
+    // 3. EXAM MODE STYLING
+    const examModeInstructions = `
+    CRITICAL FORMATTING RULES FOR "EXAM MODE":
+    - Mark very important lines/concepts with ★ (e.g., ★ Newton's Second Law...).
+    - Enclose all Formulas in [FORMULA]...[/FORMULA] blocks (or just mark clearly).
+    - For important Questions, prefix with [IMP-Q].
+    `;
+
+    // 4. STRUCTURE
+    const structure = mode === 'NOTES' ? `
+    Structure:
+    - Clear Definitions
+    - All Subtopics covered
+    - Bullet points + Paragraphs
+    - Tables (where needed)
+    - Flowcharts (Text based)
+    - Diagram Descriptions (Step-by-step)
+    - 15 Board Specific Questions
+    - 5 HOTS Questions
+    ` : `
+    Structure:
+    - 20 High Quality MCQs
+    - Mix of Easy, Medium, Hard
+    - Case Based / Assertion Reason if CBSE
+    `;
+
+    return `
+    You are an expert Indian school teacher and educational content designer.
+    Generate extremely detailed, exam-oriented, and structured content for:
+    Class: ${classLevel}
+    Board: ${board}
+    Subject: ${subject}
+    Chapter: ${chapter}
+    Topic: ${topic || 'Full Chapter'}
+
+    ${searchContext}
+
+    Rules:
+    ${boardRules}
+
+    ${examModeInstructions}
+
+    ${structure}
+
+    Language: Simple Hinglish (Hindi + English mix) where appropriate for explanation, English for terms.
+    Do NOT keep it short. Write like top Indian coaching notes (Allen/Aakash level).
+    `;
 };
 
 // --- TRANSLATION HELPER ---
@@ -173,6 +264,7 @@ export const fetchLessonContent = async (
 ): Promise<LessonContent> => {
 
   // Settings Loading
+  let settings: SystemSettings | undefined = undefined;
   let customInstruction = "";
   let promptNotes = "";
   let promptNotesPremium = "";
@@ -181,27 +273,27 @@ export const fetchLessonContent = async (
   try {
       const stored = localStorage.getItem('nst_system_settings');
       if (stored) {
-          const s = JSON.parse(stored) as SystemSettings;
-          if (s.aiInstruction) customInstruction = `IMPORTANT INSTRUCTION: ${s.aiInstruction}`;
+          settings = JSON.parse(stored) as SystemSettings;
+          if (settings.aiInstruction) customInstruction = `IMPORTANT INSTRUCTION: ${settings.aiInstruction}`;
 
           if (syllabusMode === 'COMPETITION') {
               if (board === 'CBSE') {
-                  if (s.aiPromptNotesCompetitionCBSE) promptNotes = s.aiPromptNotesCompetitionCBSE;
-                  if (s.aiPromptNotesPremiumCompetitionCBSE) promptNotesPremium = s.aiPromptNotesPremiumCompetitionCBSE;
-                  if (s.aiPromptMCQCompetitionCBSE) promptMCQ = s.aiPromptMCQCompetitionCBSE;
+                  if (settings.aiPromptNotesCompetitionCBSE) promptNotes = settings.aiPromptNotesCompetitionCBSE;
+                  if (settings.aiPromptNotesPremiumCompetitionCBSE) promptNotesPremium = settings.aiPromptNotesPremiumCompetitionCBSE;
+                  if (settings.aiPromptMCQCompetitionCBSE) promptMCQ = settings.aiPromptMCQCompetitionCBSE;
               }
-              if (!promptNotes && s.aiPromptNotesCompetition) promptNotes = s.aiPromptNotesCompetition;
-              if (!promptNotesPremium && s.aiPromptNotesPremiumCompetition) promptNotesPremium = s.aiPromptNotesPremiumCompetition;
-              if (!promptMCQ && s.aiPromptMCQCompetition) promptMCQ = s.aiPromptMCQCompetition;
+              if (!promptNotes && settings.aiPromptNotesCompetition) promptNotes = settings.aiPromptNotesCompetition;
+              if (!promptNotesPremium && settings.aiPromptNotesPremiumCompetition) promptNotesPremium = settings.aiPromptNotesPremiumCompetition;
+              if (!promptMCQ && settings.aiPromptMCQCompetition) promptMCQ = settings.aiPromptMCQCompetition;
           } else {
               if (board === 'CBSE') {
-                  if (s.aiPromptNotesCBSE) promptNotes = s.aiPromptNotesCBSE;
-                  if (s.aiPromptNotesPremiumCBSE) promptNotesPremium = s.aiPromptNotesPremiumCBSE;
-                  if (s.aiPromptMCQCBSE) promptMCQ = s.aiPromptMCQCBSE;
+                  if (settings.aiPromptNotesCBSE) promptNotes = settings.aiPromptNotesCBSE;
+                  if (settings.aiPromptNotesPremiumCBSE) promptNotesPremium = settings.aiPromptNotesPremiumCBSE;
+                  if (settings.aiPromptMCQCBSE) promptMCQ = settings.aiPromptMCQCBSE;
               }
-              if (!promptNotes && s.aiPromptNotes) promptNotes = s.aiPromptNotes;
-              if (!promptNotesPremium && s.aiPromptNotesPremium) promptNotesPremium = s.aiPromptNotesPremium;
-              if (!promptMCQ && s.aiPromptMCQ) promptMCQ = s.aiPromptMCQ;
+              if (!promptNotes && settings.aiPromptNotes) promptNotes = settings.aiPromptNotes;
+              if (!promptNotesPremium && settings.aiPromptNotesPremium) promptNotesPremium = settings.aiPromptNotesPremium;
+              if (!promptMCQ && settings.aiPromptMCQ) promptMCQ = settings.aiPromptMCQ;
           }
       }
   } catch(e) {}
@@ -228,8 +320,9 @@ export const fetchLessonContent = async (
            prompt = processTemplate(promptMCQ, { board: board || '', class: classLevel, stream: stream || '', subject: subject.name, chapter: chapter.title, language: language, count: effectiveCount.toString(), instruction: customInstruction });
            if (adminPromptOverride) prompt += `\nINSTRUCTION: ${adminPromptOverride}`;
       } else {
-          const competitionConstraints = syllabusMode === 'COMPETITION' ? "STYLE: Fact-Heavy, Direct. HIGHLIGHT PYQs." : "STYLE: Strict NCERT Pattern.";
-          prompt = `${customInstruction} ${adminPromptOverride ? `INSTRUCTION: ${adminPromptOverride}` : ''} Create ${effectiveCount} MCQs for ${board} Class ${classLevel} ${subject.name}, Chapter: "${chapter.title}". Language: ${language}. ${competitionConstraints} STRICT JSON array of {question, options[], correctAnswer(index), explanation}.`;
+          // USE NEW UNIVERSAL BOARD PROMPT
+          prompt = await generateBoardPrompt(classLevel, subject.name, board, chapter.title, "", 'MCQ', settings);
+          prompt += `\nCreate ${effectiveCount} MCQs STRICT JSON array of {question, options[], correctAnswer(index), explanation}.`;
       }
 
       // We use MCQ_ENGINE
@@ -237,8 +330,6 @@ export const fetchLessonContent = async (
           canonicalModel: 'MCQ_ENGINE',
           prompt: prompt,
           jsonMode: true,
-          // Note: Bulk execution is handled inside Router if we implemented it, but here we just do one call for simplicity or implement batching in Generator if needed.
-          // For now, let's assume the router handles the request. If we need batching, we should implement it here calling router multiple times.
       });
 
       const data = JSON.parse(cleanJson(text));
@@ -272,11 +363,13 @@ export const fetchLessonContent = async (
       if (template) {
            prompt = processTemplate(template, { board: board || '', class: classLevel, stream: stream || '', subject: subject.name, chapter: chapter.title, language: language, instruction: customInstruction });
       } else {
-          const competitionConstraints = syllabusMode === 'COMPETITION' ? "STYLE: Fact-Heavy, Direct. HIGHLIGHT PYQs." : "STYLE: Strict NCERT Pattern.";
+          // USE NEW UNIVERSAL BOARD PROMPT
+          const basePrompt = await generateBoardPrompt(classLevel, subject.name, board, chapter.title, "", 'NOTES', settings);
+
           if (detailed) {
-              prompt = `${customInstruction} ${adminPromptOverride || ""} Write PREMIUM DEEP DIVE NOTES for ${board} Class ${classLevel} ${subject.name}, Chapter: "${chapter.title}". Language: ${language}. ${competitionConstraints} STRICT TARGET: 1000-1500 Words. Comprehensive, structured, with examples.`;
+              prompt = `${customInstruction} ${adminPromptOverride || ""} ${basePrompt} STRICT TARGET: 1000-1500 Words. Comprehensive, structured, with examples.`;
           } else {
-              prompt = `${customInstruction} ${adminPromptOverride || ""} Write SHORT SUMMARY NOTES for ${board} Class ${classLevel} ${subject.name}, Chapter: "${chapter.title}". Language: ${language}. STRICT TARGET: 200-300 Words. Key points only.`;
+              prompt = `${customInstruction} ${adminPromptOverride || ""} ${basePrompt} Write SHORT SUMMARY NOTES. STRICT TARGET: 200-300 Words. Key points only.`;
           }
       }
 
@@ -340,6 +433,8 @@ export const fetchLessonContent = async (
           competitionPremiumNotesHtml_HI: syllabusMode === 'COMPETITION' ? premiumTextHI : undefined,
           schoolFreeNotesHtml: syllabusMode === 'SCHOOL' ? freeText : undefined,
           competitionFreeNotesHtml: syllabusMode === 'COMPETITION' ? freeText : undefined,
+          schoolFreeNotesHtml_HI: syllabusMode === 'SCHOOL' ? freeTextHI : undefined,
+          competitionFreeNotesHtml_HI: syllabusMode === 'COMPETITION' ? freeTextHI : undefined,
           isComingSoon: false
       };
   }
@@ -361,8 +456,27 @@ export const fetchLessonContent = async (
   };
 };
 
-export const generateCustomNotes = async (userTopic: string, adminPrompt: string): Promise<string> => {
-    const prompt = `${adminPrompt || 'Generate detailed notes for the following topic:'} TOPIC: ${userTopic} Ensure the content is well-structured with headings and bullet points.`;
+export const generateCustomNotes = async (
+    userTopic: string,
+    adminPrompt: string,
+    context?: { board?: string, classLevel?: string, subject?: string }
+): Promise<string> => {
+    let settings: SystemSettings | undefined;
+    try {
+        const stored = localStorage.getItem('nst_system_settings');
+        if (stored) settings = JSON.parse(stored);
+    } catch(e) {}
+
+    // Use Context to build a smarter prompt
+    let prompt = "";
+    if (context && context.board && context.classLevel && context.subject) {
+        const basePrompt = await generateBoardPrompt(context.classLevel, context.subject, context.board, "Custom Topic", userTopic, 'NOTES', settings);
+        prompt = `${basePrompt} \nUSER TOPIC: ${userTopic} \n${adminPrompt || ''}`;
+    } else {
+        // Fallback for generic calls
+        prompt = `${adminPrompt || 'Generate detailed notes for the following topic:'} TOPIC: ${userTopic} Ensure the content is well-structured with headings and bullet points.`;
+    }
+
     return await executeCanonical({ canonicalModel: 'NOTES_ENGINE', prompt });
 };
 

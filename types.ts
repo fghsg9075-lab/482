@@ -466,6 +466,10 @@ export interface SystemSettings {
   // AI OPERATING SYSTEM (ZONE C)
   aiProviderConfig?: AIProvider[];
   aiCanonicalMap?: Record<string, { providerId: AIProviderID, modelId: string }>; // "NOTES_ENGINE" -> { providerId: 'groq', modelId: 'llama-3.1-70b-versatile' }
+
+  // RAG Configuration
+  googleSearchApiKey?: string; // NEW: For Multi-Board Live Data
+  googleSearchCxId?: string;   // NEW: For Multi-Board Live Data
 }
 
 export type AIProviderID = 'openai' | 'gemini' | 'claude' | 'groq' | 'together' | 'fireworks' | 'anyscale' | 'mistral' | 'deepseek' | 'qwen' | 'yi' | 'baichuan' | 'zhipu' | 'perplexity' | 'openrouter' | 'ollama' | 'lm_studio' | 'vllm' | 'gpt4all' | 'localai' | 'huggingface' | 'replicate' | 'modal';
