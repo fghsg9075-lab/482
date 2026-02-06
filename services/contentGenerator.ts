@@ -274,9 +274,33 @@ export const fetchLessonContent = async (
       } else {
           const competitionConstraints = syllabusMode === 'COMPETITION' ? "STYLE: Fact-Heavy, Direct. HIGHLIGHT PYQs." : "STYLE: Strict NCERT Pattern.";
           if (detailed) {
-              prompt = `${customInstruction} ${adminPromptOverride || ""} Write PREMIUM DEEP DIVE NOTES for ${board} Class ${classLevel} ${subject.name}, Chapter: "${chapter.title}". Language: ${language}. ${competitionConstraints} STRICT TARGET: 2000 Words. Comprehensive, structured, with examples.`;
+              prompt = `${customInstruction} ${adminPromptOverride || ""}
+ROLE: Senior Professor & Exam Strategist.
+TASK: Generate EXTREMELY DETAILED, MONSTER NOTES for ${board} Class ${classLevel} ${subject.name}, Chapter: "${chapter.title}".
+LANGUAGE: ${language}.
+LENGTH: 1800-2500 Words (Strict Minimum).
+RULES:
+- Cover NCERT + Coaching Level Depth.
+- Real-life examples & Applications.
+- Step-by-step processes for complex topics.
+- Difference Tables (Comparison Charts) for confusing terms.
+- Advantages / Disadvantages where applicable.
+- [DIAGRAM FOR EXAM] Give step-by-step text description for drawing important diagrams after every major topic.
+- 15 Exam Questions (Short & Long) with model answers.
+- 5 HOT MCQs with detailed explanations.
+STYLE: Like Allen/Aakash Modules. Structured, Bulleted, High-Yield. ${competitionConstraints}`;
           } else {
-              prompt = `${customInstruction} ${adminPromptOverride || ""} Write SHORT SUMMARY NOTES for ${board} Class ${classLevel} ${subject.name}, Chapter: "${chapter.title}". Language: ${language}. STRICT TARGET: 300 Words. Key points only.`;
+              prompt = `${customInstruction} ${adminPromptOverride || ""}
+ROLE: Senior Teacher.
+TASK: Write Universal Free Notes for ${board} Class ${classLevel} ${subject.name}, Chapter: "${chapter.title}".
+LANGUAGE: Simple Hinglish (Easy to understand).
+LENGTH: 600-900 Words.
+STRUCTURE:
+1. NCERT Aligned Key Concepts (Headings & Bullets).
+2. [DIAGRAM FOR EXAM] Give step-by-step text description of 2 important diagrams (Student should be able to draw by reading).
+3. 5 Important Exam Questions.
+4. 2 Practice MCQs.
+NOTE: Keep it clean, fast to read, and exam-focused.`;
           }
       }
 
