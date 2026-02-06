@@ -220,8 +220,24 @@ export const fetchLessonContent = async (
       }
 
       // 2. Generate URLs via Groq (NOTES_ENGINE)
-      const prompt = `Find the SINGLE BEST educational website URL for detailed notes on: ${chapter.title} (Class ${classLevel}, Board ${board}, Subject ${subject.name}).
-      Target Sites: NCERT, Toppr, Byjus, GeeksForGeeks, or similar high-quality educational portals.
+      const prompt = `Find the SINGLE BEST, EMBEDDABLE educational website URL for detailed notes on: ${chapter.title} (Class ${classLevel}, Board ${board}, Subject ${subject.name}).
+
+      CRITICAL: The URL must allow embedding in an iframe (No 'X-Frame-Options: SAMEORIGIN' or 'DENY').
+
+      PREFERRED SOURCES:
+      - Wikipedia (Excellent for topics)
+      - GeeksForGeeks
+      - JavaTpoint
+      - Tutorialspoint
+      - Archive.org
+      - Direct PDF links (ending in .pdf)
+
+      AVOID:
+      - Byjus (Blocks embedding)
+      - Toppr (Blocks embedding)
+      - Unacademy (Blocks embedding)
+      - Youtube Watch Links (Use Embed links only)
+
       Return strictly JSON: { "notesUrl": "..." }.`;
 
       try {
@@ -229,16 +245,22 @@ export const fetchLessonContent = async (
               canonicalModel: 'NOTES_ENGINE',
               prompt: prompt,
               jsonMode: true
-          }), 5000); // 5s Timeout for AI (Fast Fallback)
+          }), 8000); // Increased to 8s for better search
 
           if (!text) throw new Error("AI Timed Out");
 
           const data = JSON.parse(cleanJson(text));
+          let finalUrl = data.notesUrl;
+
+          // PDF EMBED FIX: Wrap PDFs in Google Docs Viewer
+          if (finalUrl && finalUrl.toLowerCase().endsWith('.pdf')) {
+              finalUrl = `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(finalUrl)}`;
+          }
 
           // Save to Firebase (We prioritize notesUrl)
           const newData = {
               smartDiagramUrl: null, // Deprecated/Removed from UI
-              smartNotesUrl: data.notesUrl,
+              smartNotesUrl: finalUrl,
               dateUpdated: new Date().toISOString()
           };
 
@@ -257,7 +279,7 @@ export const fetchLessonContent = async (
               dateCreated: new Date().toISOString(),
               subjectName: subject.name,
               smartDiagramUrl: null,
-              smartNotesUrl: data.notesUrl,
+              smartNotesUrl: finalUrl,
               isComingSoon: false
           };
       } catch (e) {

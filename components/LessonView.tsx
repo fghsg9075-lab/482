@@ -257,6 +257,15 @@ export const LessonView: React.FC<Props> = ({
                    <button onClick={onBack} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"><X size={18} /></button>
               </header>
 
+              {/* FALLBACK HEADER (If content is blocked) */}
+              <div className="bg-orange-50 px-2 py-1 text-[10px] text-orange-800 flex justify-center items-center gap-2 border-b border-orange-100">
+                  <AlertTriangle size={10} />
+                  <span>If content doesn't load: </span>
+                  <a href={content.smartNotesUrl} target="_blank" rel="noopener noreferrer" className="underline font-bold hover:text-orange-900">
+                      Open in Browser
+                  </a>
+              </div>
+
               {/* SIMPLIFIED VIEW (Full Height Notes Only) */}
               <div className="flex-1 flex flex-col h-full overflow-hidden relative bg-white">
 
@@ -272,8 +281,8 @@ export const LessonView: React.FC<Props> = ({
                       <iframe
                           src={content.smartNotesUrl}
                           className="w-full h-full border-none bg-white"
-                          // REMOVED 'allow-top-navigation' and 'allow-popups' to lock links
-                          sandbox="allow-scripts allow-same-origin allow-forms"
+                          // 'allow-popups' added for some redirect flows, but 'allow-top-navigation' REMOVED to keep user in app
+                          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
                           title="Text Notes"
                           onLoad={(e) => {
                               // ATTEMPT CSS INJECTION (Will only work if same-origin, but satisfies logic placement)
