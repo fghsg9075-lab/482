@@ -257,34 +257,32 @@ export const LessonView: React.FC<Props> = ({
                    <button onClick={onBack} className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"><X size={18} /></button>
               </header>
 
-              {/* SPLIT VIEW */}
-              <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+              {/* FALLBACK HEADER (If content is blocked) */}
+              <div className="bg-orange-50 px-2 py-1 text-[10px] text-orange-800 flex justify-center items-center gap-2 border-b border-orange-100">
+                  <AlertTriangle size={10} />
+                  <span>If content doesn't load: </span>
+                  <a href={content.smartNotesUrl} target="_blank" rel="noopener noreferrer" className="underline font-bold hover:text-orange-900">
+                      Open in Browser
+                  </a>
+              </div>
 
-                  {/* TOP: 3D DIAGRAM */}
-                  <div className="h-[40%] bg-black relative border-b-4 border-slate-800 group">
-                      <div className="absolute top-2 left-2 z-10 bg-black/60 backdrop-blur text-white text-[10px] font-bold px-2 py-1 rounded border border-white/10 flex items-center gap-1">
-                          <Globe size={12} className="text-blue-400"/> Visual Learning
-                      </div>
-                      <iframe
-                          src={content.smartDiagramUrl}
-                          className="w-full h-full border-none pointer-events-auto"
-                          sandbox="allow-scripts allow-same-origin allow-forms"
-                          title="3D Diagram"
-                      />
-                  </div>
+              {/* SIMPLIFIED VIEW (Full Height Notes Only) */}
+              <div className="flex-1 flex flex-col h-full overflow-hidden relative bg-white">
 
-                  {/* BOTTOM: NOTES */}
-                  <div className="h-[60%] bg-white relative">
+                  {/* NOTES CONTAINER */}
+                  <div className="flex-1 h-full w-full relative">
                       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 to-blue-500 z-10"></div>
-                      <div className="absolute top-2 right-2 z-10 bg-white/80 backdrop-blur text-slate-800 text-[10px] font-bold px-2 py-1 rounded border border-slate-200 shadow-sm flex items-center gap-1">
-                          <FileText size={12} className="text-purple-600"/> Detailed Notes
+                      <div className="absolute top-2 right-2 z-10 bg-white/90 backdrop-blur text-slate-800 text-[10px] font-bold px-3 py-1.5 rounded-full border border-slate-200 shadow-sm flex items-center gap-1.5">
+                          <FileText size={12} className="text-purple-600"/>
+                          <span>Smart Notes</span>
                       </div>
+
                       {/* Interaction Blocker Overlay (allows scroll, blocks touches on non-scrollable areas if possible, but here we rely on sandbox) */}
                       <iframe
                           src={content.smartNotesUrl}
                           className="w-full h-full border-none bg-white"
-                          // REMOVED 'allow-top-navigation' and 'allow-popups' to lock links
-                          sandbox="allow-scripts allow-same-origin allow-forms"
+                          // 'allow-popups' added for some redirect flows, but 'allow-top-navigation' REMOVED to keep user in app
+                          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
                           title="Text Notes"
                           onLoad={(e) => {
                               // ATTEMPT CSS INJECTION (Will only work if same-origin, but satisfies logic placement)
