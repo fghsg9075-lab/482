@@ -19,7 +19,7 @@ export interface FrequencyConfig {
     unit: 'seconds' | 'minutes' | 'hours' | 'days' | 'months' | 'years';
 }
 
-export type ContentType = 'NOTES_SIMPLE' | 'NOTES_PREMIUM' | 'MCQ_ANALYSIS' | 'MCQ_SIMPLE' | 'PDF_FREE' | 'PDF_PREMIUM' | 'PDF_ULTRA' | 'PDF_VIEWER' | 'WEEKLY_TEST' | 'VIDEO_LECTURE' | 'NOTES_HTML_FREE' | 'NOTES_HTML_PREMIUM' | 'NOTES_IMAGE_AI';
+export type ContentType = 'NOTES_SIMPLE' | 'NOTES_PREMIUM' | 'MCQ_ANALYSIS' | 'MCQ_SIMPLE' | 'PDF_FREE' | 'PDF_PREMIUM' | 'PDF_ULTRA' | 'PDF_VIEWER' | 'WEEKLY_TEST' | 'VIDEO_LECTURE' | 'NOTES_HTML_FREE' | 'NOTES_HTML_PREMIUM' | 'NOTES_IMAGE_AI' | 'SMART_LESSON';
 
 export interface PrizeRule {
   id: string;
@@ -787,6 +787,8 @@ export interface LessonContent {
   aiImageLink?: string; // NEW: AI Generated Image Notes
   aiHtmlContent?: string; // NEW: HTML Content for AI Notes
   aiImagePrice?: number; // Price for AI Image Notes
+  smartDiagramUrl?: string; // NEW: 3D Diagram URL (Sketchfab/Other)
+  smartNotesUrl?: string; // NEW: High Quality Notes URL
   isComingSoon?: boolean; // If content is missing
   userAnswers?: Record<number, number>; // Saved answers for History/Analysis
   is_free?: boolean; // NEW: Explicit Flag
@@ -858,7 +860,7 @@ export interface StudentTestAttempt {
   answers: Record<number, number>; // question index -> selected answer index
 }
 
-export type StudentTab = 'HOME' | 'COURSES' | 'ROUTINE' | 'HISTORY' | 'REDEEM' | 'PREMIUM' | 'GAME' | 'WEEKLY_TEST' | 'PROFILE' | 'LEADERBOARD' | 'STORE' | 'VIDEO' | 'PDF' | 'MCQ' | 'ANALYTICS' | 'PRIZES' | 'REWARDS' | 'UPDATES' | 'SUB_HISTORY' | 'AUDIO' | 'AI_HISTORY' | 'DEEP_ANALYSIS' | 'CUSTOM_PAGE' | 'AI_CHAT';
+export type StudentTab = 'HOME' | 'COURSES' | 'ROUTINE' | 'HISTORY' | 'REDEEM' | 'PREMIUM' | 'GAME' | 'WEEKLY_TEST' | 'PROFILE' | 'LEADERBOARD' | 'STORE' | 'VIDEO' | 'PDF' | 'MCQ' | 'ANALYTICS' | 'PRIZES' | 'REWARDS' | 'UPDATES' | 'SUB_HISTORY' | 'AUDIO' | 'AI_HISTORY' | 'DEEP_ANALYSIS' | 'CUSTOM_PAGE' | 'AI_CHAT' | 'SMART';
 
 export type Language = 'English' | 'Hindi';
 

@@ -1,0 +1,230 @@
+
+> students@0.0.0 dev
+> vite
+
+
+  VITE v6.4.1  ready in 232 ms
+
+  ➜  Local:   http://localhost:5000/
+  ➜  Network: http://192.168.0.2:5000/
+[BABEL] Note: The code generator has deoptimised the styling of /app/components/AdminDashboard.tsx as it exceeds the max of 500KB.
+9:54:25 AM [vite] (client) hmr update /components/StudentDashboard.tsx
+10:00:20 AM [vite] (client) hmr update /components/LessonView.tsx
+10:04:47 AM [vite] (client) page reload smart_fail.html
+10:04:47 AM [vite] (client) page reload smart_fail.html
+10:06:38 AM [vite] (client) page reload smart_fail.html
+10:06:38 AM [vite] (client) page reload smart_fail.html
+10:07:40 AM [vite] (client) page reload smart_fail.html
+10:08:26 AM [vite] (client) hmr update /components/SmartLessonView.tsx
+10:08:34 AM [vite] (client) hmr update /App.tsx, /components/StudentDashboard.tsx, /components/MarksheetCard.tsx, /components/AdminDashboard.tsx, /components/StudentAiAssistant.tsx, /components/admin/ChallengeCreator20.tsx, /components/AdminAiAssistant.tsx, /components/SmartLessonView.tsx
+10:09:02 AM [vite] (client) page reload smart_fail.html
+10:09:39 AM [vite] (client) hmr update /App.tsx, /components/StudentDashboard.tsx, /components/MarksheetCard.tsx, /components/AdminDashboard.tsx, /components/StudentAiAssistant.tsx, /components/admin/ChallengeCreator20.tsx, /components/AdminAiAssistant.tsx, /components/SmartLessonView.tsx
+10:10:09 AM [vite] (client) page reload smart_fail.html
+10:10:37 AM [vite] (client) hmr update /components/SmartLessonView.tsx
+10:11:03 AM [vite] (client) page reload smart_fail.html
+10:12:32 AM [vite] (client) hmr update /App.tsx, /components/StudentDashboard.tsx, /components/MarksheetCard.tsx, /components/AdminDashboard.tsx, /components/StudentAiAssistant.tsx, /components/admin/ChallengeCreator20.tsx, /components/AdminAiAssistant.tsx, /components/SmartLessonView.tsx
+10:13:00 AM [vite] (client) page reload smart_fail.html
+10:13:22 AM [vite] (client) hmr update /components/SmartLessonView.tsx
+10:13:50 AM [vite] (client) page reload smart_fail.html
+10:14:14 AM [vite] (client) hmr update /App.tsx, /components/ChapterSelection.tsx, /components/LessonView.tsx, /components/Auth.tsx, /components/StudentDashboard.tsx, /components/MarksheetCard.tsx, /components/RedeemSection.tsx, /components/AdminDashboard.tsx, /components/VideoPlaylistView.tsx, /components/AudioPlaylistView.tsx, /components/McqView.tsx, /components/PdfView.tsx, /components/HistoryPage.tsx, /components/UniversalInfoPage.tsx, /components/UniversalChat.tsx, /components/AiHistoryPage.tsx, /components/AiDeepAnalysis.tsx, /components/CustomBloggerPage.tsx, /components/ReferralPopup.tsx, /components/StudentAiAssistant.tsx, /components/admin/ChallengeCreator20.tsx, /components/AdminAiAssistant.tsx, /components/SmartLessonView.tsx, /components/admin/AiControlTower.tsx
+10:14:40 AM [vite] (client) page reload smart_fail.html
+10:15:05 AM [vite] (client) hmr update /App.tsx, /components/StudentDashboard.tsx, /components/MarksheetCard.tsx, /components/AdminDashboard.tsx, /components/StudentAiAssistant.tsx, /components/admin/ChallengeCreator20.tsx, /components/AdminAiAssistant.tsx, /components/SmartLessonView.tsx
+10:15:32 AM [vite] (client) page reload smart_fail.html
+10:15:58 AM [vite] (client) hmr update /App.tsx, /components/ChapterSelection.tsx, /components/LessonView.tsx, /components/Auth.tsx, /components/StudentDashboard.tsx, /components/MarksheetCard.tsx, /components/RedeemSection.tsx, /components/AdminDashboard.tsx, /components/VideoPlaylistView.tsx, /components/AudioPlaylistView.tsx, /components/McqView.tsx, /components/PdfView.tsx, /components/HistoryPage.tsx, /components/UniversalInfoPage.tsx, /components/UniversalChat.tsx, /components/AiHistoryPage.tsx, /components/AiDeepAnalysis.tsx, /components/CustomBloggerPage.tsx, /components/ReferralPopup.tsx, /components/StudentAiAssistant.tsx, /components/admin/ChallengeCreator20.tsx, /components/AdminAiAssistant.tsx, /components/SmartLessonView.tsx, /components/admin/AiControlTower.tsx
+10:16:24 AM [vite] (client) page reload smart_fail.html
+10:16:58 AM [vite] (client) hmr update /App.tsx, /components/StudentDashboard.tsx, /components/MarksheetCard.tsx, /components/AdminDashboard.tsx, /components/StudentAiAssistant.tsx, /components/admin/ChallengeCreator20.tsx, /components/AdminAiAssistant.tsx, /components/SmartLessonView.tsx
+10:17:27 AM [vite] (client) page reload smart_fail.html
+10:17:48 AM [vite] (client) hmr update /App.tsx, /components/StudentDashboard.tsx, /components/MarksheetCard.tsx, /components/AdminDashboard.tsx, /components/StudentAiAssistant.tsx, /components/admin/ChallengeCreator20.tsx, /components/AdminAiAssistant.tsx, /components/SmartLessonView.tsx
+10:18:16 AM [vite] (client) page reload smart_fail.html
+10:18:42 AM [vite] (client) hmr update /App.tsx, /components/StudentDashboard.tsx, /components/MarksheetCard.tsx, /components/AdminDashboard.tsx, /components/StudentAiAssistant.tsx, /components/admin/ChallengeCreator20.tsx, /components/AdminAiAssistant.tsx, /components/SmartLessonView.tsx
+10:19:11 AM [vite] (client) page reload smart_fail.html
+10:19:40 AM [vite] (client) hmr update /App.tsx, /components/StudentDashboard.tsx, /components/MarksheetCard.tsx, /components/AdminDashboard.tsx, /components/StudentAiAssistant.tsx, /components/admin/ChallengeCreator20.tsx, /components/AdminAiAssistant.tsx, /components/SmartLessonView.tsx
+10:20:06 AM [vite] (client) page reload smart_fail.html
+10:20:30 AM [vite] (client) hmr update /App.tsx, /components/StudentDashboard.tsx, /components/MarksheetCard.tsx, /components/AdminDashboard.tsx, /components/StudentAiAssistant.tsx, /components/admin/ChallengeCreator20.tsx, /components/AdminAiAssistant.tsx, /components/SmartLessonView.tsx
+10:20:57 AM [vite] (client) page reload smart_fail.html
+10:21:24 AM [vite] (client) hmr update /App.tsx, /components/StudentDashboard.tsx, /components/MarksheetCard.tsx, /components/AdminDashboard.tsx, /components/StudentAiAssistant.tsx, /components/admin/ChallengeCreator20.tsx, /components/AdminAiAssistant.tsx, /components/SmartLessonView.tsx
+10:21:33 AM [vite] (client) Pre-transform error: Transform failed with 1 error:
+/app/services/contentGenerator.ts:627:0: ERROR: Expected "*/" to terminate multi-line comment
+  Plugin: vite:esbuild
+  File: /app/services/contentGenerator.ts:627:0
+
+  Expected "*/" to terminate multi-line comment
+  625|      return await executeCanonical({ canonicalModel: 'ANALYSIS_ENGINE', prompt, jsonMode: true });
+  626|  };
+  627|
+     |  ^
+
+10:21:33 AM [vite] (client) Pre-transform error: Transform failed with 1 error:
+/app/services/contentGenerator.ts:627:0: ERROR: Expected "*/" to terminate multi-line comment
+  Plugin: vite:esbuild
+  File: /app/services/contentGenerator.ts:627:0
+
+  Expected "*/" to terminate multi-line comment
+  625|      return await executeCanonical({ canonicalModel: 'ANALYSIS_ENGINE', prompt, jsonMode: true });
+  626|  };
+  627|
+     |  ^
+
+10:21:33 AM [vite] (client) Pre-transform error: Transform failed with 1 error:
+/app/services/contentGenerator.ts:627:0: ERROR: Expected "*/" to terminate multi-line comment
+  Plugin: vite:esbuild
+  File: /app/services/contentGenerator.ts:627:0
+
+  Expected "*/" to terminate multi-line comment
+  625|      return await executeCanonical({ canonicalModel: 'ANALYSIS_ENGINE', prompt, jsonMode: true });
+  626|  };
+  627|
+     |  ^
+
+10:21:33 AM [vite] (client) Pre-transform error: Transform failed with 1 error:
+/app/services/contentGenerator.ts:627:0: ERROR: Expected "*/" to terminate multi-line comment
+  Plugin: vite:esbuild
+  File: /app/services/contentGenerator.ts:627:0
+
+  Expected "*/" to terminate multi-line comment
+  625|      return await executeCanonical({ canonicalModel: 'ANALYSIS_ENGINE', prompt, jsonMode: true });
+  626|  };
+  627|
+     |  ^
+
+10:21:34 AM [vite] Internal server error: Transform failed with 1 error:
+/app/services/contentGenerator.ts:627:0: ERROR: Expected "*/" to terminate multi-line comment
+  Plugin: vite:esbuild
+  File: /app/services/contentGenerator.ts:627:0
+
+  Expected "*/" to terminate multi-line comment
+  625|      return await executeCanonical({ canonicalModel: 'ANALYSIS_ENGINE', prompt, jsonMode: true });
+  626|  };
+  627|
+     |  ^
+
+      at failureErrorWithLog (/app/node_modules/esbuild/lib/main.js:1467:15)
+      at /app/node_modules/esbuild/lib/main.js:736:50
+      at responseCallbacks.<computed> (/app/node_modules/esbuild/lib/main.js:603:9)
+      at handleIncomingPacket (/app/node_modules/esbuild/lib/main.js:658:12)
+      at Socket.readFromStdout (/app/node_modules/esbuild/lib/main.js:581:7)
+      at Socket.emit (node:events:519:28)
+      at addChunk (node:internal/streams/readable:561:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+      at Readable.push (node:internal/streams/readable:392:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+10:21:34 AM [vite] Internal server error: Transform failed with 1 error:
+/app/services/contentGenerator.ts:627:0: ERROR: Expected "*/" to terminate multi-line comment
+  Plugin: vite:esbuild
+  File: /app/services/contentGenerator.ts:627:0
+
+  Expected "*/" to terminate multi-line comment
+  625|      return await executeCanonical({ canonicalModel: 'ANALYSIS_ENGINE', prompt, jsonMode: true });
+  626|  };
+  627|
+     |  ^
+
+      at failureErrorWithLog (/app/node_modules/esbuild/lib/main.js:1467:15)
+      at /app/node_modules/esbuild/lib/main.js:736:50
+      at responseCallbacks.<computed> (/app/node_modules/esbuild/lib/main.js:603:9)
+      at handleIncomingPacket (/app/node_modules/esbuild/lib/main.js:658:12)
+      at Socket.readFromStdout (/app/node_modules/esbuild/lib/main.js:581:7)
+      at Socket.emit (node:events:519:28)
+      at addChunk (node:internal/streams/readable:561:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+      at Readable.push (node:internal/streams/readable:392:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+10:21:50 AM [vite] (client) page reload smart_fail.html
+10:22:15 AM [vite] Internal server error: Transform failed with 1 error:
+/app/services/contentGenerator.ts:627:0: ERROR: Expected "*/" to terminate multi-line comment
+  Plugin: vite:esbuild
+  File: /app/services/contentGenerator.ts:627:0
+
+  Expected "*/" to terminate multi-line comment
+  625|      return await executeCanonical({ canonicalModel: 'ANALYSIS_ENGINE', prompt, jsonMode: true });
+  626|  };
+  627|
+     |  ^
+
+      at failureErrorWithLog (/app/node_modules/esbuild/lib/main.js:1467:15)
+      at /app/node_modules/esbuild/lib/main.js:736:50
+      at responseCallbacks.<computed> (/app/node_modules/esbuild/lib/main.js:603:9)
+      at handleIncomingPacket (/app/node_modules/esbuild/lib/main.js:658:12)
+      at Socket.readFromStdout (/app/node_modules/esbuild/lib/main.js:581:7)
+      at Socket.emit (node:events:519:28)
+      at addChunk (node:internal/streams/readable:561:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+      at Readable.push (node:internal/streams/readable:392:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+10:22:16 AM [vite] Internal server error: Transform failed with 1 error:
+/app/services/contentGenerator.ts:627:0: ERROR: Expected "*/" to terminate multi-line comment
+  Plugin: vite:esbuild
+  File: /app/services/contentGenerator.ts:627:0
+
+  Expected "*/" to terminate multi-line comment
+  625|      return await executeCanonical({ canonicalModel: 'ANALYSIS_ENGINE', prompt, jsonMode: true });
+  626|  };
+  627|
+     |  ^
+
+      at failureErrorWithLog (/app/node_modules/esbuild/lib/main.js:1467:15)
+      at /app/node_modules/esbuild/lib/main.js:736:50
+      at responseCallbacks.<computed> (/app/node_modules/esbuild/lib/main.js:603:9)
+      at handleIncomingPacket (/app/node_modules/esbuild/lib/main.js:658:12)
+      at Socket.readFromStdout (/app/node_modules/esbuild/lib/main.js:581:7)
+      at Socket.emit (node:events:519:28)
+      at addChunk (node:internal/streams/readable:561:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+      at Readable.push (node:internal/streams/readable:392:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+10:22:31 AM [vite] (client) page reload smart_fail.html
+10:22:52 AM [vite] Internal server error: Transform failed with 1 error:
+/app/services/contentGenerator.ts:627:0: ERROR: Expected "*/" to terminate multi-line comment
+  Plugin: vite:esbuild
+  File: /app/services/contentGenerator.ts:627:0
+
+  Expected "*/" to terminate multi-line comment
+  625|      return await executeCanonical({ canonicalModel: 'ANALYSIS_ENGINE', prompt, jsonMode: true });
+  626|  };
+  627|
+     |  ^
+
+      at failureErrorWithLog (/app/node_modules/esbuild/lib/main.js:1467:15)
+      at /app/node_modules/esbuild/lib/main.js:736:50
+      at responseCallbacks.<computed> (/app/node_modules/esbuild/lib/main.js:603:9)
+      at handleIncomingPacket (/app/node_modules/esbuild/lib/main.js:658:12)
+      at Socket.readFromStdout (/app/node_modules/esbuild/lib/main.js:581:7)
+      at Socket.emit (node:events:519:28)
+      at addChunk (node:internal/streams/readable:561:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+      at Readable.push (node:internal/streams/readable:392:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+10:22:53 AM [vite] Internal server error: Transform failed with 1 error:
+/app/services/contentGenerator.ts:627:0: ERROR: Expected "*/" to terminate multi-line comment
+  Plugin: vite:esbuild
+  File: /app/services/contentGenerator.ts:627:0
+
+  Expected "*/" to terminate multi-line comment
+  625|      return await executeCanonical({ canonicalModel: 'ANALYSIS_ENGINE', prompt, jsonMode: true });
+  626|  };
+  627|
+     |  ^
+
+      at failureErrorWithLog (/app/node_modules/esbuild/lib/main.js:1467:15)
+      at /app/node_modules/esbuild/lib/main.js:736:50
+      at responseCallbacks.<computed> (/app/node_modules/esbuild/lib/main.js:603:9)
+      at handleIncomingPacket (/app/node_modules/esbuild/lib/main.js:658:12)
+      at Socket.readFromStdout (/app/node_modules/esbuild/lib/main.js:581:7)
+      at Socket.emit (node:events:519:28)
+      at addChunk (node:internal/streams/readable:561:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+      at Readable.push (node:internal/streams/readable:392:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+10:23:08 AM [vite] (client) page reload smart_fail.html
+10:23:30 AM [vite] (client) hmr update /App.tsx, /components/StudentDashboard.tsx, /components/MarksheetCard.tsx, /components/AdminDashboard.tsx, /components/StudentAiAssistant.tsx, /components/admin/ChallengeCreator20.tsx, /components/AdminAiAssistant.tsx, /components/SmartLessonView.tsx
+10:23:57 AM [vite] (client) page reload smart_fail.html
+10:24:19 AM [vite] (client) hmr update /App.tsx, /components/StudentDashboard.tsx, /components/MarksheetCard.tsx, /components/AdminDashboard.tsx, /components/StudentAiAssistant.tsx, /components/admin/ChallengeCreator20.tsx, /components/AdminAiAssistant.tsx, /components/SmartLessonView.tsx
+10:24:48 AM [vite] (client) page reload smart_fail.html
+10:25:07 AM [vite] (client) hmr update /components/LessonView.tsx
+10:25:48 AM [vite] (client) hmr update /App.tsx, /components/StudentDashboard.tsx, /components/MarksheetCard.tsx, /components/AdminDashboard.tsx, /components/StudentAiAssistant.tsx, /components/admin/ChallengeCreator20.tsx, /components/AdminAiAssistant.tsx, /components/SmartLessonView.tsx
+10:25:55 AM [vite] (client) hmr update /App.tsx, /components/StudentDashboard.tsx, /components/MarksheetCard.tsx, /components/AdminDashboard.tsx, /components/StudentAiAssistant.tsx, /components/admin/ChallengeCreator20.tsx, /components/AdminAiAssistant.tsx, /components/SmartLessonView.tsx
+10:26:00 AM [vite] (client) page reload smart_fail.html
+10:26:19 AM [vite] (client) hmr update /App.tsx, /components/StudentDashboard.tsx, /components/MarksheetCard.tsx, /components/AdminDashboard.tsx, /components/StudentAiAssistant.tsx, /components/admin/ChallengeCreator20.tsx, /components/AdminAiAssistant.tsx, /components/SmartLessonView.tsx
+10:26:38 AM [vite] (client) hmr update /App.tsx, /components/ChapterSelection.tsx, /components/LessonView.tsx, /components/Auth.tsx, /components/StudentDashboard.tsx, /components/MarksheetCard.tsx, /components/RedeemSection.tsx, /components/AdminDashboard.tsx, /components/VideoPlaylistView.tsx, /components/AudioPlaylistView.tsx, /components/McqView.tsx, /components/PdfView.tsx, /components/HistoryPage.tsx, /components/UniversalInfoPage.tsx, /components/UniversalChat.tsx, /components/AiHistoryPage.tsx, /components/AiDeepAnalysis.tsx, /components/CustomBloggerPage.tsx, /components/ReferralPopup.tsx, /components/StudentAiAssistant.tsx, /components/admin/ChallengeCreator20.tsx, /components/AdminAiAssistant.tsx, /components/SmartLessonView.tsx, /components/admin/AiControlTower.tsx
+10:27:07 AM [vite] (client) hmr update /App.tsx, /components/StudentDashboard.tsx, /components/MarksheetCard.tsx, /components/AdminDashboard.tsx, /components/StudentAiAssistant.tsx, /components/admin/ChallengeCreator20.tsx, /components/AdminAiAssistant.tsx, /components/SmartLessonView.tsx
+10:27:58 AM [vite] (client) hmr update /components/SmartLessonView.tsx

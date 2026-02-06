@@ -65,6 +65,30 @@ export const PremiumModal: React.FC<Props> = ({ chapter, user, credits, isAdmin,
             <div className="p-6">
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Study Material</p>
                 
+                {/* SMART HYBRID VIEW */}
+                <div className="mb-6 relative">
+                    <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-purple-600 text-white text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full z-10">
+                        Recommended
+                    </div>
+                    <button
+                        onClick={() => onSelect('SMART_LESSON')}
+                        className="w-full bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-xl p-4 flex items-center justify-between shadow-lg shadow-purple-200 hover:shadow-xl transition-all active:scale-[0.98]"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+                                <BookOpen size={20} className="text-white" />
+                            </div>
+                            <div className="text-left">
+                                <h4 className="font-bold text-sm">Smart Hybrid View</h4>
+                                <p className="text-[10px] text-purple-100 font-medium">3D Diagrams + Detailed Notes</p>
+                            </div>
+                        </div>
+                        <div className="bg-white/20 p-1.5 rounded-full">
+                            <Crown size={16} fill="currentColor" />
+                        </div>
+                    </button>
+                </div>
+
                 <div className="grid grid-cols-2 gap-3 mb-6">
                     {/* FREE NOTES */}
                     <div className="relative group">
