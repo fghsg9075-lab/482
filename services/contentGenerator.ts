@@ -4,6 +4,7 @@ import { getChapterData, getCustomSyllabus } from "../firebase";
 import { storage } from "../utils/storage";
 import { executeCanonical } from "./ai/router";
 import { CanonicalModel } from "./ai/types";
+import { searchWeb } from "./search";
 
 const chapterCache: Record<string, Chapter[]> = {};
 
@@ -177,12 +178,24 @@ export const fetchLessonContent = async (
   let promptNotes = "";
   let promptNotesPremium = "";
   let promptMCQ = "";
+  let webContext = "";
 
   try {
       const stored = localStorage.getItem('nst_system_settings');
       if (stored) {
           const s = JSON.parse(stored) as SystemSettings;
           if (s.aiInstruction) customInstruction = `IMPORTANT INSTRUCTION: ${s.aiInstruction}`;
+
+          // RAG: Fetch Web Context if enabled (Board Aware)
+          if (s.isWebSearchEnabled && s.googleSearchApiKey && s.googleSearchCx && allowAiGeneration) {
+              let query = "";
+              if (board === 'BSEB') {
+                  query = `${chapter.title} class ${classLevel} ${subject.name} Bihar Board notes hindi examples fact`;
+              } else {
+                  query = `${chapter.title} class ${classLevel} ${subject.name} NCERT detailed notes examples fact`;
+              }
+              webContext = await searchWeb(query, s.googleSearchApiKey, s.googleSearchCx);
+          }
 
           if (syllabusMode === 'COMPETITION') {
               if (board === 'CBSE') {
@@ -273,10 +286,90 @@ export const fetchLessonContent = async (
            prompt = processTemplate(template, { board: board || '', class: classLevel, stream: stream || '', subject: subject.name, chapter: chapter.title, language: language, instruction: customInstruction });
       } else {
           const competitionConstraints = syllabusMode === 'COMPETITION' ? "STYLE: Fact-Heavy, Direct. HIGHLIGHT PYQs." : "STYLE: Strict NCERT Pattern.";
+
           if (detailed) {
-              prompt = `${customInstruction} ${adminPromptOverride || ""} Write PREMIUM DEEP DIVE NOTES for ${board} Class ${classLevel} ${subject.name}, Chapter: "${chapter.title}". Language: ${language}. ${competitionConstraints} STRICT TARGET: 1000-1500 Words. Comprehensive, structured, with examples.`;
+              prompt = `${customInstruction} ${adminPromptOverride || ""}
+${webContext}
+
+ROLE: Expert Teacher & Exam Strategist for ${board}.
+TASK: Generate PREMIUM COACHING MATERIAL for ${board} Class ${classLevel} ${subject.name}, Chapter: "${chapter.title}".
+LANGUAGE: ${language}.
+LENGTH: 2000-2500 Words (Strict Minimum).
+
+BOARD SPECIFIC RULES (Strictly Follow):
+1. If Board is BSEB (Bihar Board):
+   - Use simplified Hinglish (easy Hindi mixed with English terms).
+   - Use local/contextual examples relevant to Bihar/India.
+   - Focus on Bihar Board Exam Pattern (Direct Questions).
+   - Difficulty Level: Easy to Moderate.
+2. If Board is CBSE (NCERT):
+   - Follow NCERT textbook strictly.
+   - Use standard scientific terminology.
+   - Add national-level examples.
+   - Focus on CBSE Exam Pattern (Conceptual & Application).
+   - Difficulty Level: Moderate to High.
+
+REQUIRED STRUCTURE:
+SECTION 1: QUICK OVERVIEW
+- 5-6 lines summary.
+- Key weightage in ${board} exams.
+
+SECTION 2: CORE THEORY (The Meat)
+- Deep Dive into every subtopic.
+- Use Bullet points, Bold Keywords, and Headings.
+- [DIAGRAM GUIDE] For every major topic, provide a text-based "How to Draw" guide (Step 1 -> Step 2 -> Step 3).
+
+SECTION 3: VISUAL LEARNING (Text Based)
+- Flowcharts: Use ASCII arrows.
+- Difference Tables: Compare confusing terms (X vs Y).
+
+SECTION 4: EXAM ZONE (Score Booster)
+- 15 Important ${board} Questions (Short & Long).
+- 10 MCQs (with detailed reasoning).
+- 5 Case-Based / Assertion-Reason Questions.
+- 5 HOTS (High Order Thinking Skills).
+
+SECTION 5: REVISION ZONE
+- 10 "Golden Lines" (One-liners).
+- Formulas / Equations.
+- Mind Map Summary (Text Tree).
+
+STYLE RULES:
+- ${competitionConstraints}
+- Do NOT summarize. Be exhaustive.
+- Mark important lines with ★.`;
           } else {
-              prompt = `${customInstruction} ${adminPromptOverride || ""} Write SHORT SUMMARY NOTES for ${board} Class ${classLevel} ${subject.name}, Chapter: "${chapter.title}". Language: ${language}. STRICT TARGET: 200-300 Words. Key points only.`;
+              prompt = `${customInstruction} ${adminPromptOverride || ""}
+${webContext}
+
+ROLE: Expert Teacher for ${board}.
+TASK: Write STANDARD COACHING NOTES for ${board} Class ${classLevel} ${subject.name}, Chapter: "${chapter.title}".
+LANGUAGE: Simple Hinglish.
+LENGTH: 600-900 Words.
+
+BOARD SPECIFIC FOCUS:
+- BSEB: Simplified explanation, local examples, direct definitions.
+- CBSE: Strict NCERT keywords, conceptual clarity.
+
+REQUIRED STRUCTURE:
+SECTION 1: QUICK OVERVIEW
+- Brief summary & Exam relevance.
+
+SECTION 2: CORE CONCEPTS (${board} Aligned)
+- Explain key topics clearly.
+- Definitions, Units, and Basic Examples.
+- [DIAGRAM GUIDE] Description of 1-2 main diagrams.
+
+SECTION 3: VISUALS
+- Simple Flowcharts.
+- 1 Comparison Table.
+
+SECTION 4: EXAM PRACTICE
+- 5 Important ${board} Board Questions.
+- 2 Practice MCQs.
+
+SECTION 5: REVISION
+- 5 Key Points to Remember.`;
           }
       }
 
@@ -362,7 +455,26 @@ export const fetchLessonContent = async (
 };
 
 export const generateCustomNotes = async (userTopic: string, adminPrompt: string): Promise<string> => {
-    const prompt = `${adminPrompt || 'Generate detailed notes for the following topic:'} TOPIC: ${userTopic} Ensure the content is well-structured with headings and bullet points.`;
+    let prompt: string;
+
+    if (adminPrompt && adminPrompt.trim().length > 0) {
+        if (adminPrompt.includes("{topic}")) {
+             prompt = adminPrompt.replace(/{topic}/gi, userTopic);
+        } else {
+             // Append topic if placeholder is missing, but avoid extra prescriptive instructions
+             prompt = `${adminPrompt}\n\nTOPIC: ${userTopic}`;
+        }
+    } else {
+        // Default Prompt: Focus on Comprehensive Chapter Coverage
+        prompt = `Generate comprehensive, detailed notes for the entire chapter/lesson titled: "${userTopic}".
+
+INSTRUCTIONS:
+1. COVERAGE: Cover ALL subtopics, key concepts, formulas, reactions, and examples found in this chapter.
+2. DEPTH: Do NOT just define the title. Explain the full content of the lesson as taught in Class 10 (or appropriate level).
+3. STRUCTURE: Use clear headings, bullet points, and numbered lists.
+4. FORMAT: Start with an introduction, then detailed sections for each subtopic, and end with a summary.`;
+    }
+
     return await executeCanonical({ canonicalModel: 'NOTES_ENGINE', prompt });
 };
 

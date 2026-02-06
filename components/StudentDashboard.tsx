@@ -11,7 +11,7 @@ import { generateMorningInsight } from '../services/morningInsight';
 import { RedeemSection } from './RedeemSection';
 import { PrizeList } from './PrizeList';
 import { Store } from './Store';
-import { Layout, Gift, Sparkles, Megaphone, Lock, BookOpen, AlertCircle, Edit, Settings, Play, Pause, RotateCcw, MessageCircle, Gamepad2, Timer, CreditCard, Send, CheckCircle, Mail, X, Ban, Smartphone, Trophy, ShoppingBag, ArrowRight, Video, Youtube, Home, User as UserIcon, Book, BookOpenText, List, BarChart3, Award, Bell, Headphones, LifeBuoy, WifiOff, Zap, Star, Crown, History, ListChecks, Rocket, Ticket, TrendingUp, BrainCircuit, Menu, ChevronsDown, ChevronsUp } from 'lucide-react';
+import { Layout, Gift, Sparkles, Megaphone, Lock, BookOpen, AlertCircle, Edit, Settings, Play, Pause, RotateCcw, MessageCircle, Gamepad2, Timer, CreditCard, Send, CheckCircle, Mail, X, Ban, Smartphone, Trophy, ShoppingBag, ArrowRight, Video, Youtube, Home, User as UserIcon, Book, BookOpenText, List, BarChart3, Award, Bell, Headphones, LifeBuoy, WifiOff, Zap, Star, Crown, History, ListChecks, Rocket, Ticket, TrendingUp, BrainCircuit, Menu, ChevronsDown, ChevronsUp, Compass } from 'lucide-react';
 import { SubjectSelection } from './SubjectSelection';
 import { BannerCarousel } from './BannerCarousel';
 import { ChapterSelection } from './ChapterSelection'; // Imported for Video Flow
@@ -1078,6 +1078,31 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                  <div>
                      <p className="text-[10px] font-bold text-slate-400 uppercase">Daily Task</p>
                      <p className="text-xs font-black text-slate-800 leading-tight">Mixed Quiz (15m)</p>
+                 </div>
+             </button>
+         </div>
+
+         {/* 4. EXPLORE & REQUEST (NEW ROW) */}
+         <div className="w-full px-4 grid grid-cols-2 gap-3 mt-3">
+             {/* Explore (Layer 2) */}
+             <button onClick={() => smartSlideRef.current?.scrollIntoView({ behavior: 'smooth' })} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-start gap-2 hover:bg-slate-50 transition-colors text-left group">
+                 <div className="p-2 bg-purple-100 rounded-lg text-purple-600 group-hover:bg-purple-200 transition-colors">
+                     <Compass size={18} />
+                 </div>
+                 <div>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase">Discover</p>
+                     <p className="text-xs font-black text-slate-800 leading-tight">Explore App</p>
+                 </div>
+             </button>
+
+             {/* Request Content */}
+             <button onClick={() => setShowRequestModal(true)} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-start gap-2 hover:bg-slate-50 transition-colors text-left group">
+                 <div className="p-2 bg-pink-100 rounded-lg text-pink-600 group-hover:bg-pink-200 transition-colors">
+                     <Megaphone size={18} />
+                 </div>
+                 <div>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase">Demand</p>
+                     <p className="text-xs font-black text-slate-800 leading-tight">Request Content</p>
                  </div>
              </button>
          </div>

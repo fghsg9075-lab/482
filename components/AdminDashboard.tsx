@@ -9692,6 +9692,52 @@ Capital of India?       Mumbai  Delhi   Kolkata Chennai 2       Delhi is the cap
                       </button>
                   </div>
 
+                  {/* WEB SEARCH CONFIGURATION (RAG) - NEW */}
+                  <div className={`space-y-6 transition-all border-b border-indigo-100 pb-8 mb-8 ${localSettings.isAutoPilotEnabled ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
+                      <h5 className="font-bold text-slate-700 flex items-center gap-2 mb-2">
+                          <Globe size={18} className="text-blue-500"/> Web Search Configuration (RAG)
+                      </h5>
+                      <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-4">
+                          <div className="flex items-center justify-between">
+                              <div>
+                                  <p className="text-sm font-bold text-slate-800">Enable Google Search Integration</p>
+                                  <p className="text-xs text-slate-500">Injects real-time web results into AI prompts for accurate facts.</p>
+                              </div>
+                              <input
+                                  type="checkbox"
+                                  checked={localSettings.isWebSearchEnabled || false}
+                                  onChange={() => setLocalSettings({...localSettings, isWebSearchEnabled: !localSettings.isWebSearchEnabled})}
+                                  className="w-5 h-5 accent-blue-600"
+                              />
+                          </div>
+
+                          {localSettings.isWebSearchEnabled && (
+                              <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
+                                  <div>
+                                      <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Google Custom Search API Key</label>
+                                      <input
+                                          type="password"
+                                          value={localSettings.googleSearchApiKey || ''}
+                                          onChange={(e) => setLocalSettings({...localSettings, googleSearchApiKey: e.target.value})}
+                                          className="w-full p-2 border rounded-lg text-xs font-mono bg-slate-50"
+                                          placeholder="AIzaSy..."
+                                      />
+                                  </div>
+                                  <div>
+                                      <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Search Engine ID (CX)</label>
+                                      <input
+                                          type="text"
+                                          value={localSettings.googleSearchCx || ''}
+                                          onChange={(e) => setLocalSettings({...localSettings, googleSearchCx: e.target.value})}
+                                          className="w-full p-2 border rounded-lg text-xs font-mono bg-slate-50"
+                                          placeholder="0123456..."
+                                      />
+                                  </div>
+                              </div>
+                          )}
+                      </div>
+                  </div>
+
                   {/* CONFIGURATION */}
                   <div className={`space-y-6 transition-all ${localSettings.isAutoPilotEnabled ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
                       {/* BOARDS */}
