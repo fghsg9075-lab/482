@@ -902,7 +902,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
           topic: h.chapterTitle || 'Test'
       }));
 
-  const renderContentSection = (type: 'VIDEO' | 'PDF' | 'MCQ' | 'AUDIO' | 'SMART') => {
+  const renderContentSection = (type: 'VIDEO' | 'PDF' | 'MCQ' | 'AUDIO') => {
       const handlePlayerBack = () => {
           setContentViewStep('CHAPTERS');
           setFullScreen(false);
@@ -911,8 +911,6 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
       if (contentViewStep === 'PLAYER' && selectedChapter && selectedSubject) {
           if (type === 'VIDEO') {
             return <VideoPlaylistView chapter={selectedChapter} subject={selectedSubject} user={user} board={user.board || 'CBSE'} classLevel={user.classLevel || '10'} stream={user.stream || null} onBack={handlePlayerBack} onUpdateUser={handleUserUpdate} settings={settings} initialSyllabusMode={syllabusMode} />;
-          } else if (type === 'SMART') {
-            return <SmartLessonView chapter={selectedChapter} subject={selectedSubject} user={user} board={user.board || 'CBSE'} classLevel={user.classLevel || '10'} stream={user.stream || null} onBack={handlePlayerBack} onUpdateUser={handleUserUpdate} settings={settings} />;
           } else if (type === 'PDF') {
             return <PdfView chapter={selectedChapter} subject={selectedSubject} user={user} board={user.board || 'CBSE'} classLevel={user.classLevel || '10'} stream={user.stream || null} onBack={handlePlayerBack} onUpdateUser={handleUserUpdate} settings={settings} initialSyllabusMode={syllabusMode} />;
           } else if (type === 'AUDIO') {
@@ -1089,39 +1087,6 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
              </button>
          </div>
 
-         {/* 4. EXPLORE & REQUEST (NEW ROW) */}
-         <div className="w-full px-4 grid grid-cols-2 gap-3 mt-3">
-             {/* Explore (Layer 2) */}
-             <button onClick={() => smartSlideRef.current?.scrollIntoView({ behavior: 'smooth' })} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-start gap-2 hover:bg-slate-50 transition-colors text-left group">
-                 <div className="p-2 bg-purple-100 rounded-lg text-purple-600 group-hover:bg-purple-200 transition-colors">
-                     <Compass size={18} />
-                 </div>
-                 <div>
-                     <p className="text-[10px] font-bold text-slate-400 uppercase">Discover</p>
-                     <p className="text-xs font-black text-slate-800 leading-tight">Explore App</p>
-                 </div>
-             </button>
-
-             {/* Request Content */}
-             <button onClick={() => setShowRequestModal(true)} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-start gap-2 hover:bg-slate-50 transition-colors text-left group">
-                 <div className="p-2 bg-pink-100 rounded-lg text-pink-600 group-hover:bg-pink-200 transition-colors">
-                     <Megaphone size={18} />
-                 </div>
-                 <div>
-                     <p className="text-[10px] font-bold text-slate-400 uppercase">Demand</p>
-                     <p className="text-xs font-black text-slate-800 leading-tight">Request Content</p>
-                 </div>
-             </button>
-         </div>
-
-         {/* Navigation to Layer 2 */}
-         <button
-             onClick={() => smartSlideRef.current?.scrollIntoView({ behavior: 'smooth' })}
-             className="mt-8 flex flex-col items-center gap-1 text-slate-400 hover:text-slate-600 transition-colors animate-bounce cursor-pointer"
-         >
-             <span className="text-[10px] font-bold uppercase tracking-widest">Explore More</span>
-             <ChevronsDown size={24} />
-         </button>
       </div>
     );
   };
@@ -1317,21 +1282,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
 
                 {renderHeroLayer()}
 
-                {/* Layer 2: SMART SLIDE (Swipe Up Layer) */}
-                <div ref={smartSlideRef} className="bg-slate-50 rounded-t-[2.5rem] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] pt-8 pb-32 -mt-6 relative z-10 min-h-screen">
-
-                    {/* Back to Hero Button */}
-                    <div className="absolute top-6 right-6 z-20">
-                        <button
-                            onClick={() => heroRef.current?.scrollIntoView({ behavior: 'smooth' })}
-                            className="p-2 bg-white/80 backdrop-blur-sm rounded-full text-slate-400 hover:bg-white hover:text-slate-600 shadow-sm border border-slate-200 transition-all"
-                        >
-                            <ChevronsUp size={20} />
-                        </button>
-                    </div>
-
-                    <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6"></div> {/* Swipe Handle */}
-
+                <div className="bg-slate-50 pt-4 pb-32 relative z-10">
                     <div className="px-2 space-y-4">
 
                 {/* HERO SECTION */}
@@ -1625,20 +1576,6 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                           </button>
                       </div>
 
-                      {/* Smart Visuals Section (NEW) */}
-                      <div className="bg-gradient-to-r from-violet-900 to-indigo-900 p-4 rounded-2xl shadow-lg border border-violet-700 relative overflow-hidden text-white">
-                          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl"></div>
-                          <h3 className="font-bold flex items-center gap-2 mb-2 relative z-10"><Sparkles className="text-yellow-400" /> Smart Visuals</h3>
-                          <p className="text-xs text-indigo-200 mb-3 relative z-10">Hybrid Learning: 3D Models + High Quality Notes.</p>
-                          <div className="grid grid-cols-2 gap-2 relative z-10">
-                              {visibleSubjects.map(s => (
-                                  <button key={s.id} onClick={() => { onTabChange('SMART'); handleContentSubjectSelect(s); }} className="bg-white/10 hover:bg-white/20 p-2 rounded-xl text-xs font-bold shadow-sm border border-white/10 text-left backdrop-blur-sm transition-colors">
-                                      {s.name}
-                                  </button>
-                              ))}
-                          </div>
-                      </div>
-
                       {/* Video Section */}
                       {settings?.contentVisibility?.VIDEO !== false && (
                           <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
@@ -1855,8 +1792,8 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                 </div>
       );
 
-      // Handle Drill-Down Views (Video, PDF, MCQ, AUDIO, SMART)
-      if (activeTab === 'VIDEO' || activeTab === 'PDF' || activeTab === 'MCQ' || activeTab === 'AUDIO' || activeTab === 'SMART') {
+      // Handle Drill-Down Views (Video, PDF, MCQ, AUDIO)
+      if (activeTab === 'VIDEO' || activeTab === 'PDF' || activeTab === 'MCQ' || activeTab === 'AUDIO') {
           return renderContentSection(activeTab);
       }
 
