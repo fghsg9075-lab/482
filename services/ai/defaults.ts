@@ -42,7 +42,7 @@ export const DEFAULT_MODELS: AIModelConfig[] = [
 
     // --- GEMINI ---
     { id: 'gemini-1.5-pro', providerId: 'gemini', modelId: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', contextWindow: 2000000, isEnabled: true, priority: 1 },
-    { id: 'gemini-1.5-flash', providerId: 'gemini', modelId: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', contextWindow: 1000000, isEnabled: true, priority: 2 },
+    { id: 'gemini-1.5-flash-latest', providerId: 'gemini', modelId: 'gemini-1.5-flash-latest', name: 'Gemini 1.5 Flash (Latest)', contextWindow: 1000000, isEnabled: true, priority: 2 },
 
     // --- ANTHROPIC ---
     { id: 'claude-3-5-sonnet', providerId: 'anthropic', modelId: 'claude-3-5-sonnet-latest', name: 'Claude 3.5 Sonnet', contextWindow: 200000, isEnabled: true, priority: 1 },
@@ -89,11 +89,11 @@ export const DEFAULT_MODELS: AIModelConfig[] = [
 ];
 
 export const DEFAULT_MAPPINGS_FULL: AICanonicalMapping[] = [
-    { canonicalModel: 'NOTES_ENGINE', primaryModelId: 'groq-llama-3.1-70b', fallbackModelIds: ['openai-gpt-4o-mini', 'gemini-1.5-flash', 'mistral-small'] },
-    { canonicalModel: 'MCQ_ENGINE', primaryModelId: 'openai-gpt-4o-mini', fallbackModelIds: ['gemini-1.5-flash', 'groq-llama-3.1-70b'] },
-    { canonicalModel: 'CHAT_ENGINE', primaryModelId: 'gemini-1.5-flash', fallbackModelIds: ['groq-llama-3.1-8b', 'openai-gpt-4o-mini'] },
+    { canonicalModel: 'NOTES_ENGINE', primaryModelId: 'groq-llama-3.1-70b', fallbackModelIds: ['openai-gpt-4o-mini', 'gemini-1.5-flash-latest', 'mistral-small'] },
+    { canonicalModel: 'MCQ_ENGINE', primaryModelId: 'openai-gpt-4o-mini', fallbackModelIds: ['gemini-1.5-flash-latest', 'groq-llama-3.1-70b'] },
+    { canonicalModel: 'CHAT_ENGINE', primaryModelId: 'gemini-1.5-flash-latest', fallbackModelIds: ['groq-llama-3.1-8b', 'openai-gpt-4o-mini'] },
     { canonicalModel: 'ANALYSIS_ENGINE', primaryModelId: 'gemini-1.5-pro', fallbackModelIds: ['openai-gpt-4o', 'claude-3-5-sonnet'] },
-    { canonicalModel: 'VISION_ENGINE', primaryModelId: 'openai-gpt-4o', fallbackModelIds: ['gemini-1.5-flash', 'claude-3-5-sonnet'] },
-    { canonicalModel: 'TRANSLATION_ENGINE', primaryModelId: 'gemini-1.5-flash', fallbackModelIds: ['openai-gpt-4o-mini'] },
+    { canonicalModel: 'VISION_ENGINE', primaryModelId: 'openai-gpt-4o', fallbackModelIds: ['gemini-1.5-flash-latest', 'claude-3-5-sonnet'] },
+    { canonicalModel: 'TRANSLATION_ENGINE', primaryModelId: 'gemini-1.5-flash-latest', fallbackModelIds: ['openai-gpt-4o-mini'] },
     { canonicalModel: 'ADMIN_ENGINE', primaryModelId: 'gemini-1.5-pro', fallbackModelIds: ['openai-gpt-4o'] }
 ];

@@ -398,7 +398,7 @@ export const MASTER_AI_PROVIDERS: AIProvider[] = [
         apiKeys: [],
         models: [
             { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
-            { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (Fast)' },
+            { id: 'gemini-1.5-flash-latest', name: 'Gemini 1.5 Flash (Latest)' },
             { id: 'gemini-1.0-pro', name: 'Gemini 1.0 Pro' }
         ]
     }
@@ -408,7 +408,7 @@ export const DEFAULT_AI_MAPPINGS = {
     'NOTES_ENGINE': { providerId: 'groq', modelId: 'llama-3.1-70b-versatile' },
     'MCQ_ENGINE': { providerId: 'groq', modelId: 'llama-3.1-8b-instant' },
     'CHAT_ENGINE': { providerId: 'groq', modelId: 'llama-3.1-70b-versatile' },
-    'ANALYSIS_ENGINE': { providerId: 'gemini', modelId: 'gemini-1.5-flash' },
-    'VISION_ENGINE': { providerId: 'gemini', modelId: 'gemini-1.5-flash' },
+    'ANALYSIS_ENGINE': { providerId: 'gemini', modelId: 'gemini-1.5-flash-latest' },
+    'VISION_ENGINE': { providerId: 'gemini', modelId: 'gemini-1.5-flash-latest' },
     'ADMIN_ENGINE': { providerId: 'groq', modelId: 'llama-3.1-70b-versatile' }
 };

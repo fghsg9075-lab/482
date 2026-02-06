@@ -11,13 +11,11 @@ import { generateMorningInsight } from '../services/morningInsight';
 import { RedeemSection } from './RedeemSection';
 import { PrizeList } from './PrizeList';
 import { Store } from './Store';
-import { Layout, Gift, Sparkles, Megaphone, Lock, BookOpen, AlertCircle, Edit, Settings, Play, Pause, RotateCcw, MessageCircle, Gamepad2, Timer, CreditCard, Send, CheckCircle, Mail, X, Ban, Smartphone, Trophy, ShoppingBag, ArrowRight, Video, Youtube, Home, User as UserIcon, Book, BookOpenText, List, BarChart3, Award, Bell, Headphones, LifeBuoy, WifiOff, Zap, Star, Crown, History, ListChecks, Rocket, Ticket, TrendingUp, BrainCircuit, Menu, ChevronsDown, ChevronsUp, Compass } from 'lucide-react';
-import { SubjectSelection } from './SubjectSelection';
+import { Layout, Gift, Sparkles, Megaphone, Lock, BookOpen, AlertCircle, Edit, Settings, Play, Pause, RotateCcw, MessageCircle, Gamepad2, Timer, CreditCard, Send, CheckCircle, Mail, X, Ban, Smartphone, Trophy, ShoppingBag, ArrowRight, Video, Youtube, Home, User as UserIcon, Book, BookOpenText, List, BarChart3, Award, Bell, Headphones, LifeBuoy, WifiOff, Zap, Star, Crown, History, ListChecks, Rocket, Ticket, TrendingUp, BrainCircuit, Menu } from 'lucide-react';
 import { BannerCarousel } from './BannerCarousel';
 import { ChapterSelection } from './ChapterSelection'; // Imported for Video Flow
 import { VideoPlaylistView } from './VideoPlaylistView'; // Imported for Video Flow
 import { AudioPlaylistView } from './AudioPlaylistView'; // Imported for Audio Flow
-import { SmartLessonView } from './SmartLessonView'; // Imported for Smart Flow
 import { PdfView } from './PdfView'; // Imported for PDF Flow
 import { McqView } from './McqView'; // Imported for MCQ Flow
 import { MiniPlayer } from './MiniPlayer'; // Imported for Audio Flow
@@ -156,7 +154,6 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
 
   // Navigation Refs
   const heroRef = useRef<HTMLDivElement>(null);
-  const smartSlideRef = useRef<HTMLDivElement>(null);
 
   // --- REFERRAL POPUP CHECK ---
   useEffect(() => {
@@ -1537,25 +1534,6 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                       </DashboardSectionWrapper>
                   </div>
 
-                  {/* CONTENT REQUEST (DEMAND) SECTION */}
-                  <DashboardSectionWrapper id="request_content" label="Request Content">
-                  <div className="bg-gradient-to-r from-pink-50 to-rose-50 p-4 rounded-2xl border border-pink-100 shadow-sm mt-4">
-                      <h3 className="font-bold text-pink-900 mb-2 flex items-center gap-2">
-                          <Megaphone size={18} className="text-pink-600" /> Request Content
-                      </h3>
-                      <p className="text-xs text-slate-600 mb-4">Don't see what you need? Request it here!</p>
-
-                      <button
-                          onClick={() => {
-                              setRequestData({ subject: '', topic: '', type: 'PDF' });
-                              setShowRequestModal(true);
-                          }}
-                          className="w-full bg-white text-pink-600 font-bold py-3 rounded-xl shadow-sm border border-pink-200 hover:bg-pink-100 transition-colors flex items-center justify-center gap-2 text-sm"
-                      >
-                          + Make a Request
-                      </button>
-                  </div>
-                  </DashboardSectionWrapper>
               </div>
               </div>
               </div>

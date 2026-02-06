@@ -40,12 +40,8 @@ export class GeminiProvider extends BaseAIProvider {
             tools: options.tools ? this.mapTools(options.tools) : undefined
         };
 
-        // Attempt to force v1 via undocumented or RequestOptions if possible.
-        // If the SDK version is ^0.21.0, it should default to v1beta but support v1 models?
-        // Wait, the user said "gemini-1.5-flash ... is not supported for generateContent" in v1beta.
-        // So we MUST use v1.
-
-        const model = genAI.getGenerativeModel(modelParams, { apiVersion: 'v1' });
+        // Explicitly using v1beta as per user instruction to support gemini-1.5-flash-latest.
+        const model = genAI.getGenerativeModel(modelParams, { apiVersion: 'v1beta' });
 
         const generationConfig: any = {};
         if (options.temperature) generationConfig.temperature = options.temperature;

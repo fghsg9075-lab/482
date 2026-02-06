@@ -25,12 +25,12 @@ const ensureConfigLoaded = async () => {
             // --- SELF-HEALING / MIGRATION LOGIC ---
             let hasChanges = false;
             if (settingsCache?.aiCanonicalMap) {
-                // 1. Fix Gemini 404 Error (gemini-1.5-flash-latest/001 -> gemini-1.5-flash)
+                // 1. Fix Gemini 404 Error (gemini-1.5-flash -> gemini-1.5-flash-latest)
                 Object.keys(settingsCache.aiCanonicalMap).forEach(key => {
                     const mapping = settingsCache!.aiCanonicalMap[key];
-                    if (mapping.modelId === 'gemini-1.5-flash-latest' || mapping.modelId === 'gemini-1.5-flash-001') {
-                        console.warn(`[AI Router] Auto-fixing deprecated model for ${key}: ${mapping.modelId} -> gemini-1.5-flash`);
-                        mapping.modelId = 'gemini-1.5-flash';
+                    if (mapping.modelId === 'gemini-1.5-flash' || mapping.modelId === 'gemini-1.5-flash-001') {
+                        console.warn(`[AI Router] Auto-fixing deprecated model for ${key}: ${mapping.modelId} -> gemini-1.5-flash-latest`);
+                        mapping.modelId = 'gemini-1.5-flash-latest';
                         hasChanges = true;
                     }
                 });
@@ -41,8 +41,8 @@ const ensureConfigLoaded = async () => {
                      // Use deep copy to avoid reference issues
                      settingsCache.aiCanonicalMap['ADMIN_ENGINE'] = JSON.parse(JSON.stringify(DEFAULT_AI_MAPPINGS['ADMIN_ENGINE']));
                      // Ensure default mapping uses correct ID if not updated in defaults yet (safety)
-                     if (settingsCache.aiCanonicalMap['ADMIN_ENGINE'].modelId === 'gemini-1.5-flash-001') {
-                         settingsCache.aiCanonicalMap['ADMIN_ENGINE'].modelId = 'gemini-1.5-flash';
+                     if (settingsCache.aiCanonicalMap['ADMIN_ENGINE'].modelId === 'gemini-1.5-flash') {
+                         settingsCache.aiCanonicalMap['ADMIN_ENGINE'].modelId = 'gemini-1.5-flash-latest';
                      }
                      hasChanges = true;
                 }
@@ -128,7 +128,7 @@ export const executeCanonicalRaw = async (options: RouterExecuteOptions): Promis
     const fallbackCandidates = [
         { providerId: primaryProviderId, modelId: primaryModelId }, // 1. Primary
         { providerId: 'groq', modelId: 'llama-3.1-8b-instant' },    // 2. Ultra Fast (Groq)
-        { providerId: 'gemini', modelId: 'gemini-1.5-flash' },      // 3. Fast/Free Tier (Gemini)
+        { providerId: 'gemini', modelId: 'gemini-1.5-flash-latest' },      // 3. Fast/Free Tier (Gemini)
         { providerId: 'gemini', modelId: 'gemini-1.5-pro' }         // 4. High Capability Backup (Gemini)
     ];
 
