@@ -1,7 +1,7 @@
-import { SystemSettings, Board, ClassLevel, Stream, Subject, ContentType, Chapter } from "../types";
+import { SystemSettings, Board, ClassLevel, Stream, Subject, ContentType, Chapter, Challenge20 } from "../types";
 import { getSubjectsList } from "../constants";
 import { fetchChapters, fetchLessonContent } from "./groq";
-import { getChapterData, saveChapterData, saveAiInteraction } from "../firebase";
+import { getChapterData, saveChapterData, saveAiInteraction, getSystemSettings, saveSystemSettings } from "../firebase";
 import { ActionRegistry } from "./actionRegistry";
 import pLimit from 'p-limit';
 import { storage } from "../utils/storage";
@@ -345,17 +345,43 @@ export const runDailyChallengesLoop = async (
     
     const boards: Board[] = ['CBSE', 'BSEB'];
     const classes: ClassLevel[] = ['6', '7', '8', '9', '10', '11', '12'];
-    
+    const limit = pLimit(3);
+    const tasks: Promise<Challenge20 | null>[] = [];
+
     for (const board of boards) {
         for (const classLevel of classes) {
-             try {
-                 onLog(`⚡ Generating Challenge for ${board} Class ${classLevel}...`);
-                 await ActionRegistry.publishDailyChallenge(board, classLevel);
-                 onLog(`✅ Challenge Published: ${board} Class ${classLevel}`);
-             } catch (e: any) {
-                 onLog(`❌ Failed Challenge ${board} Class ${classLevel}: ${e.message}`);
-             }
+            tasks.push(limit(async () => {
+                try {
+                    onLog(`⚡ Generating Challenge for ${board} Class ${classLevel}...`);
+                    const challenge = await ActionRegistry.generateDailyChallenge(board, classLevel);
+                    onLog(`✅ Generated: ${board} Class ${classLevel}`);
+                    return challenge;
+                } catch (e: any) {
+                    onLog(`❌ Failed Challenge ${board} Class ${classLevel}: ${e.message}`);
+                    return null;
+                }
+            }));
         }
     }
+
+    const results = await Promise.all(tasks);
+    const successfulChallenges = results.filter((c): c is Challenge20 => c !== null);
+
+    if (successfulChallenges.length > 0) {
+        try {
+            onLog(`📝 Publishing ${successfulChallenges.length} challenges...`);
+            const settings = await getSystemSettings();
+            if (settings) {
+                const updatedChallenges = [...(settings.dailyChallenges || []), ...successfulChallenges];
+                await saveSystemSettings({ ...settings, dailyChallenges: updatedChallenges });
+                onLog(`✅ Successfully published all ${successfulChallenges.length} challenges.`);
+            } else {
+                onLog("❌ Failed to fetch settings for publishing.");
+            }
+        } catch (e: any) {
+            onLog(`❌ Error publishing challenges: ${e.message}`);
+        }
+    }
+
     onLog("🏁 Daily Challenge Cycle Complete.");
 };
