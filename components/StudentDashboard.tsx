@@ -1570,8 +1570,85 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
               </div>
           );
       }
-      // 2. COURSES TAB REMOVED (Replaced with AI Explorer)
-      // The "Schooling System" UI has been removed as requested.
+      // 2. COURSES TAB (Restored)
+      if (activeTab === 'COURSES') {
+          const visibleSubjects = getSubjectsList(user.classLevel || '10', user.stream || null)
+                                    .filter(s => !(settings?.hiddenSubjects || []).includes(s.id));
+
+          return (
+              <div className="space-y-6 pb-24">
+                      <div className="flex items-center justify-between">
+                          <h2 className="text-2xl font-black text-slate-800">My Study Hub</h2>
+                          <button onClick={() => onTabChange('LEADERBOARD')} className="bg-yellow-100 text-yellow-700 px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 hover:bg-yellow-200 transition">
+                              <Trophy size={14} /> Rank List
+                          </button>
+                      </div>
+
+                      {/* Video Section */}
+                      {settings?.contentVisibility?.VIDEO !== false && (
+                          <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
+                              <h3 className="font-bold text-red-800 flex items-center gap-2 mb-2"><Youtube /> Video Lectures</h3>
+                              <div className="grid grid-cols-2 gap-2">
+                                  {visibleSubjects.map(s => (
+                                      <button key={s.id} onClick={() => { onTabChange('VIDEO'); handleContentSubjectSelect(s); }} className="bg-white p-2 rounded-xl text-xs font-bold text-slate-700 shadow-sm border border-red-100 text-left">
+                                          {s.name}
+                                      </button>
+                                  ))}
+                              </div>
+                          </div>
+                      )}
+
+                      {/* Notes Section */}
+                      {settings?.contentVisibility?.PDF !== false && (
+                          <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                              <h3 className="font-bold text-blue-800 flex items-center gap-2 mb-2"><FileText /> Notes Library</h3>
+                              <div className="grid grid-cols-2 gap-2">
+                                  {visibleSubjects.map(s => (
+                                      <button key={s.id} onClick={() => { onTabChange('PDF'); handleContentSubjectSelect(s); }} className="bg-white p-2 rounded-xl text-xs font-bold text-slate-700 shadow-sm border border-blue-100 text-left">
+                                          {s.name}
+                                      </button>
+                                  ))}
+                              </div>
+                          </div>
+                      )}
+
+                      {/* MCQ Section */}
+                      {settings?.contentVisibility?.MCQ !== false && (
+                          <div className="bg-purple-50 p-4 rounded-2xl border border-purple-100">
+                              <div className="flex justify-between items-center mb-2">
+                                  <h3 className="font-bold text-purple-800 flex items-center gap-2"><CheckSquare /> MCQ Practice</h3>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                  {visibleSubjects.map(s => (
+                                      <button key={s.id} onClick={() => { onTabChange('MCQ'); handleContentSubjectSelect(s); }} className="bg-white p-2 rounded-xl text-xs font-bold text-slate-700 shadow-sm border border-purple-100 text-left">
+                                          {s.name}
+                                      </button>
+                                  ))}
+                              </div>
+                          </div>
+                      )}
+
+                      {/* Audio/Podcast Section */}
+                      {settings?.contentVisibility?.AUDIO !== false && (
+                          <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-4 rounded-2xl shadow-lg border border-slate-700 relative overflow-hidden">
+                              <div className="flex justify-between items-center mb-2 relative z-10">
+                                  <h3 className="font-bold text-white flex items-center gap-2"><Headphones className="text-pink-500" /> Audio Library</h3>
+                                  <span className="text-[10px] font-black bg-pink-600 text-white px-2 py-0.5 rounded-full">NEW</span>
+                              </div>
+                              <p className="text-xs text-slate-400 mb-3 relative z-10">Listen to high-quality audio lectures and podcasts.</p>
+                              <div className="grid grid-cols-2 gap-2 relative z-10">
+                                  {visibleSubjects.map(s => (
+                                      <button key={s.id} onClick={() => { onTabChange('AUDIO'); handleContentSubjectSelect(s); }} className="bg-white/10 hover:bg-white/20 p-2 rounded-xl text-xs font-bold text-white shadow-sm border border-white/10 text-left backdrop-blur-sm transition-colors">
+                                          {s.name}
+                                      </button>
+                                  ))}
+                              </div>
+                          </div>
+                      )}
+                  </div>
+              );
+      }
+
       // 4. LEGACY TABS (Mapped to new structure or kept as sub-views)
       if (activeTab === 'CUSTOM_PAGE') return <CustomBloggerPage onBack={() => onTabChange('HOME')} />;
       if (activeTab === 'DEEP_ANALYSIS') return <AiDeepAnalysis user={user} settings={settings} onUpdateUser={handleUserUpdate} onBack={() => onTabChange('HOME')} />;
@@ -2001,9 +2078,9 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                     <span className="text-[10px] font-bold mt-1">Videos</span>
                 </button>
 
-                <button onClick={() => { onTabChange('AI_CHAT'); }} className={`flex flex-col items-center justify-center w-full h-full ${activeTab === 'AI_CHAT' ? 'text-blue-600' : 'text-slate-400'}`}>
-                    <Compass size={24} fill={activeTab === 'AI_CHAT' ? "currentColor" : "none"} />
-                    <span className="text-[10px] font-bold mt-1">Explorer</span>
+                <button onClick={() => { onTabChange('COURSES'); setContentViewStep('SUBJECTS'); }} className={`flex flex-col items-center justify-center w-full h-full ${activeTab === 'COURSES' || (activeTab === 'VIDEO' && selectedChapter?.id !== 'UNIVERSAL') || activeTab === 'PDF' || activeTab === 'MCQ' || activeTab === 'AUDIO' ? 'text-blue-600' : 'text-slate-400'}`}>
+                    <Book size={24} fill={activeTab === 'COURSES' || (activeTab === 'VIDEO' && selectedChapter?.id !== 'UNIVERSAL') || activeTab === 'PDF' || activeTab === 'MCQ' || activeTab === 'AUDIO' ? "currentColor" : "none"} />
+                    <span className="text-[10px] font-bold mt-1">Courses</span>
                 </button>
 
                 <button onClick={() => { onTabChange('STORE'); setContentViewStep('SUBJECTS'); }} className={`flex flex-col items-center justify-center w-full h-full ${activeTab === 'STORE' ? 'text-blue-600' : 'text-slate-400'}`}>
