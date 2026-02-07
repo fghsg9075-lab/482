@@ -13,6 +13,7 @@ import { PrizeList } from './PrizeList';
 import { Store } from './Store';
 import { Layout, Gift, Sparkles, Megaphone, Lock, BookOpen, AlertCircle, Edit, Settings, Play, Pause, RotateCcw, MessageCircle, Gamepad2, Timer, CreditCard, Send, CheckCircle, Mail, X, Ban, Smartphone, Trophy, ShoppingBag, ArrowRight, Video, Youtube, Home, User as UserIcon, Book, BookOpenText, List, BarChart3, Award, Bell, Headphones, LifeBuoy, WifiOff, Zap, Star, Crown, History, ListChecks, Rocket, Ticket, TrendingUp, BrainCircuit, Menu, Compass } from 'lucide-react';
 import { BannerCarousel } from './BannerCarousel';
+import { SubjectSelection } from './SubjectSelection';
 import { ChapterSelection } from './ChapterSelection'; // Imported for Video Flow
 import { VideoPlaylistView } from './VideoPlaylistView'; // Imported for Video Flow
 import { AudioPlaylistView } from './AudioPlaylistView'; // Imported for Audio Flow
@@ -1570,8 +1571,22 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
               </div>
           );
       }
-      // 2. COURSES TAB REMOVED (Replaced with AI Explorer)
-      // The "Schooling System" UI has been removed as requested.
+      // 2. COURSES TAB (Schooling System)
+      if (activeTab === 'COURSES') {
+          if (contentViewStep === 'SUBJECTS') {
+              return (
+                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24">
+                      <SubjectSelection
+                          classLevel={user.classLevel || '10'}
+                          stream={user.stream || null}
+                          onSelect={handleContentSubjectSelect}
+                      />
+                  </div>
+              );
+          }
+          return renderContentSection('PDF'); // Default to PDF/Notes view for chapter list
+      }
+
       // 4. LEGACY TABS (Mapped to new structure or kept as sub-views)
       if (activeTab === 'CUSTOM_PAGE') return <CustomBloggerPage onBack={() => onTabChange('HOME')} />;
       if (activeTab === 'DEEP_ANALYSIS') return <AiDeepAnalysis user={user} settings={settings} onUpdateUser={handleUserUpdate} onBack={() => onTabChange('HOME')} />;
@@ -1999,6 +2014,11 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                          {hasNewUpdate && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-600 rounded-full border border-white animate-pulse"></span>}
                     </div>
                     <span className="text-[10px] font-bold mt-1">Videos</span>
+                </button>
+
+                <button onClick={() => { onTabChange('COURSES'); setContentViewStep('SUBJECTS'); }} className={`flex flex-col items-center justify-center w-full h-full ${activeTab === 'COURSES' ? 'text-blue-600' : 'text-slate-400'}`}>
+                    <Book size={24} fill={activeTab === 'COURSES' ? "currentColor" : "none"} />
+                    <span className="text-[10px] font-bold mt-1">Courses</span>
                 </button>
 
                 <button onClick={() => { onTabChange('AI_CHAT'); }} className={`flex flex-col items-center justify-center w-full h-full ${activeTab === 'AI_CHAT' ? 'text-blue-600' : 'text-slate-400'}`}>

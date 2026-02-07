@@ -319,10 +319,7 @@ const updateSystemSettings = async (updates: Partial<SystemSettings>) => {
     }
 };
 
-const publishDailyChallenge = async (board: Board, classLevel: ClassLevel) => {
-    const settings = await getSettings();
-    if (!settings) throw new Error("Settings not found");
-
+const generateDailyChallenge = async (board: Board, classLevel: ClassLevel): Promise<Challenge20> => {
     // 1. Determine Subjects
     const isScienceStream = classLevel === '11' || classLevel === '12';
     // Simplified subject selection for daily challenge
@@ -372,6 +369,15 @@ const publishDailyChallenge = async (board: Board, classLevel: ClassLevel) => {
         durationMinutes: 15
     };
 
+    return challenge;
+};
+
+const publishDailyChallenge = async (board: Board, classLevel: ClassLevel) => {
+    const challenge = await generateDailyChallenge(board, classLevel);
+
+    const settings = await getSettings();
+    if (!settings) throw new Error("Settings not found");
+
     const updatedChallenges = [...(settings.dailyChallenges || []), challenge];
     // Keep only last 7 days? Or just append. Append for now.
     await saveSystemSettings({ ...settings, dailyChallenges: updatedChallenges });
@@ -392,6 +398,7 @@ export const ActionRegistry = {
     scanUsers,
     getRecentLogs,
     updateSystemSettings,
+    generateDailyChallenge,
     publishDailyChallenge
 };
 
