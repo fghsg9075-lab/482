@@ -346,38 +346,49 @@ export const generateCustomNotes = async (userTopic: string, adminPrompt: string
 };
 
 export const generateUltraAnalysis = async (data: any, settings?: SystemSettings): Promise<string> => {
+    // 2.0: ENHANCED ANALYSIS FOR DEEP INSIGHTS
     const prompt = `
     You are an expert academic counselor for ${settings?.appName || 'Institute'}.
-    Analyze this student's test performance data:
+    Analyze this student's MCQ test performance in detail.
+
+    DATA PROVIDED:
     ${JSON.stringify(data)}
 
-    TASK:
-    Generate a detailed JSON analysis of their strengths and weaknesses.
-    Identify specific sub-topics from the questions provided.
+    CRITICAL TASK:
+    1. Identify specific sub-topics from the questions.
+    2. Categorize each topic into WEAK, AVERAGE, or STRONG based on performance.
+    3. For every WRONG answer, explain WHY the student likely made that mistake (Conceptual Gap vs Silly Mistake).
+    4. Provide a visual chart breakdown (percentages).
 
-    STRICT JSON OUTPUT FORMAT (NO MARKDOWN, NO COMMENTARY):
+    STRICT JSON OUTPUT FORMAT (NO MARKDOWN):
     {
+      "chart": {
+        "weakPercent": 30,
+        "averagePercent": 20,
+        "strongPercent": 50
+      },
       "topics": [
         {
-          "name": "Topic Name (e.g., Algebra, Newton's Laws)",
-          "status": "STRONG" | "WEAK" | "AVERAGE",
-          "questions": [
-             { "text": "Question text summary", "status": "WRONG" | "CORRECT", "correctAnswer": "Correct Option if wrong" }
-          ],
-          "actionPlan": "Specific 1-line advice for this topic.",
-          "studyMode": "DEEP_STUDY" | "QUICK_REVISION"
+          "name": "Topic Name",
+          "status": "WEAK" | "AVERAGE" | "STRONG",
+          "correctCount": 2,
+          "totalCount": 5,
+          "advice": "Specific advice to improve this topic."
         }
       ],
-      "weakToStrongPath": [
-        { "step": 1, "action": "Step 1 to improve..." },
-        { "step": 2, "action": "Step 2..." },
-        { "step": 3, "action": "Step 3..." }
+      "mistakeAnalysis": [
+        {
+          "questionIndex": 0,
+          "topic": "Topic Name",
+          "cause": "CONCEPTUAL_ERROR" | "SILLY_MISTAKE" | "GUESSED",
+          "aiInsight": "You chose 'Option A' which is incorrect because... The correct concept is..."
+        }
       ],
-      "nextSteps": {
-        "focusTopics": ["Topic 1", "Topic 2"],
-        "action": "Summary of what to do in the next 24 hours."
+      "improvementPlan": {
+        "weak": "Strategy to fix weak areas...",
+        "average": "Strategy to master average areas..."
       },
-      "motivation": "A short, personalized motivational message based on their score."
+      "motivation": "Short, encouraging message."
     }
     `;
 
