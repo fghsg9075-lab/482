@@ -24,7 +24,7 @@ import { HistoryPage } from './HistoryPage';
 import { Leaderboard } from './Leaderboard';
 import { SpinWheel } from './SpinWheel';
 import { fetchChapters, generateCustomNotes } from '../services/groq'; // Needed for Video Flow
-import { CheckSquare } from 'lucide-react'; // Icons
+import { CheckSquare, FileText } from 'lucide-react'; // Icons
 import { LoadingOverlay } from './LoadingOverlay';
 import { CreditConfirmationModal } from './CreditConfirmationModal';
 import { UserGuide } from './UserGuide';
