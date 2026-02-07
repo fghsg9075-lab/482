@@ -91,6 +91,18 @@ export const fetchChapters = async (
   subject: Subject,
   language: Language
 ): Promise<Chapter[]> => {
+  // Load Settings for Visibility Check
+  let settings: SystemSettings | null = null;
+  try {
+      const stored = localStorage.getItem('nst_system_settings');
+      if (stored) settings = JSON.parse(stored);
+  } catch(e) {}
+
+  // 1. Check if Subject is Hidden Globally
+  if (settings?.hiddenSubjects?.includes(subject.id)) {
+      return [];
+  }
+
   const streamKey = (classLevel === '11' || classLevel === '12') && stream ? `-${stream}` : '';
   const cacheKey = `${board}-${classLevel}${streamKey}-${subject.name}-${language}`;
 
@@ -113,7 +125,7 @@ export const fetchChapters = async (
   const prompt = `List 15 standard chapters for ${classLevel === 'COMPETITION' ? 'Competitive Exam' : `Class ${classLevel}`} ${stream ? stream : ''} Subject: ${subject.name} (${board}). Return JSON array: [{"title": "...", "description": "..."}].`;
   try {
     const text = await executeCanonical({
-        canonicalModel: 'NOTES_ENGINE',
+        canonicalModel: 'NOTES_ENGINE', // Uses Groq via Router
         prompt: prompt,
         jsonMode: true
     });

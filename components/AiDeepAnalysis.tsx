@@ -3,6 +3,7 @@ import { User, SystemSettings, MCQResult } from '../types';
 import { BrainCircuit, Play, Pause, ChevronDown, ChevronUp, Star, Lock, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import { saveUserToLive, saveAiInteraction } from '../firebase';
 import { speakText, stopSpeech, getCategorizedVoices } from '../utils/textToSpeech';
+import { generateUltraAnalysis } from '../services/contentGenerator';
 
 interface Props {
     user: User;
@@ -41,69 +42,59 @@ export const AiDeepAnalysis: React.FC<Props> = ({ user, settings, onUpdateUser, 
         }
     }, [user.id]);
 
-    const analyzeHistory = () => {
+    const analyzeHistory = async () => {
         setLoading(true);
-        // DERIVE DATA FROM MCQ HISTORY
-        const history = user.mcqHistory || [];
-        const topicMap: Record<string, TopicAnalysis> = {};
+        try {
+            // Prepare Data for AI
+            const history = (user.mcqHistory || []).slice(0, 10); // Last 10 tests
+            const performanceSummary = history.map(h => ({
+                topic: h.chapterTitle,
+                score: `${h.score}/${h.totalQuestions}`,
+                mistakes: h.wrongQuestions?.map(w => w.question).slice(0, 3) || []
+            }));
 
-        history.forEach(test => {
-            const topicName = test.chapterTitle || 'General';
-            
-            if (!topicMap[topicName]) {
-                topicMap[topicName] = {
-                    topic: topicName,
-                    mistakeCount: 0,
-                    totalAttempts: 0,
-                    mastery: 0,
-                    status: 'AVERAGE',
-                    advice: '',
-                    mistakes: []
-                };
+            if (performanceSummary.length === 0) {
+                // Mock for empty state if needed, or handle empty
+                setTopics([{ topic: 'General', mistakeCount: 0, totalAttempts: 0, mastery: 3, status: 'AVERAGE', advice: 'Take some tests to get AI analysis!', mistakes: [] }]);
+                setLoading(false);
+                return;
             }
 
-            topicMap[topicName].totalAttempts += test.totalQuestions;
-            topicMap[topicName].mistakeCount += test.wrongCount;
+            // Call Groq Ultra Analysis
+            const rawJson = await generateUltraAnalysis(performanceSummary, settings);
+            const data = JSON.parse(rawJson);
 
-            if (test.wrongQuestions) {
-                test.wrongQuestions.forEach(wq => {
-                    topicMap[topicName].mistakes.push({
-                        question: wq.question,
-                        correct: 'Check notes for answer' // Ideally we have correct answer
-                    });
-                });
-            }
-        });
+            // Map AI Response to UI Model
+            const aiTopics: TopicAnalysis[] = (data.topics || []).map((t: any) => ({
+                topic: t.name,
+                mistakeCount: 0, // AI simplifies this
+                totalAttempts: 0,
+                mastery: t.status === 'STRONG' ? 5 : t.status === 'WEAK' ? 1 : 3,
+                status: t.status,
+                advice: t.actionPlan || "Review this topic.",
+                mistakes: (t.questions || []).map((q: any) => ({ question: q.text, correct: q.correctAnswer || 'Review Notes' }))
+            }));
 
-        const derivedTopics: TopicAnalysis[] = Object.values(topicMap).map(t => {
-            const accuracy = 1 - (t.mistakeCount / (t.totalAttempts || 1));
-            let status: TopicAnalysis['status'] = 'AVERAGE';
-            let stars = 3;
+            setTopics(aiTopics);
 
-            if (accuracy >= 0.8) { status = 'STRONG'; stars = 5; }
-            else if (accuracy < 0.5) { status = 'WEAK'; stars = 1; }
-            else { status = 'AVERAGE'; stars = 3; }
+            // Save Interaction
+            saveAiInteraction({
+                id: `analysis-${Date.now()}`,
+                userId: user.id,
+                userName: user.name,
+                type: 'ULTRA_ANALYSIS',
+                query: 'Performance Review',
+                response: JSON.stringify(data),
+                timestamp: new Date().toISOString()
+            });
 
-            // AI Advice Generation (Mock logic based on status)
-            let advice = "";
-            if (status === 'WEAK') advice = `You are struggling with ${t.topic}. Focus on core concepts. Review the notes immediately.`;
-            else if (status === 'AVERAGE') advice = `Good effort in ${t.topic}, but accuracy can improve. Try solving more practice questions.`;
-            else advice = `Excellent command over ${t.topic}! Keep revising to maintain this streak.`;
-
-            return { ...t, status, mastery: stars, advice };
-        });
-
-        // Add Mock Data if empty (For Demo)
-        if (derivedTopics.length === 0) {
-            derivedTopics.push(
-                { topic: 'Photosynthesis', mistakeCount: 5, totalAttempts: 10, mastery: 1, status: 'WEAK', advice: 'You made 5 fundamental errors in Light Reaction. Revise Chloroplast structure.', mistakes: [{ question: 'Site of Dark Reaction?', correct: 'Stroma' }] },
-                { topic: 'Algebra', mistakeCount: 2, totalAttempts: 15, mastery: 3, status: 'AVERAGE', advice: 'Calculation errors detected. Slow down while solving quadratic equations.', mistakes: [{ question: 'Roots of x^2-4=0?', correct: '+2, -2' }] },
-                { topic: 'Optics', mistakeCount: 0, totalAttempts: 20, mastery: 5, status: 'STRONG', advice: 'Perfect score! You have mastered Ray Diagrams.', mistakes: [] }
-            );
+        } catch (e) {
+            console.error("AI Analysis Failed", e);
+            // Fallback (Simple Local Logic)
+            setTopics([{ topic: 'Error', mistakeCount: 0, totalAttempts: 0, mastery: 0, status: 'WEAK', advice: 'AI is busy. Please try again later.', mistakes: [] }]);
+        } finally {
+            setLoading(false);
         }
-
-        setTopics(derivedTopics);
-        setLoading(false);
     };
 
     const handleUnlock = () => {

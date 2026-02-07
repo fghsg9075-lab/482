@@ -7,6 +7,14 @@ export const APP_VERSION = "1.0.0"; // NEW: Current App Version
 export const ADMIN_EMAIL = "nadiman0636indo@gmail.com";
 export const SUPPORT_EMAIL = "nadiman0636indo@gmail.com";
 
+// GOOGLE SEARCH CONFIG (RAG)
+// TODO: Ideally move these to environment variables or a secure backend service.
+// Kept here for immediate functionality as requested by user without backend infrastructure.
+export const GOOGLE_SEARCH_CONFIG = {
+    API_KEY: 'AIzaSyDQQBy7CWk8Ois2cCmmcMQMTTuZZ3hZAfY',
+    CX_ID: '35808a4ef3ee34a81'
+};
+
 export const DEFAULT_CONTENT_INFO_CONFIG = {
     freeNotes: {
         enabled: true,

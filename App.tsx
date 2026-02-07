@@ -32,7 +32,7 @@ import { UpdatePopup } from './components/UpdatePopup'; // NEW
 import { ErrorBoundary } from './components/ErrorBoundary'; // NEW
 import { generateDailyChallengeQuestions } from './utils/challengeGenerator';
 import { BrainCircuit, Globe, LogOut, LayoutDashboard, BookOpen, Headphones, HelpCircle, Newspaper, KeyRound, Lock, X, ShieldCheck, FileText, UserPlus, EyeOff, WifiOff } from 'lucide-react';
-import { SUPPORT_EMAIL, APP_VERSION } from './constants';
+import { SUPPORT_EMAIL, APP_VERSION, GOOGLE_SEARCH_CONFIG } from './constants';
 import { StudentTab, PendingReward, MCQResult, SubscriptionHistoryEntry } from './types';
 import { storage } from './utils/storage';
 
@@ -90,8 +90,8 @@ const App: React.FC = () => {
         maintenanceMessage: 'We are upgrading our servers. Please check back later.',
         customCSS: '',
         apiKeys: [],
-        googleSearchCxId: '35808a4ef3ee34a81',
-        googleSearchApiKey: 'AIzaSyDQQBy7CWk8Ois2cCmmcMQMTTuZZ3hZAfY',
+        googleSearchCxId: GOOGLE_SEARCH_CONFIG.CX_ID,
+        googleSearchApiKey: GOOGLE_SEARCH_CONFIG.API_KEY,
         isWebSearchEnabled: true,
         welcomeTitle: 'Unlock Smart Learning', 
         welcomeMessage: 'Experience the power of AI-driven education. Our AI filters out the noise of traditional textbooks to deliver only the essential, high-yield topics you need for success. Study smarter, not harder.',
