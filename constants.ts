@@ -387,19 +387,8 @@ export const MASTER_AI_PROVIDERS: AIProvider[] = [
         models: [
             { id: 'llama-3.1-70b-versatile', name: 'Llama 3.1 70B (Best)' },
             { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B (Fast)' },
+            { id: 'llama-3.2-90b-vision-preview', name: 'Llama 3.2 90B Vision' },
             { id: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B' }
-        ]
-    },
-    {
-        id: 'gemini',
-        name: 'Gemini (Google)',
-        isEnabled: true,
-        priority: 2,
-        apiKeys: [],
-        models: [
-            { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
-            { id: 'gemini-1.5-flash-latest', name: 'Gemini 1.5 Flash (Latest)' },
-            { id: 'gemini-1.0-pro', name: 'Gemini 1.0 Pro' }
         ]
     }
 ];
@@ -408,7 +397,7 @@ export const DEFAULT_AI_MAPPINGS = {
     'NOTES_ENGINE': { providerId: 'groq', modelId: 'llama-3.1-70b-versatile' },
     'MCQ_ENGINE': { providerId: 'groq', modelId: 'llama-3.1-8b-instant' },
     'CHAT_ENGINE': { providerId: 'groq', modelId: 'llama-3.1-70b-versatile' },
-    'ANALYSIS_ENGINE': { providerId: 'gemini', modelId: 'gemini-1.5-flash-latest' },
-    'VISION_ENGINE': { providerId: 'gemini', modelId: 'gemini-1.5-flash-latest' },
+    'ANALYSIS_ENGINE': { providerId: 'groq', modelId: 'llama-3.1-70b-versatile' },
+    'VISION_ENGINE': { providerId: 'groq', modelId: 'llama-3.2-90b-vision-preview' },
     'ADMIN_ENGINE': { providerId: 'groq', modelId: 'llama-3.1-70b-versatile' }
 };
