@@ -334,6 +334,41 @@ export const generateCustomNotes = async (userTopic: string, adminPrompt: string
 };
 
 export const generateUltraAnalysis = async (data: any, settings?: SystemSettings): Promise<string> => {
-    const prompt = `Analyze performance: ${JSON.stringify(data)}. Return JSON {topics:[], motivation:"", nextSteps:{}}`;
-    return await executeCanonical({ canonicalModel: 'ANALYSIS_ENGINE', prompt, jsonMode: true });
+    const prompt = `
+    You are an expert academic counselor for ${settings?.appName || 'Institute'}.
+    Analyze this student's test performance data:
+    ${JSON.stringify(data)}
+
+    TASK:
+    Generate a detailed JSON analysis of their strengths and weaknesses.
+    Identify specific sub-topics from the questions provided.
+
+    STRICT JSON OUTPUT FORMAT (NO MARKDOWN, NO COMMENTARY):
+    {
+      "topics": [
+        {
+          "name": "Topic Name (e.g., Algebra, Newton's Laws)",
+          "status": "STRONG" | "WEAK" | "AVERAGE",
+          "questions": [
+             { "text": "Question text summary", "status": "WRONG" | "CORRECT", "correctAnswer": "Correct Option if wrong" }
+          ],
+          "actionPlan": "Specific 1-line advice for this topic.",
+          "studyMode": "DEEP_STUDY" | "QUICK_REVISION"
+        }
+      ],
+      "weakToStrongPath": [
+        { "step": 1, "action": "Step 1 to improve..." },
+        { "step": 2, "action": "Step 2..." },
+        { "step": 3, "action": "Step 3..." }
+      ],
+      "nextSteps": {
+        "focusTopics": ["Topic 1", "Topic 2"],
+        "action": "Summary of what to do in the next 24 hours."
+      },
+      "motivation": "A short, personalized motivational message based on their score."
+    }
+    `;
+
+    const response = await executeCanonical({ canonicalModel: 'ANALYSIS_ENGINE', prompt, jsonMode: true });
+    return cleanJson(response);
 };
