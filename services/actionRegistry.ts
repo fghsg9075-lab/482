@@ -3,6 +3,7 @@ import {
     db, 
     rtdb, 
     saveUserToLive, 
+    getSystemSettings,
     saveSystemSettings, 
     saveChapterData, 
     saveUniversalAnalysis,
@@ -42,15 +43,6 @@ const getAllUsers = async (): Promise<User[]> => {
         console.error("Error fetching users:", e);
         return [];
     }
-};
-
-// --- HELPER: GET SETTINGS (ONCE) ---
-const getSettings = async (): Promise<SystemSettings | null> => {
-    try {
-        const snapshot = await get(ref(rtdb, 'system_settings'));
-        if (snapshot.exists()) return snapshot.val();
-        return null;
-    } catch (e) { return null; }
 };
 
 // --- ACTION IMPLEMENTATIONS ---
@@ -155,7 +147,7 @@ const broadcastMessage = async (message: string, type: 'TEXT' | 'GIFT' = 'TEXT',
     // We will use 'push' to a 'broadcasts' node if app supports it, but based on types, users have 'inbox'.
     
     // Better approach: Create a System Notice in settings
-    const settings = await getSettings();
+    const settings = await getSystemSettings();
     if (settings) {
         const newSettings = { ...settings, noticeText: message };
         await saveSystemSettings(newSettings);
@@ -184,7 +176,7 @@ const sendInboxMessage = async (userId: string, text: string) => {
 
 // SUPER PILOT UPGRADE: Autonomous Question Generation
 const createWeeklyTest = async (name: string, subject: string, questionCount: number, classLevel: ClassLevel = '10', board: Board = 'CBSE') => {
-    const settings = await getSettings();
+    const settings = await getSystemSettings();
     if (!settings) throw new Error("Settings not found");
     
     // AUTO-ADJUST COUNT BASED ON SUBJECT
@@ -308,7 +300,7 @@ const getRecentLogs = async (limit: number = 20) => {
 
 const updateSystemSettings = async (updates: Partial<SystemSettings>) => {
     try {
-        const current = await getSettings();
+        const current = await getSystemSettings();
         if (!current) throw new Error("Settings not found");
         
         const updated = { ...current, ...updates };
@@ -375,7 +367,7 @@ const generateDailyChallenge = async (board: Board, classLevel: ClassLevel): Pro
 const publishDailyChallenge = async (board: Board, classLevel: ClassLevel) => {
     const challenge = await generateDailyChallenge(board, classLevel);
 
-    const settings = await getSettings();
+    const settings = await getSystemSettings();
     if (!settings) throw new Error("Settings not found");
 
     const updatedChallenges = [...(settings.dailyChallenges || []), challenge];
