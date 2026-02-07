@@ -111,6 +111,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
   const [pendingApp, setPendingApp] = useState<{app: any, cost: number} | null>(null);
   // GENERIC CONTENT FLOW STATE (Used for Video, PDF, MCQ)
   const [contentViewStep, setContentViewStep] = useState<'SUBJECTS' | 'CHAPTERS' | 'PLAYER'>('SUBJECTS');
+  const [courseContentType, setCourseContentType] = useState<'VIDEO' | 'PDF' | 'MCQ' | 'AUDIO' | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -1542,7 +1543,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
           );
       }
       // 2. EXPLORE LAYER (Previously Layer 2 / Smart Lesson)
-      if ((activeTab as string) === 'EXPLORE_LAYER') {
+      if (activeTab === 'EXPLORE_LAYER') {
           return (
               <StudentAiAssistant
                   user={user}
@@ -1555,6 +1556,65 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
 
       // 3. COURSES TAB (Schooling System)
       if (activeTab === 'COURSES') {
+          // STEP 1: CONTENT TYPE SELECTION
+          if (!courseContentType) {
+             return (
+                 <div className="p-4 space-y-6 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                     <div className="flex items-center gap-3 mb-2">
+                         <div className="p-3 bg-blue-100 rounded-2xl text-blue-600">
+                             <BookOpen size={32} />
+                         </div>
+                         <div>
+                             <h2 className="text-2xl font-black text-slate-800">My Courses</h2>
+                             <p className="text-slate-500 font-medium text-sm">Select a category to start learning</p>
+                         </div>
+                     </div>
+
+                     <div className="grid grid-cols-2 gap-4">
+                         <button
+                             onClick={() => setCourseContentType('VIDEO')}
+                             className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-400 transition-all flex flex-col items-center gap-3 group"
+                         >
+                             <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                                 <Video size={28} />
+                             </div>
+                             <span className="font-bold text-slate-700">Video Lectures</span>
+                         </button>
+
+                         <button
+                             onClick={() => setCourseContentType('PDF')}
+                             className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-green-400 transition-all flex flex-col items-center gap-3 group"
+                         >
+                             <div className="w-14 h-14 bg-green-50 text-green-600 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                                 <FileText size={28} />
+                             </div>
+                             <span className="font-bold text-slate-700">Notes Library</span>
+                         </button>
+
+                         <button
+                             onClick={() => setCourseContentType('MCQ')}
+                             className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-purple-400 transition-all flex flex-col items-center gap-3 group"
+                         >
+                             <div className="w-14 h-14 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                                 <CheckSquare size={28} />
+                             </div>
+                             <span className="font-bold text-slate-700">MCQ Practice</span>
+                         </button>
+
+                         <button
+                             onClick={() => setCourseContentType('AUDIO')}
+                             className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-orange-400 transition-all flex flex-col items-center gap-3 group"
+                         >
+                             <div className="w-14 h-14 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                                 <Headphones size={28} />
+                             </div>
+                             <span className="font-bold text-slate-700">Audio Library</span>
+                         </button>
+                     </div>
+                 </div>
+             );
+          }
+
           if (contentViewStep === 'SUBJECTS') {
               return (
                   <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24">
@@ -1562,11 +1622,12 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                           classLevel={user.classLevel || '10'}
                           stream={user.stream || null}
                           onSelect={handleContentSubjectSelect}
+                          onBack={() => setCourseContentType(null)}
                       />
                   </div>
               );
           }
-          return renderContentSection('PDF'); // Default to PDF/Notes view for chapter list
+          return renderContentSection(courseContentType);
       }
 
       // 4. LEGACY TABS (Mapped to new structure or kept as sub-views)
@@ -1574,8 +1635,8 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
       if (activeTab === 'DEEP_ANALYSIS') return <AiDeepAnalysis user={user} settings={settings} onUpdateUser={handleUserUpdate} onBack={() => onTabChange('HOME')} />;
       if (activeTab === 'AI_HISTORY') return <AiHistoryPage user={user} onBack={() => onTabChange('HOME')} />;
       if (activeTab === 'UPDATES') return <UniversalInfoPage onBack={() => onTabChange('HOME')} />;
-      if ((activeTab as string) === 'ANALYTICS') return <AnalyticsPage user={user} onBack={() => onTabChange('HOME')} settings={settings} onNavigateToChapter={onNavigateToChapter} />;
-      if ((activeTab as string) === 'SUB_HISTORY') return <SubscriptionHistory user={user} onBack={() => onTabChange('HOME')} />;
+      if (activeTab === 'ANALYTICS') return <AnalyticsPage user={user} onBack={() => onTabChange('HOME')} settings={settings} onNavigateToChapter={onNavigateToChapter} />;
+      if (activeTab === 'SUB_HISTORY') return <SubscriptionHistory user={user} onBack={() => onTabChange('HOME')} />;
       if (activeTab === 'HISTORY') return <HistoryPage user={user} onUpdateUser={handleUserUpdate} settings={settings} />;
       if (activeTab === 'LEADERBOARD') return <Leaderboard user={user} settings={settings} />;
       if (activeTab === 'GAME') return isGameEnabled ? (user.isGameBanned ? <div className="text-center py-20 bg-red-50 rounded-2xl border border-red-100"><Ban size={48} className="mx-auto text-red-500 mb-4" /><h3 className="text-lg font-bold text-red-700">Access Denied</h3><p className="text-sm text-red-600">Admin has disabled the game for your account.</p></div> : <SpinWheel user={user} onUpdateUser={handleUserUpdate} settings={settings} />) : null;
@@ -2003,7 +2064,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                     <span className="text-[10px] font-bold mt-1">Courses</span>
                 </button>
 
-                <button onClick={() => { onTabChange('EXPLORE_LAYER' as any); }} className={`flex flex-col items-center justify-center w-full h-full ${activeTab === 'EXPLORE_LAYER' ? 'text-blue-600' : 'text-slate-400'}`}>
+                <button onClick={() => { onTabChange('EXPLORE_LAYER'); }} className={`flex flex-col items-center justify-center w-full h-full ${activeTab === 'EXPLORE_LAYER' ? 'text-blue-600' : 'text-slate-400'}`}>
                     <Compass size={24} fill={activeTab === 'EXPLORE_LAYER' ? "currentColor" : "none"} />
                     <span className="text-[10px] font-bold mt-1">Explorer</span>
                 </button>
