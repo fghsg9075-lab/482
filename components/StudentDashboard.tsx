@@ -11,7 +11,7 @@ import { generateMorningInsight } from '../services/morningInsight';
 import { RedeemSection } from './RedeemSection';
 import { PrizeList } from './PrizeList';
 import { Store } from './Store';
-import { Layout, Gift, Sparkles, Megaphone, Lock, BookOpen, AlertCircle, Edit, Settings, Play, Pause, RotateCcw, MessageCircle, Gamepad2, Timer, CreditCard, Send, CheckCircle, Mail, X, Ban, Smartphone, Trophy, ShoppingBag, ArrowRight, Video, Youtube, Home, User as UserIcon, Book, BookOpenText, List, BarChart3, Award, Bell, Headphones, LifeBuoy, WifiOff, Zap, Star, Crown, History, ListChecks, Rocket, Ticket, TrendingUp, BrainCircuit, Menu, Compass } from 'lucide-react';
+import { Layout, Gift, Sparkles, Megaphone, Lock, BookOpen, AlertCircle, Edit, Settings, Play, Pause, RotateCcw, MessageCircle, Gamepad2, Timer, CreditCard, Send, CheckCircle, Mail, X, Ban, Smartphone, Trophy, ShoppingBag, ArrowRight, Video, Youtube, Home, User as UserIcon, Book, BookOpenText, List, BarChart3, Award, Bell, Headphones, LifeBuoy, WifiOff, Zap, Star, Crown, History, ListChecks, Rocket, Ticket, TrendingUp, BrainCircuit, Menu } from 'lucide-react';
 import { BannerCarousel } from './BannerCarousel';
 import { SubjectSelection } from './SubjectSelection';
 import { ChapterSelection } from './ChapterSelection'; // Imported for Video Flow
@@ -42,7 +42,6 @@ import { SearchResult } from '../utils/syllabusSearch';
 import { AiDeepAnalysis } from './AiDeepAnalysis';
 import { CustomBloggerPage } from './CustomBloggerPage';
 import { ReferralPopup } from './ReferralPopup';
-import { StudentAiAssistant } from './StudentAiAssistant';
 import { SpeakButton } from './SpeakButton';
 
 interface Props {
@@ -1542,18 +1541,6 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
               </div>
           );
       }
-      // 2. EXPLORE LAYER (Previously Layer 2 / Smart Lesson)
-      if (activeTab === 'EXPLORE_LAYER') {
-          return (
-              <StudentAiAssistant
-                  user={user}
-                  settings={settings}
-                  isOpen={true}
-                  onClose={() => onTabChange('HOME')}
-              />
-          );
-      }
-
       // 3. COURSES TAB (Schooling System)
       if (activeTab === 'COURSES') {
           // STEP 1: CONTENT TYPE SELECTION
@@ -2062,11 +2049,6 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                 <button onClick={() => { onTabChange('COURSES'); setContentViewStep('SUBJECTS'); }} className={`flex flex-col items-center justify-center w-full h-full ${activeTab === 'COURSES' ? 'text-blue-600' : 'text-slate-400'}`}>
                     <Book size={24} fill={activeTab === 'COURSES' ? "currentColor" : "none"} />
                     <span className="text-[10px] font-bold mt-1">Courses</span>
-                </button>
-
-                <button onClick={() => { onTabChange('EXPLORE_LAYER'); }} className={`flex flex-col items-center justify-center w-full h-full ${activeTab === 'EXPLORE_LAYER' ? 'text-blue-600' : 'text-slate-400'}`}>
-                    <Compass size={24} fill={activeTab === 'EXPLORE_LAYER' ? "currentColor" : "none"} />
-                    <span className="text-[10px] font-bold mt-1">Explorer</span>
                 </button>
 
                 <button onClick={() => { onTabChange('STORE'); setContentViewStep('SUBJECTS'); }} className={`flex flex-col items-center justify-center w-full h-full ${activeTab === 'STORE' ? 'text-blue-600' : 'text-slate-400'}`}>
