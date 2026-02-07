@@ -452,7 +452,7 @@ export interface SystemSettings {
   isAutoPilotEnabled?: boolean; // NEW: AI Auto-Pilot Toggle
   isWebSearchEnabled?: boolean; // NEW: RAG Toggle
   googleSearchApiKey?: string; // NEW: Google Custom Search API Key
-  googleSearchCx?: string; // NEW: Google Custom Search Engine ID
+  googleSearchCxId?: string; // NEW: Google Custom Search Engine ID (renamed to match user request if needed, keeping Cx for consistency with code)
   autoPilotConfig?: {           // NEW: AI Auto-Pilot Configuration
       targetClasses: string[];
       targetBoards: string[];

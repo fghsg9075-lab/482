@@ -1084,6 +1084,37 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
              </button>
          </div>
 
+         {/* 4. DISCOVER & DEMAND GRID (NEW) */}
+         <div className="w-full px-4 grid grid-cols-2 gap-3 mb-6">
+             {/* Discover Button */}
+             <button onClick={() => {
+                 setAiTopic("Suggest 5 most important topics for my exam");
+                 setShowAiModal(true);
+             }} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-start gap-2 hover:bg-slate-50 transition-colors text-left group">
+                 <div className="p-2 bg-purple-100 rounded-lg text-purple-600 group-hover:bg-purple-200 transition-colors">
+                     <Compass size={18} />
+                 </div>
+                 <div>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase">Discover</p>
+                     <p className="text-xs font-black text-slate-800 leading-tight">Surprise Me</p>
+                 </div>
+             </button>
+
+             {/* Demand Notes Button */}
+             <button onClick={() => {
+                 setAiTopic(""); // Clear for user input
+                 setShowAiModal(true);
+             }} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-start gap-2 hover:bg-slate-50 transition-colors text-left group">
+                 <div className="p-2 bg-green-100 rounded-lg text-green-600 group-hover:bg-green-200 transition-colors">
+                     <Edit size={18} />
+                 </div>
+                 <div>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase">Demand Notes</p>
+                     <p className="text-xs font-black text-slate-800 leading-tight">Request Topic</p>
+                 </div>
+             </button>
+         </div>
+
       </div>
     );
   };

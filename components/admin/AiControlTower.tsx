@@ -3,7 +3,7 @@ import { MASTER_AI_PROVIDERS } from '../../constants';
 import { AIProvider, SystemSettings, AIModel, AIProviderID } from '../../types';
 import { subscribeToAILogs } from '../../services/ai/db';
 import { AILog } from '../../services/ai/types';
-import { RefreshCw, Plus, Trash2, CheckCircle, XCircle, Activity, Server, Key, Brain, RotateCcw, Save, AlertTriangle, Play, Pause, Rocket, Zap, Edit3, Lock, FileText, ScrollText } from 'lucide-react';
+import { RefreshCw, Plus, Trash2, CheckCircle, XCircle, Activity, Server, Key, Brain, RotateCcw, Save, AlertTriangle, Play, Pause, Rocket, Zap, Edit3, Lock, FileText, ScrollText, Globe } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -151,7 +151,7 @@ const KeysManager: React.FC<KeysManagerProps> = ({ providers, addKey, deleteKey 
 
 
 export const AiControlTower: React.FC<Props> = ({ settings, onUpdateSettings }) => {
-    const [activeTab, setActiveTab] = useState<'STATUS' | 'PROVIDERS' | 'KEYS' | 'MAPPING' | 'LOGS'>('STATUS');
+    const [activeTab, setActiveTab] = useState<'STATUS' | 'PROVIDERS' | 'KEYS' | 'MAPPING' | 'LOGS' | 'SEARCH'>('STATUS');
     const [providers, setProviders] = useState<AIProvider[]>([]);
     const [logs, setLogs] = useState<AILog[]>([]);
 
@@ -349,6 +349,53 @@ export const AiControlTower: React.FC<Props> = ({ settings, onUpdateSettings }) 
         </div>
     );
 
+    const renderSearch = () => (
+        <div className="space-y-6 animate-in fade-in">
+            <div className="bg-gray-900/50 p-6 rounded-xl border border-white/10">
+                <div className="flex justify-between items-center mb-6">
+                    <div>
+                        <h3 className="font-bold text-lg text-gray-200">Web Search Configuration (RAG)</h3>
+                        <p className="text-xs text-gray-500">Enable Google Custom Search for real-time data retrieval.</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className={`text-xs font-bold ${settings.isWebSearchEnabled ? 'text-green-400' : 'text-gray-500'}`}>
+                            {settings.isWebSearchEnabled ? 'ENABLED' : 'DISABLED'}
+                        </span>
+                        <button
+                            onClick={() => onUpdateSettings({ ...settings, isWebSearchEnabled: !settings.isWebSearchEnabled })}
+                            className={cn("w-12 h-6 rounded-full transition-colors relative", settings.isWebSearchEnabled ? "bg-green-600" : "bg-gray-600")}
+                        >
+                            <div className={cn("absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform", settings.isWebSearchEnabled ? "translate-x-6" : "")} />
+                        </button>
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    <div>
+                        <label className="text-xs text-gray-400 mb-1 block uppercase">Google Custom Search API Key</label>
+                        <input
+                            type="text"
+                            value={settings.googleSearchApiKey || ''}
+                            onChange={(e) => onUpdateSettings({ ...settings, googleSearchApiKey: e.target.value })}
+                            placeholder="AIzaSy..."
+                            className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none font-mono"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs text-gray-400 mb-1 block uppercase">Search Engine ID (CX)</label>
+                        <input
+                            type="text"
+                            value={settings.googleSearchCxId || ''}
+                            onChange={(e) => onUpdateSettings({ ...settings, googleSearchCxId: e.target.value })}
+                            placeholder="0123456789..."
+                            className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none font-mono"
+                        />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
     const renderStatus = () => {
         const totalKeys = providers.reduce((acc, p) => acc + (p.apiKeys?.length || 0), 0);
         const activeProviders = providers.filter(p => p.isEnabled).length;
@@ -440,6 +487,7 @@ export const AiControlTower: React.FC<Props> = ({ settings, onUpdateSettings }) 
                 <TabButton id="PROVIDERS" label="Providers & Models" icon={Server} activeTab={activeTab} setActiveTab={setActiveTab} />
                 <TabButton id="MAPPING" label="Routing Engine" icon={RotateCcw} activeTab={activeTab} setActiveTab={setActiveTab} />
                 <TabButton id="KEYS" label="API Key Vault" icon={Key} activeTab={activeTab} setActiveTab={setActiveTab} />
+                <TabButton id="SEARCH" label="Web Search (RAG)" icon={Globe} activeTab={activeTab} setActiveTab={setActiveTab} />
                 <TabButton id="LOGS" label="Live Logs" icon={ScrollText} activeTab={activeTab} setActiveTab={setActiveTab} />
             </div>
 
@@ -449,6 +497,7 @@ export const AiControlTower: React.FC<Props> = ({ settings, onUpdateSettings }) 
                 {activeTab === 'PROVIDERS' && renderProvidersList()}
                 {activeTab === 'MAPPING' && renderMappings()}
                 {activeTab === 'KEYS' && <KeysManager providers={providers} addKey={addKey} deleteKey={deleteKey} />}
+                {activeTab === 'SEARCH' && renderSearch()}
                 {activeTab === 'LOGS' && renderLogs()}
             </div>
         </div>
