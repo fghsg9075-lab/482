@@ -21,7 +21,7 @@ import { LoadingOverlay } from './components/LoadingOverlay';
 import { RulesPage } from './components/RulesPage';
 import { IICPage } from './components/IICPage';
 import { WeeklyTestView } from './components/WeeklyTestView';
-import { FloatingDock } from './components/FloatingDock';
+// import { FloatingDock } from './components/FloatingDock';
 import { RewardPopup } from './components/RewardPopup';
 import { CreditConfirmationModal } from './components/CreditConfirmationModal';
 import { CustomAlert, CustomConfirm } from './components/CustomDialogs';
@@ -535,6 +535,11 @@ const App: React.FC = () => {
       if (storedSettings) {
           try {
               const parsed = JSON.parse(storedSettings);
+              // Force inject keys if missing in storage but present in code (for demo fix)
+              if (!parsed.googleSearchApiKey && state.settings.googleSearchApiKey) {
+                  parsed.googleSearchApiKey = state.settings.googleSearchApiKey;
+                  parsed.googleSearchCxId = state.settings.googleSearchCxId;
+              }
               loadedSettings = { ...state.settings, ...parsed };
               setState(prev => ({ 
                   ...prev, 
@@ -1760,7 +1765,7 @@ const App: React.FC = () => {
       )}
       
       {/* FLOATING DOCK */}
-      {state.user && !activeWeeklyTest && !isFullScreen && (
+      {/* {state.user && !activeWeeklyTest && !isFullScreen && (
           <FloatingDock 
             onTabSelect={setStudentTab} 
             onGoHome={goHome} 
@@ -1768,7 +1773,7 @@ const App: React.FC = () => {
             isStudent={state.user.role === 'STUDENT' || !!state.originalAdmin}
             settings={state.settings}
           />
-      )}
+      )} */}
       
       {activeReward && <RewardPopup reward={activeReward} onClaim={handleClaimReward} onIgnore={handleIgnoreReward} />}
       
