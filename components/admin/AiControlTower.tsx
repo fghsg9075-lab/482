@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { MASTER_AI_PROVIDERS } from '../../constants';
 import { AIProvider, SystemSettings, AIModel, AIProviderID } from '../../types';
 import { subscribeToAILogs } from '../../services/ai/db';
-import { AILog } from '../../services/ai/types';
-import { RefreshCw, Plus, Trash2, CheckCircle, XCircle, Activity, Server, Key, Brain, RotateCcw, Save, AlertTriangle, Play, Pause, Rocket, Zap, Edit3, Lock, FileText, ScrollText, Globe } from 'lucide-react';
+import { AILog, AnyLog, SearchLog } from '../../services/ai/types';
+import { RefreshCw, Plus, Trash2, CheckCircle, XCircle, Activity, Server, Key, Brain, RotateCcw, Save, AlertTriangle, Play, Pause, Rocket, Zap, Edit3, Lock, FileText, ScrollText, Globe, Search, Database } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -153,7 +153,7 @@ const KeysManager: React.FC<KeysManagerProps> = ({ providers, addKey, deleteKey 
 export const AiControlTower: React.FC<Props> = ({ settings, onUpdateSettings }) => {
     const [activeTab, setActiveTab] = useState<'STATUS' | 'PROVIDERS' | 'KEYS' | 'MAPPING' | 'LOGS' | 'SEARCH'>('STATUS');
     const [providers, setProviders] = useState<AIProvider[]>([]);
-    const [logs, setLogs] = useState<AILog[]>([]);
+    const [logs, setLogs] = useState<AnyLog[]>([]);
 
     useEffect(() => {
         if (activeTab === 'LOGS') {
@@ -304,47 +304,64 @@ export const AiControlTower: React.FC<Props> = ({ settings, onUpdateSettings }) 
             </div>
 
             <div className="bg-black/20 rounded-xl border border-white/5 overflow-hidden">
-                <table className="w-full text-left text-xs">
-                    <thead className="bg-white/5 text-gray-400 font-bold uppercase">
-                        <tr>
-                            <th className="p-3">Time</th>
-                            <th className="p-3">Provider</th>
-                            <th className="p-3">Model</th>
-                            <th className="p-3">Status</th>
-                            <th className="p-3 text-right">Latency</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                        {logs.length === 0 && (
-                            <tr><td colSpan={5} className="p-8 text-center text-gray-500 italic">No logs received yet. Waiting for traffic...</td></tr>
-                        )}
-                        {logs.map((log) => (
-                            <tr key={log.id} className="hover:bg-white/5 transition-colors font-mono">
-                                <td className="p-3 text-gray-400">
-                                    {new Date(log.timestamp).toLocaleTimeString()}
-                                </td>
-                                <td className="p-3">
-                                    <span className="text-blue-300 font-bold">{log.providerId}</span>
-                                </td>
-                                <td className="p-3 text-gray-300">
-                                    {log.modelId}
-                                </td>
-                                <td className="p-3">
-                                    <span className={cn(
-                                        "px-2 py-0.5 rounded text-[10px] font-bold",
-                                        log.status === 'SUCCESS' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-                                    )}>
-                                        {log.status}
-                                    </span>
-                                    {log.errorMessage && <div className="text-[9px] text-red-400 mt-1 max-w-[200px] truncate">{log.errorMessage}</div>}
-                                </td>
-                                <td className="p-3 text-right text-gray-400">
-                                    {log.latencyMs}ms
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                <div className="divide-y divide-white/5">
+                    {logs.length === 0 && (
+                        <div className="p-8 text-center text-gray-500 italic text-sm">No logs received yet. Waiting for traffic...</div>
+                    )}
+                    {logs.map((log) => {
+                        const isSearch = log.type === 'WEB_SEARCH';
+                        const timestamp = isSearch
+                            ? new Date((log as SearchLog).time * 1000)
+                            : new Date((log as AILog).timestamp);
+
+                        return (
+                            <div key={log.id} className="p-3 hover:bg-white/5 transition-colors font-mono text-xs flex gap-4 items-start">
+                                <span className="text-gray-500 shrink-0 min-w-[70px]">{timestamp.toLocaleTimeString()}</span>
+
+                                {isSearch ? (
+                                    <div className="flex-1 space-y-1">
+                                        <div className="flex items-center gap-2 text-cyan-400 font-bold">
+                                            <Search size={14} />
+                                            <span>SEARCH</span>
+                                            <span className="text-white">"{(log as SearchLog).query}"</span>
+                                        </div>
+                                        {(log as SearchLog).sources && (log as SearchLog).sources.length > 0 && (
+                                            <div className="pl-6 space-y-1">
+                                                {(log as SearchLog).sources.map((src, i) => (
+                                                    <div key={i} className="flex items-center gap-2 text-gray-400 text-[10px]">
+                                                        <Database size={10} />
+                                                        <span className="truncate max-w-[300px]">{new URL(src).hostname}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2">
+                                            <Brain size={14} className="text-purple-400" />
+                                            <span className="text-purple-400 font-bold">AI</span>
+                                            <span className="text-gray-300">{(log as AILog).canonicalModel}</span>
+                                            <span className="text-gray-500">→</span>
+                                            <span className="text-blue-300">{(log as AILog).modelId}</span>
+
+                                            <span className={cn(
+                                                "ml-2 px-1.5 rounded text-[9px] font-bold uppercase",
+                                                (log as AILog).status === 'SUCCESS' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                                            )}>
+                                                {(log as AILog).status}
+                                            </span>
+                                            <span className="text-gray-600">{(log as AILog).latencyMs}ms</span>
+                                        </div>
+                                        {(log as AILog).errorMessage && (
+                                            <div className="pl-6 mt-1 text-red-400">Error: {(log as AILog).errorMessage}</div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
         </div>
     );

@@ -61,6 +61,16 @@ export interface AILog {
     userId?: string;
 }
 
+export interface SearchLog {
+    id: string;
+    type: 'WEB_SEARCH';
+    query: string;
+    sources: string[];
+    time: number; // Epoch timestamp as requested
+}
+
+export type AnyLog = AILog | SearchLog;
+
 export interface AIUsageStats {
     totalCalls: number;
     totalCost: number;

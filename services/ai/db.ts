@@ -1,7 +1,7 @@
 import { db, rtdb, sanitizeForFirestore } from '../../firebase';
 import { collection, doc, setDoc, getDoc, getDocs, updateDoc, increment } from 'firebase/firestore';
 import { ref, set, get, update, onValue, runTransaction } from 'firebase/database';
-import { AIProviderConfig, AIModelConfig, AIKey, AICanonicalMapping, AILog, AIProviderType, CanonicalModel } from './types';
+import { AIProviderConfig, AIModelConfig, AIKey, AICanonicalMapping, AILog, SearchLog, AnyLog, AIProviderType, CanonicalModel } from './types';
 
 // --- PROVIDERS ---
 export const saveAIProvider = async (provider: AIProviderConfig) => {
@@ -154,13 +154,33 @@ export const logAIRequest = async (log: AILog) => {
     } catch (e) { console.error("Error logging AI:", e); }
 };
 
-export const subscribeToAILogs = (callback: (logs: AILog[]) => void) => {
+export const logSearchRequest = async (log: SearchLog) => {
+    try {
+        await set(ref(rtdb, `ai_logs/${log.id}`), sanitizeForFirestore(log));
+    } catch (e) { console.error("Error logging Search:", e); }
+};
+
+export const subscribeToAILogs = (callback: (logs: AnyLog[]) => void) => {
     const logsRef = ref(rtdb, 'ai_logs');
     return onValue(logsRef, (snapshot) => {
         const data = snapshot.val();
         if (data) {
-            const logs = Object.values(data) as AILog[];
-            logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+            const logs = Object.values(data) as AnyLog[];
+            // Sort by timestamp (Handling both string ISO and number epoch)
+            logs.sort((a, b) => {
+                // Normalize to Milliseconds
+                // SearchLog: 'time' (Seconds) -> * 1000
+                // AILog: 'timestamp' (ISO String) -> Date.parse()
+                const getMs = (log: any) => {
+                    if (log.time) return log.time * 1000;
+                    if (log.timestamp) return new Date(log.timestamp).getTime();
+                    return 0;
+                };
+
+                const tA = getMs(a);
+                const tB = getMs(b);
+                return tB - tA;
+            });
             callback(logs.slice(0, 50));
         } else {
             callback([]);
