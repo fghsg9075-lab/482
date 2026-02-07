@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Youtube, FileText, CheckSquare, MessageCircle, Trophy, Gamepad2, History, Gift, ShoppingBag, Calendar, Settings, ChevronLeft, Home, Menu, X, Bot } from 'lucide-react';
+import { Youtube, FileText, CheckSquare, MessageCircle, Trophy, Gamepad2, History, Gift, ShoppingBag, Calendar, Settings, ChevronLeft, Home, Menu, X, Bot, Book } from 'lucide-react';
 import { StudentTab, ViewState, SystemSettings } from '../types';
 
 interface Props {
@@ -16,6 +16,8 @@ export const FloatingDock: React.FC<Props> = ({ onTabSelect, onGoHome, onGoBack,
     if (!isStudent) return null; 
 
     const menuItems: { id: StudentTab, icon: any, label: string, color: string }[] = [
+        { id: 'HOME', icon: Home, label: 'Home', color: 'text-blue-600' },
+        { id: 'COURSES', icon: Book, label: 'Courses', color: 'text-orange-600' },
         { id: 'AI_CHAT', icon: Bot, label: 'AI Tutor', color: 'text-indigo-600' },
         { id: 'VIDEO', icon: Youtube, label: 'Video', color: 'text-red-600' },
         { id: 'PDF', icon: FileText, label: 'Notes', color: 'text-blue-600' },

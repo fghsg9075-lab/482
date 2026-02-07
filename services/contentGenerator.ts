@@ -255,14 +255,7 @@ export const fetchLessonContent = async (
           onStream // Stream the final pass to user
       });
 
-      // Step E: Quality Check & Save
-      if (finalContent.length < 1500) {
-          // Retry Logic (Recursive call with forceRegenerate=true, limited depth needed in real implementation)
-          // For simplicity here, we flag it or append a warning.
-          // Real fix: We throw error to trigger retry if we had a retry wrapper.
-          console.warn("Content too short, marking for review.");
-      }
-
+      // Step E: Save to Cache
       await saveChapterData(structuredKey, {
           content: finalContent,
           generatedAt: new Date().toISOString(),
@@ -341,35 +334,6 @@ export const generateCustomNotes = async (userTopic: string, adminPrompt: string
 };
 
 export const generateUltraAnalysis = async (data: any, settings?: SystemSettings): Promise<string> => {
-    const prompt = `
-    Analyze performance: ${JSON.stringify(data)}.
-
-    CRITICAL: Return strictly valid JSON.
-    The response MUST have these exact keys: "analysis" and "final".
-    Format:
-    {
-      "analysis": " Detailed breakdown of weak areas...",
-      "final": "Actionable next steps and motivation..."
-    }
-
-    Do NOT return just "content". Do NOT return markdown code blocks.
-    `;
-
-    const text = await executeCanonical({ canonicalModel: 'ANALYSIS_ENGINE', prompt, jsonMode: true });
-
-    // BACKEND FIX: Ensure consistency
-    try {
-        const parsed = JSON.parse(text);
-        if (!parsed.analysis && parsed.final) parsed.analysis = parsed.final;
-        if (!parsed.final && parsed.analysis) parsed.final = parsed.analysis;
-        // If still missing (e.g. returned 'content'), map it
-        if (!parsed.analysis && parsed.content) {
-            parsed.analysis = parsed.content;
-            parsed.final = parsed.content;
-        }
-        return JSON.stringify(parsed);
-    } catch(e) {
-        // Fallback if JSON is broken but text exists
-        return JSON.stringify({ analysis: text, final: text });
-    }
+    const prompt = `Analyze performance: ${JSON.stringify(data)}. Return JSON {topics:[], motivation:"", nextSteps:{}}`;
+    return await executeCanonical({ canonicalModel: 'ANALYSIS_ENGINE', prompt, jsonMode: true });
 };
