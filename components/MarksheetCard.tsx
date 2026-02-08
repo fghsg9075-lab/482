@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { MCQResult, User, SystemSettings } from '../types';
-import { X, Share2, ChevronLeft, ChevronRight, Download, FileSearch, Grid, CheckCircle, XCircle, Clock, Award, BrainCircuit, Play, StopCircle, BookOpen, Target, Zap, BarChart3, ListChecks, FileText, LayoutTemplate, TrendingUp, AlertTriangle, RefreshCw, Sparkles, Headphones } from 'lucide-react';
+import { X, Share2, ChevronLeft, ChevronRight, Download, FileSearch, Grid, CheckCircle, XCircle, Clock, Award, BrainCircuit, Play, StopCircle, BookOpen, Target, Zap, BarChart3, ListChecks, FileText, LayoutTemplate, TrendingUp, AlertTriangle, RefreshCw, Sparkles, Headphones, Lock, Crown } from 'lucide-react';
 import html2canvas from 'html2canvas';
-import { generateUltraAnalysis, generateUniversalAnalysis } from '../services/groq';
+import { generateUniversalAnalysis } from '../services/groq';
 import { saveUniversalAnalysis, saveUserToLive, saveAiInteraction, getChapterData } from '../firebase';
 import ReactMarkdown from 'react-markdown';
 import { speakText, stopSpeech, getCategorizedVoices } from '../utils/textToSpeech';
@@ -23,24 +23,22 @@ interface Props {
 
 export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose, onViewAnalysis, onPublish, questions, onUpdateUser, initialView }) => {
   const [page, setPage] = useState(1);
-  // Replaced showOMR with activeTab logic
-  const [activeTab, setActiveTab] = useState<'OMR' | 'MISTAKES' | 'STATS' | 'AI' | 'RECOMMENDED' | 'MARKSHEET_1' | 'MARKSHEET_2'>('OMR');
+  const [activeTab, setActiveTab] = useState<'OMR' | 'MISTAKES' | 'STATS' | 'TOPIC_ANALYSIS' | 'RECOMMENDED' | 'MARKSHEET_1' | 'MARKSHEET_2'>('OMR');
   
-  // ULTRA ANALYSIS STATE
-  const [ultraAnalysisResult, setUltraAnalysisResult] = useState('');
-  const [isLoadingUltra, setIsLoadingUltra] = useState(false);
+  // TOPIC ANALYSIS STATE
+  const [topicBreakdown, setTopicBreakdown] = useState<any[]>([]);
+
+  // RECOMMENDATION STATE
   const [recommendations, setRecommendations] = useState<RecommendedItem[]>([]);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
-  
+  const [isRecommendationsUnlocked, setIsRecommendationsUnlocked] = useState(false);
+  const [isLoadingRecs, setIsLoadingRecs] = useState(false);
+
   // UNIVERSAL ANALYSIS STATE (PER QUESTION)
   const [analyzingQuestionId, setAnalyzingQuestionId] = useState<string | null>(null);
   const [universalAnalysisResults, setUniversalAnalysisResults] = useState<Record<string, any>>({});
 
-  // TTS State
-  const [voices, setVoices] = useState<{hindi: SpeechSynthesisVoice[], indianEnglish: SpeechSynthesisVoice[], others: SpeechSynthesisVoice[]}>({hindi: [], indianEnglish: [], others: []});
-  const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
-  const [speechRate, setSpeechRate] = useState(1.0);
+  // DOWNLOAD & SHARE
+  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
   
   // Dialog State
   const [confirmConfig, setConfirmConfig] = useState<{isOpen: boolean, title: string, message: string, onConfirm: () => void}>({isOpen: false, title: '', message: '', onConfirm: () => {}});
@@ -63,47 +61,42 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
   const devName = 'Nadim Anwar'; // Strict Branding
 
   useEffect(() => {
-    if (initialView === 'ANALYSIS' || result.ultraAnalysisReport) {
-        // If initial view was analysis, we might want to default to AI tab or load it
-        // But per request "1st omr sheet", we default to OMR.
-        // We still load data if needed.
-        if (result.ultraAnalysisReport) {
-             setUltraAnalysisResult(result.ultraAnalysisReport);
+      // CALCULATE TOPIC BREAKDOWN
+      if (questions && questions.length > 0 && result.omrData) {
+          const breakdown: Record<string, { total: number, correct: number, wrong: number, wrongQuestions: any[] }> = {};
 
-             // Extract weak topics if result doesn't have them but report does
-             if ((!result.weakTopics || result.weakTopics.length === 0) && settings?.isRecommendedEnabled) {
-                 try {
-                     const json = JSON.parse(result.ultraAnalysisReport);
-                     const extractedWeak = json.weak_topics_list || json.nextSteps?.focusTopics || [];
-                     if (extractedWeak.length > 0) {
-                         // We just update local recommendations trigger, not result object (avoid prop mutation)
-                         // But we need result.weakTopics for the Tab condition?
-                         // Actually, we can check recommendations state or a local hasWeakTopics state.
-                         // Let's create recommendations here if empty
-                         getChapterData(`nst_content_${user.board || 'CBSE'}_${result.classLevel || user.classLevel || '10'}_${result.subjectName}_${result.chapterId}`).then(content => {
-                             if (content) {
-                                 const recs = getRecommendedContent(extractedWeak, content, user, 'SCHOOL');
-                                 setRecommendations(recs);
-                             }
-                         });
-                     }
-                 } catch(e) {}
-             }
-        }
-    }
-  }, [initialView, result.ultraAnalysisReport, settings?.isRecommendedEnabled]);
+          result.omrData.forEach(entry => {
+              const q = questions[entry.qIndex];
+              if (!q || !q.topic) return;
 
-  useEffect(() => {
-      getCategorizedVoices().then(v => {
-          setVoices(v);
-          // Prioritize Hindi or Indian English
-          const preferred = v.hindi[0] || v.indianEnglish[0] || v.others[0];
-          if (preferred) setSelectedVoice(preferred);
-      });
-  }, []);
+              const topic = q.topic;
+              if (!breakdown[topic]) breakdown[topic] = { total: 0, correct: 0, wrong: 0, wrongQuestions: [] };
+
+              breakdown[topic].total++;
+              if (entry.selected === entry.correct) {
+                  breakdown[topic].correct++;
+              } else if (entry.selected !== -1) {
+                  breakdown[topic].wrong++;
+                  breakdown[topic].wrongQuestions.push(q);
+              }
+          });
+
+          // Convert to Array & Classify
+          const breakdownArray = Object.keys(breakdown).map(topic => {
+              const data = breakdown[topic];
+              const accuracy = (data.correct / data.total) * 100;
+              let status = 'WEAK';
+              if (accuracy >= 80) status = 'STRONG';
+              else if (accuracy >= 50) status = 'AVERAGE';
+
+              return { topic, ...data, accuracy, status };
+          });
+
+          setTopicBreakdown(breakdownArray);
+      }
+  }, [questions, result]);
 
   const handleDownload = async () => {
-      // Logic for downloading current view
       let elementId = 'marksheet-content'; 
       if (activeTab === 'MARKSHEET_1') elementId = 'marksheet-style-1';
       if (activeTab === 'MARKSHEET_2') elementId = 'marksheet-style-2';
@@ -121,26 +114,6 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
       }
   };
 
-  const handleDownloadAll = async () => {
-      setIsDownloadingAll(true);
-      // Allow time for render
-      setTimeout(async () => {
-          const element = document.getElementById('full-analysis-report');
-          if (element) {
-              try {
-                  const canvas = await html2canvas(element, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
-                  const link = document.createElement('a');
-                  link.download = `Full_Analysis_${user.name}_${new Date().getTime()}.png`;
-                  link.href = canvas.toDataURL('image/png');
-                  link.click();
-              } catch (e) {
-                  console.error('Full Download Failed', e);
-              }
-          }
-          setIsDownloadingAll(false);
-      }, 1000);
-  };
-
   const handleShare = async () => {
       const appLink = settings?.officialAppUrl || "https://play.google.com/store/apps/details?id=com.nsta.app"; 
       const text = `*${settings?.appName || 'IDEAL INSPIRATION CLASSES'} RESULT*\n\nName: ${user.name}\nScore: ${result.score}/${result.totalQuestions}\nAccuracy: ${percentage}%\nCorrect: ${result.correctCount}\nWrong: ${result.wrongCount}\nTime: ${formatTime(result.totalTimeSeconds)}\nDate: ${new Date(result.date).toLocaleDateString()}\n\nदेखिये मेरा NSTA रिजल्ट! आप भी टेस्ट दें...\nDownload App: ${appLink}`;
@@ -151,131 +124,63 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
       }
   };
 
-  const handleUltraAnalysis = async (skipCost: boolean = false) => {
-      // 1. CHECK EXISTING REPORT (No Cost)
-      if (result.ultraAnalysisReport) {
-          setUltraAnalysisResult(result.ultraAnalysisReport);
+  const handleUnlockRecommendations = async () => {
+      // 1. Get Weak & Average Topics
+      const targetTopics = topicBreakdown
+          .filter(t => t.status === 'WEAK' || t.status === 'AVERAGE')
+          .map(t => t.topic);
+
+      if (targetTopics.length === 0 && topicBreakdown.length > 0) {
+          alert("Excellent Work! You have no weak topics. Recommendations will show advanced content.");
+      }
+
+      // 2. Check Credits
+      const cost = settings?.recommendationCost ?? 10;
+      if (user.credits < cost && !user.role?.includes('ADMIN')) {
+          alert(`Insufficient Credits! You need ${cost} coins to unlock recommendations.`);
           return;
       }
 
-      if (!questions || questions.length === 0) {
-          return;
-      }
+      setConfirmConfig({
+          isOpen: true,
+          title: "Unlock Recommendations",
+          message: `Unlock personalized notes for ${targetTopics.length || 'all'} topics?\n\nCost: ${cost} Coins`,
+          onConfirm: async () => {
+              setIsLoadingRecs(true);
+              setConfirmConfig(prev => ({...prev, isOpen: false}));
 
-      const cost = settings?.mcqAnalysisCostUltra ?? 20;
+              // 3. Deduct Credits
+              if (!user.role?.includes('ADMIN')) {
+                  const updatedUser = { ...user, credits: user.credits - cost };
+                  if (onUpdateUser) onUpdateUser(updatedUser);
+                  localStorage.setItem('nst_current_user', JSON.stringify(updatedUser));
+                  saveUserToLive(updatedUser);
+              }
 
-      if (!skipCost) {
-          if (user.credits < cost) {
-              alert(`Insufficient Credits! You need ${cost} coins for Analysis Ultra.`);
-              return;
-          }
-
-          if (!confirm(`Unlock AI Analysis Ultra for ${cost} Coins?\n\nThis will identify your weak topics and suggest a study plan.`)) {
-              return;
-          }
-      }
-
-      setIsLoadingUltra(true);
-      
-      try {
-          // Prepare Data
-          const userAnswers: Record<number, number> = {};
-          if (result.omrData) {
-              result.omrData.forEach(d => {
-                  userAnswers[d.qIndex] = d.selected;
-              });
-          }
-
-          // Generate Analysis FIRST
-          const analysisText = await generateUltraAnalysis({
-              questions: questions,
-              userAnswers: userAnswers,
-              score: result.score,
-              total: result.totalQuestions,
-              subject: result.subjectName,
-              chapter: result.chapterTitle,
-              classLevel: result.classLevel || '10'
-          }, settings);
-
-          setUltraAnalysisResult(analysisText);
-
-          // 2. GENERATE RECOMMENDATIONS (If Enabled)
-          let recs: RecommendedItem[] = [];
-          if (settings?.isRecommendedEnabled) {
+              // 4. Generate Recommendations
               try {
-                  const json = JSON.parse(analysisText);
-                  const weakTopics = json.weak_topics_list || json.nextSteps?.focusTopics || [];
+                  const board = user.board || 'CBSE';
+                  const classLevel = result.classLevel || user.classLevel || '10';
+                  const stream = user.stream || null;
+                  const streamKey = (classLevel === '11' || classLevel === '12') && stream ? `-${stream}` : '';
+                  const key = `nst_content_${board}_${classLevel}${streamKey}_${result.subjectName}_${result.chapterId}`;
 
-                  if (weakTopics.length > 0) {
-                      // Fetch Chapter Content
-                      const board = user.board || 'CBSE';
-                      const classLevel = result.classLevel || user.classLevel || '10';
-                      const stream = user.stream || null;
-                      const streamKey = (classLevel === '11' || classLevel === '12') && stream ? `-${stream}` : '';
-                      const key = `nst_content_${board}_${classLevel}${streamKey}_${result.subjectName}_${result.chapterId}`;
-
-                      const chapterContent = await getChapterData(key);
-                      if (chapterContent) {
-                          recs = getRecommendedContent(weakTopics, chapterContent, user, 'SCHOOL');
-                          setRecommendations(recs);
-                      }
+                  const chapterContent = await getChapterData(key);
+                  if (chapterContent) {
+                      const recs = getRecommendedContent(targetTopics, chapterContent, user, 'SCHOOL');
+                      setRecommendations(recs);
+                      setIsRecommendationsUnlocked(true);
+                  } else {
+                      alert("Content not found for this chapter.");
                   }
-              } catch(e) { console.error("Recs Error", e); }
+              } catch (e) {
+                  console.error("Recs Error", e);
+                  alert("Failed to load recommendations.");
+              } finally {
+                  setIsLoadingRecs(false);
+              }
           }
-
-          // 3. DEDUCT CREDITS & SAVE REPORT
-          const updatedResult = {
-              ...result,
-              ultraAnalysisReport: analysisText,
-              weakTopics: recs.map(r => r.matchReason || '').filter(Boolean),
-              recommendedContent: recs
-          };
-          
-          // Update History (Find and replace the result in history)
-          const updatedHistory = (user.mcqHistory || []).map(r => r.id === result.id ? updatedResult : r);
-          
-          const updatedUser = { 
-              ...user, 
-              credits: skipCost ? user.credits : user.credits - cost,
-              mcqHistory: updatedHistory
-          };
-
-          localStorage.setItem('nst_current_user', JSON.stringify(updatedUser));
-          await saveUserToLive(updatedUser);
-          if (onUpdateUser) onUpdateUser(updatedUser);
-
-          // Log to Universal Analysis
-          await saveUniversalAnalysis({
-              id: `analysis-${Date.now()}`,
-              userId: user.id,
-              userName: user.name,
-              date: new Date().toISOString(),
-              subject: result.subjectName,
-              chapter: result.chapterTitle,
-              score: result.score,
-              totalQuestions: result.totalQuestions,
-              userPrompt: `Analysis for ${result.totalQuestions} Questions. Score: ${result.score}`, 
-              aiResponse: analysisText,
-              cost: skipCost ? 0 : cost
-          });
-          
-          // Also Log to AI History
-          await saveAiInteraction({
-              id: `ai-ultra-${Date.now()}`,
-              userId: user.id,
-              userName: user.name,
-              type: 'ULTRA_ANALYSIS',
-              query: `Ultra Analysis for ${result.chapterTitle}`,
-              response: analysisText,
-              timestamp: new Date().toISOString()
-          });
-
-      } catch (error: any) {
-          console.error("Ultra Analysis Error:", error);
-          setUltraAnalysisResult(JSON.stringify({ error: "Failed to generate analysis. Please try again or contact support." }));
-      } finally {
-          setIsLoadingUltra(false);
-      }
+      });
   };
 
   const renderOMRRow = (qIndex: number, selected: number, correct: number) => {
@@ -310,39 +215,31 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
       );
   };
 
-  const toggleSpeech = (text: string) => {
-      if (isSpeaking) {
-          stopSpeech();
-          setIsSpeaking(false);
-      } else {
-          // COIN CHECK
-          const COST = 20;
-          if (user.credits < COST) {
-              alert(`Insufficient Coins! Voice costs ${COST} Coins.`);
-              return;
-          }
-          if (!user.isAutoDeductEnabled) {
-              setConfirmConfig({
-                  isOpen: true,
-                  title: "Listen to Analysis?",
-                  message: `This will cost ${COST} Coins.`,
-                  onConfirm: () => {
-                      if(onUpdateUser) onUpdateUser({...user, credits: user.credits - COST});
-                      setConfirmConfig(prev => ({...prev, isOpen: false}));
-                      startSpeaking(text);
-                  }
-              });
-              return;
-          }
-          
-          if(onUpdateUser) onUpdateUser({...user, credits: user.credits - COST});
-          startSpeaking(text);
-      }
-  };
+  const handleUniversalAnalysis = async (q: any) => {
+      const qId = `${result.id}-${q.qIndex}`;
+      if (universalAnalysisResults[qId]) return;
 
-  const startSpeaking = (text: string) => {
-      speakText(text, selectedVoice, speechRate);
-      setIsSpeaking(true);
+      setAnalyzingQuestionId(qId);
+      try {
+          const analysisStr = await generateUniversalAnalysis({
+              class: result.classLevel || '10',
+              subject: result.subjectName,
+              chapter: result.chapterTitle,
+              question: q.question,
+              student_answer: "Wrong Answer Selected",
+              correct_answer: q.correctAnswer ? q.correctAnswer.toString() : "Refer Answer Key",
+              difficulty: "Medium"
+          });
+
+          let analysisData = {};
+          try { analysisData = JSON.parse(analysisStr); } catch(e) {}
+
+          setUniversalAnalysisResults(prev => ({...prev, [qId]: analysisData}));
+      } catch (e) {
+          console.error("Universal Analysis Error", e);
+      } finally {
+          setAnalyzingQuestionId(null);
+      }
   };
 
   // --- SECTION RENDERERS ---
@@ -364,33 +261,6 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
             )}
         </div>
   );
-
-  const handleUniversalAnalysis = async (q: any) => {
-      const qId = `${result.id}-${q.qIndex}`;
-      if (universalAnalysisResults[qId]) return; // Already loaded
-
-      setAnalyzingQuestionId(qId);
-      try {
-          const analysisStr = await generateUniversalAnalysis({
-              class: result.classLevel || '10',
-              subject: result.subjectName,
-              chapter: result.chapterTitle,
-              question: q.question,
-              student_answer: "Wrong Answer Selected", // Since we don't have the text of selected answer easily available here without mapping, and status is WRONG.
-              correct_answer: q.correctAnswer ? q.correctAnswer.toString() : "Refer Answer Key",
-              difficulty: "Medium"
-          });
-
-          let analysisData = {};
-          try { analysisData = JSON.parse(analysisStr); } catch(e) {}
-
-          setUniversalAnalysisResults(prev => ({...prev, [qId]: analysisData}));
-      } catch (e) {
-          console.error("Universal Analysis Error", e);
-      } finally {
-          setAnalyzingQuestionId(null);
-      }
-  };
 
   const renderMistakesSection = () => (
         <>
@@ -433,7 +303,6 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
                             </div>
                         </div>
 
-                        {/* UNIVERSAL ANALYSIS RESULT */}
                         {analysis && (
                             <div className="bg-slate-50 p-4 border-t border-slate-100 animate-in slide-in-from-top-2">
                                 <div className="flex items-center gap-2 mb-3">
@@ -454,26 +323,6 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
                                             <span className="text-slate-700">{analysis.correct_concept}</span>
                                         </div>
                                     )}
-                                    {analysis.weak_topic && (
-                                        <div className="flex gap-2 text-xs">
-                                            <span className="font-bold text-slate-500">Weak Topic:</span>
-                                            <span className="bg-red-100 text-red-700 px-2 rounded font-bold">{analysis.weak_topic}</span>
-                                        </div>
-                                    )}
-                                    {analysis.study_plan && (
-                                        <div className="text-xs bg-white p-2 rounded border border-slate-100">
-                                            <span className="font-bold text-blue-600 block mb-1">To Revise:</span>
-                                            <ul className="list-disc pl-4 space-y-0.5 text-slate-600">
-                                                {Array.isArray(analysis.study_plan) ? analysis.study_plan.map((s: string, i: number) => <li key={i}>{s}</li>) : <li>{analysis.study_plan}</li>}
-                                            </ul>
-                                        </div>
-                                    )}
-                                    {analysis.practice_question && (
-                                        <div className="text-xs bg-yellow-50 p-2 rounded border border-yellow-100">
-                                            <span className="font-bold text-yellow-800 block mb-1">Practice Question:</span>
-                                            <span className="text-slate-700 italic">"{analysis.practice_question}"</span>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                         )}
@@ -489,8 +338,92 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
         </>
   );
 
+  const renderTopicAnalysisSection = () => (
+      <div className="space-y-4 animate-in slide-in-from-bottom-4">
+          <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-4">
+              <h3 className="font-black text-blue-800 flex items-center gap-2 mb-2">
+                  <Target size={18} /> Topic Breakdown
+              </h3>
+              <p className="text-xs text-blue-700">
+                  Performance analysis based on your test results. Focus on Weak topics.
+              </p>
+          </div>
+
+          {topicBreakdown.length === 0 ? (
+              <div className="text-center py-10 text-slate-400 bg-white rounded-xl border border-dashed">
+                  <p>No topic data available for this test.</p>
+              </div>
+          ) : (
+              <div className="space-y-3">
+                  {topicBreakdown.map((item, idx) => (
+                      <div key={idx} className={`p-4 rounded-xl border-2 bg-white flex flex-col gap-3 ${
+                          item.status === 'WEAK' ? 'border-red-100 shadow-sm' :
+                          item.status === 'STRONG' ? 'border-green-100' : 'border-blue-100'
+                      }`}>
+                          <div className="flex justify-between items-center">
+                              <div>
+                                  <h4 className="font-bold text-slate-800 text-sm">{item.topic}</h4>
+                                  <div className="flex gap-2 mt-1">
+                                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                                          item.status === 'WEAK' ? 'bg-red-100 text-red-700' :
+                                          item.status === 'STRONG' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                                      }`}>
+                                          {item.status}
+                                      </span>
+                                      <span className="text-[10px] text-slate-500 font-medium">
+                                          {item.correct}/{item.total} Correct ({Math.round(item.accuracy)}%)
+                                      </span>
+                                  </div>
+                              </div>
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-xs ${
+                                  item.status === 'WEAK' ? 'bg-red-50 text-red-600' :
+                                  item.status === 'STRONG' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'
+                              }`}>
+                                  {Math.round(item.accuracy)}%
+                              </div>
+                          </div>
+
+                          {/* Wrong Questions Preview */}
+                          {item.wrongQuestions.length > 0 && (
+                              <div className="bg-slate-50 p-3 rounded-lg text-xs">
+                                  <p className="font-bold text-slate-500 mb-1">Mistakes:</p>
+                                  <ul className="list-disc pl-4 space-y-1 text-slate-600">
+                                      {item.wrongQuestions.map((q: any, i: number) => (
+                                          <li key={i} className="line-clamp-1">{q.question}</li>
+                                      ))}
+                                  </ul>
+                              </div>
+                          )}
+                      </div>
+                  ))}
+              </div>
+          )}
+      </div>
+  );
+
   const renderRecommendedSection = () => {
-      // 1. Split into Free and Premium
+      // GATED VIEW
+      if (!isRecommendationsUnlocked) {
+          return (
+              <div className="bg-gradient-to-br from-pink-600 to-rose-700 rounded-3xl p-8 text-center text-white shadow-xl animate-in zoom-in-95">
+                  <Sparkles size={48} className="mx-auto mb-4 opacity-80" />
+                  <h4 className="text-2xl font-black mb-2">Personalized Study Plan</h4>
+                  <p className="text-pink-100 text-sm mb-8 max-w-xs mx-auto font-medium">
+                      Unlock tailored notes for your weak topics. We curate specific content to boost your score.
+                  </p>
+                  <button
+                      onClick={handleUnlockRecommendations}
+                      disabled={isLoadingRecs}
+                      className="bg-white text-pink-600 px-8 py-4 rounded-2xl font-black shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2 mx-auto disabled:opacity-80"
+                  >
+                      {isLoadingRecs ? <span className="animate-spin">⏳</span> : <Lock size={18} />}
+                      {isLoadingRecs ? 'Generating...' : `Unlock Recommendations (${settings?.recommendationCost ?? 10} Coins)`}
+                  </button>
+              </div>
+          );
+      }
+
+      // UNLOCKED VIEW
       const freeItems = recommendations.filter(r => !r.isLocked);
       const premiumItems = recommendations.filter(r => r.isLocked);
 
@@ -502,7 +435,7 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
                       item.type === 'PDF' ? 'bg-orange-100 text-orange-600' :
                       'bg-pink-100 text-pink-600'
                   }`}>
-                      {item.type === 'VIDEO' ? <Play size={20} /> : item.type === 'PDF' ? <FileText size={20} /> : <Headphones size={20} />}
+                      <FileText size={20} />
                   </div>
                   <div>
                       <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
@@ -513,7 +446,6 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
                           <span className={`text-[10px] px-2 py-0.5 rounded uppercase font-bold ${isLocked ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}`}>
                               {isLocked ? 'PREMIUM' : 'FREE'}
                           </span>
-                          <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded uppercase font-bold">{item.type}</span>
                           {item.matchReason && (
                               <span className="text-[10px] text-red-500 font-medium flex items-center gap-1">
                                   <Target size={10} /> Focus: {item.matchReason}
@@ -544,21 +476,21 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
       );
 
       return (
-          <div className="space-y-6">
+          <div className="space-y-6 animate-in slide-in-from-bottom-4">
               <div className="bg-pink-50 p-4 rounded-xl border border-pink-100 mb-4">
                   <h3 className="font-black text-pink-800 flex items-center gap-2 mb-2">
-                      <Sparkles size={18} /> Smart Recommendations
+                      <Sparkles size={18} /> Recommended Notes
                   </h3>
                   <p className="text-xs text-pink-700">
-                      We found tailored resources to boost your weak topics. Start with free content!
+                      Tailored study material based on your test performance.
                   </p>
               </div>
 
               {recommendations.length === 0 ? (
                   <div className="text-center py-10 text-slate-400">
                       <FileSearch size={48} className="mx-auto mb-2 opacity-50"/>
-                      <p>No specific recommendations found yet.</p>
-                      <p className="text-xs">Complete more tests to generate accurate suggestions.</p>
+                      <p>No specific recommendations found.</p>
+                      <p className="text-xs">Try reviewing the full chapter notes.</p>
                   </div>
               ) : (
                   <>
@@ -566,7 +498,7 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
                       {freeItems.length > 0 && (
                           <div>
                               <h4 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
-                                  <CheckCircle size={14} className="text-green-500" /> Free Resources
+                                  <CheckCircle size={14} className="text-green-500" /> Free Notes
                               </h4>
                               <div className="grid gap-3">
                                   {freeItems.map(item => renderItem(item, false))}
@@ -578,7 +510,7 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
                       {premiumItems.length > 0 && (
                           <div>
                               <h4 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2 mt-2">
-                                  <Crown size={14} className="text-purple-500" /> Premium Picks (High Yield)
+                                  <Crown size={14} className="text-purple-500" /> Premium Notes (High Yield)
                               </h4>
                               <div className="grid gap-3 opacity-90">
                                   {premiumItems.map(item => renderItem(item, true))}
@@ -635,258 +567,6 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
             </div>
         </div>
   );
-
-  // Render Analysis Content
-  const renderAnalysisContent = () => {
-    if (!ultraAnalysisResult) return null;
-
-    let data: any = {};
-    let isJson = false;
-    try {
-        data = JSON.parse(ultraAnalysisResult);
-        isJson = true;
-    } catch (e) {
-        // Not JSON
-    }
-
-    // ERROR HANDLING
-    if (isJson && data.error) {
-        return (
-            <div className="bg-red-50 p-6 rounded-2xl border border-red-100 text-center animate-in fade-in">
-                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <AlertTriangle size={32} className="text-red-500" />
-                </div>
-                <h3 className="font-black text-red-800 text-lg mb-2">Analysis Failed</h3>
-                <p className="text-sm text-red-600 mb-6 font-medium max-w-xs mx-auto">{data.error}</p>
-                <button
-                    onClick={() => handleUltraAnalysis(true)}
-                    className="bg-red-600 text-white px-6 py-3 rounded-xl font-bold text-xs shadow-lg hover:bg-red-700 transition-all flex items-center gap-2 mx-auto"
-                >
-                    <RefreshCw size={16} /> Retry Analysis
-                </button>
-            </div>
-        );
-    }
-
-    if (!isJson) {
-        return (
-             <div className="prose prose-slate max-w-none prose-p:text-slate-600 prose-headings:font-black prose-headings:text-slate-800 prose-strong:text-indigo-700">
-                <ReactMarkdown>{ultraAnalysisResult}</ReactMarkdown>
-            </div>
-        );
-    }
-
-    // Prepare Chart Data
-    const topicStats = (data.topics || []).reduce((acc: any, t: any) => {
-        if (t.status === 'STRONG') acc.strong++;
-        else if (t.status === 'WEAK') acc.weak++;
-        else acc.avg++;
-        return acc;
-    }, { strong: 0, weak: 0, avg: 0 });
-    
-    const totalTopics = (data.topics || []).length;
-
-    // Professional Box Layout
-    return (
-        <div className="space-y-6">
-            
-            {/* NEW: AI ROADMAP SECTION */}
-            {data.nextSteps && (
-                <div className="bg-gradient-to-r from-violet-50 to-indigo-50 p-5 rounded-2xl border border-indigo-100 shadow-sm">
-                    <h3 className="text-sm font-black text-indigo-800 uppercase tracking-wide mb-3 flex items-center gap-2">
-                        <Target size={16} /> Next 2 Days Plan
-                    </h3>
-                    <div className="bg-white p-4 rounded-xl border border-indigo-100">
-                        <p className="text-xs font-bold text-slate-400 uppercase mb-1">Focus Topics</p>
-                        <div className="flex flex-wrap gap-2 mb-3">
-                            {data.nextSteps.focusTopics?.map((t: string, i: number) => (
-                                <span key={i} className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-bold border border-indigo-200">
-                                    {t}
-                                </span>
-                            ))}
-                        </div>
-                        <p className="text-xs font-bold text-slate-400 uppercase mb-1">Action</p>
-                        <p className="text-sm text-slate-700 font-medium">{data.nextSteps.action}</p>
-                    </div>
-                </div>
-            )}
-
-            {/* NEW: WEAK TO STRONG PATH */}
-            {data.weakToStrongPath && data.weakToStrongPath.length > 0 && (
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-wide mb-4 flex items-center gap-2">
-                        <TrendingUp size={16} className="text-green-600" /> Weak to Strong Path
-                    </h3>
-                    <div className="space-y-4">
-                        {data.weakToStrongPath.map((step: any, i: number) => (
-                            <div key={i} className="flex gap-4">
-                                <div className="flex flex-col items-center">
-                                    <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-xs shadow-md z-10">
-                                        {step.step || i + 1}
-                                    </div>
-                                    {i < data.weakToStrongPath.length - 1 && <div className="w-0.5 h-full bg-slate-200 -my-2"></div>}
-                                </div>
-                                <div className="pb-4">
-                                    <p className="text-sm font-bold text-slate-800">{step.action}</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* PERFORMANCE CHART (CSS) */}
-            {totalTopics > 0 && (
-                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                    <h4 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-1">
-                        <BarChart3 size={14} /> Topic Performance
-                    </h4>
-                    <div className="flex h-4 w-full rounded-full overflow-hidden">
-                        <div style={{ width: `${(topicStats.strong / totalTopics) * 100}%` }} className="bg-green-500 h-full" title="Strong Topics" />
-                        <div style={{ width: `${(topicStats.avg / totalTopics) * 100}%` }} className="bg-blue-400 h-full" title="Average Topics" />
-                        <div style={{ width: `${(topicStats.weak / totalTopics) * 100}%` }} className="bg-red-500 h-full" title="Weak Topics" />
-                    </div>
-                    <div className="flex justify-between mt-2 text-[10px] font-bold text-slate-500">
-                        <div className="flex items-center gap-1"><div className="w-2 h-2 bg-green-500 rounded-full"/> Strong ({topicStats.strong})</div>
-                        <div className="flex items-center gap-1"><div className="w-2 h-2 bg-blue-400 rounded-full"/> Average ({topicStats.avg})</div>
-                        <div className="flex items-center gap-1"><div className="w-2 h-2 bg-red-500 rounded-full"/> Weak ({topicStats.weak})</div>
-                    </div>
-                </div>
-            )}
-
-            {/* NEW: VISUAL MIND MAP */}
-            {data.topics && (
-                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
-                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-wide mb-6 flex items-center gap-2">
-                        <BrainCircuit size={16} className="text-purple-600" /> Topic Mind Map
-                    </h3>
-                    
-                    <div className="min-w-[300px] flex flex-col items-center">
-                        {/* Central Node */}
-                        <div className="bg-slate-900 text-white px-6 py-3 rounded-full font-black text-sm shadow-lg mb-8 relative z-10 border-4 border-slate-100 text-center">
-                            {data.chapter || result.chapterTitle || 'Chapter'}
-                            <div className="absolute top-full left-1/2 -translate-x-1/2 w-0.5 h-8 bg-slate-300"></div>
-                        </div>
-
-                        {/* Branches */}
-                        <div className="flex justify-center gap-4 flex-wrap relative">
-                            {data.topics.map((topic: any, i: number) => {
-                                let colorClass = "bg-blue-100 text-blue-800 border-blue-200";
-                                if (topic.status === 'WEAK') colorClass = "bg-red-100 text-red-800 border-red-200";
-                                if (topic.status === 'STRONG') colorClass = "bg-green-100 text-green-800 border-green-200";
-
-                                return (
-                                    <div key={i} className="flex flex-col items-center relative group">
-                                        {/* Connector to parent */}
-                                        <div className="w-0.5 h-8 bg-slate-300 -mt-8 mb-2"></div>
-                                        
-                                        <div className={`px-4 py-2 rounded-xl border-2 text-xs font-bold shadow-sm ${colorClass} max-w-[120px] text-center`}>
-                                            {topic.name}
-                                            <span className="block text-[8px] opacity-70 mt-1 uppercase">{topic.status}</span>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {data.motivation && (
-                <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-4 rounded-xl text-white shadow-lg text-center italic font-medium">
-                    "{data.motivation}"
-                </div>
-            )}
-
-            {data.topics && data.topics.map((topic: any, idx: number) => {
-                let borderColor = "border-slate-200";
-                let bgColor = "bg-white";
-                let titleColor = "text-slate-800";
-                
-                if (topic.status === 'WEAK') {
-                    borderColor = "border-red-500";
-                    bgColor = "bg-red-50";
-                    titleColor = "text-red-700";
-                } else if (topic.status === 'STRONG') {
-                    borderColor = "border-green-500";
-                    bgColor = "bg-green-50";
-                    titleColor = "text-green-700";
-                } else {
-                    borderColor = "border-blue-500";
-                    bgColor = "bg-blue-50";
-                    titleColor = "text-blue-700";
-                }
-
-                return (
-                    <div key={idx} className={`rounded-xl border-2 ${borderColor} ${bgColor} overflow-hidden shadow-sm`}>
-                        <div className={`p-4 border-b ${borderColor} flex justify-between items-center`}>
-                            <h3 className={`font-black text-lg uppercase tracking-wide ${titleColor}`}>{topic.name}</h3>
-                            <span className={`text-[10px] font-bold px-2 py-1 rounded-full text-white ${topic.status === 'WEAK' ? 'bg-red-500' : topic.status === 'STRONG' ? 'bg-green-500' : 'bg-blue-500'}`}>
-                                {topic.status}
-                            </span>
-                        </div>
-
-                        <div className="p-4 space-y-4">
-                            {/* Questions */}
-                            <div>
-                                <h4 className="text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-1">
-                                    <Grid size={12} /> Related Questions
-                                </h4>
-                                <div className="space-y-2">
-                                    {topic.questions && topic.questions.map((q: any, qi: number) => (
-                                        <div key={qi} className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm flex items-start gap-3">
-                                            {q.status === 'CORRECT' ? <CheckCircle size={16} className="text-green-500 shrink-0 mt-0.5" /> : <XCircle size={16} className="text-red-500 shrink-0 mt-0.5" />}
-                                            <div>
-                                                <p className="text-sm font-medium text-slate-700">{q.text}</p>
-                                                {q.status === 'WRONG' && q.correctAnswer && (
-                                                    <p className="text-xs text-green-600 mt-1 font-bold">Correct Answer: {q.correctAnswer}</p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Action Plan */}
-                            <div className="bg-white p-3 rounded-xl border border-dashed border-slate-300">
-                                <h4 className="text-xs font-bold text-slate-500 uppercase mb-1 flex items-center gap-1">
-                                    <Target size={12} /> How to Work
-                                </h4>
-                                <p className="text-sm text-slate-700 font-medium leading-relaxed">{topic.actionPlan}</p>
-                            </div>
-
-                            {/* Study Mode */}
-                            <div className="flex items-center gap-2">
-                                <h4 className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">
-                                    <BookOpen size={12} /> Recommendation:
-                                </h4>
-                                <span className={`text-xs font-black px-3 py-1 rounded-full ${topic.studyMode === 'DEEP_STUDY' ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-yellow-100 text-yellow-700 border border-yellow-200'}`}>
-                                    {topic.studyMode === 'DEEP_STUDY' ? 'DEEP STUDY REQUIRED' : 'QUICK REVISION'}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                );
-            })}
-        </div>
-    );
-  };
-
-  const getAnalysisTextForSpeech = () => {
-    try {
-        const data = JSON.parse(ultraAnalysisResult);
-        let text = "";
-        if (data.motivation) text += data.motivation + ". ";
-        if (data.topics) {
-            data.topics.forEach((t: any) => {
-                text += `Topic: ${t.name}. Status: ${t.status}. ${t.actionPlan}. `;
-            });
-        }
-        return text;
-    } catch {
-        return ultraAnalysisResult.replace(/[#*]/g, '');
-    }
-  };
 
   // MARKSHET STYLE 1: Centered Logo
   const renderMarksheetStyle1 = () => (
@@ -1090,19 +770,17 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
                     <BarChart3 size={14} className="inline mr-1 mb-0.5" /> Normal
                 </button>
                 <button 
-                    onClick={() => setActiveTab('AI')}
-                    className={`px-4 py-2 text-xs font-bold rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${activeTab === 'AI' ? 'border-indigo-600 text-indigo-600 bg-indigo-50' : 'border-transparent text-slate-500 hover:bg-slate-50'}`}
+                    onClick={() => setActiveTab('TOPIC_ANALYSIS')}
+                    className={`px-4 py-2 text-xs font-bold rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${activeTab === 'TOPIC_ANALYSIS' ? 'border-indigo-600 text-indigo-600 bg-indigo-50' : 'border-transparent text-slate-500 hover:bg-slate-50'}`}
                 >
-                    <BrainCircuit size={14} className="inline mr-1 mb-0.5" /> AI Analysis
+                    <BrainCircuit size={14} className="inline mr-1 mb-0.5" /> Topic Analysis
                 </button>
-                {settings?.isRecommendedEnabled && ((result.weakTopics && result.weakTopics.length > 0) || (ultraAnalysisResult && JSON.parse(ultraAnalysisResult).weak_topics_list?.length > 0)) && (
-                    <button
-                        onClick={() => setActiveTab('RECOMMENDED')}
-                        className={`px-4 py-2 text-xs font-bold rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${activeTab === 'RECOMMENDED' ? 'border-pink-600 text-pink-600 bg-pink-50' : 'border-transparent text-slate-500 hover:bg-slate-50'}`}
-                    >
-                        <Sparkles size={14} className="inline mr-1 mb-0.5" /> Recommended
-                    </button>
-                )}
+                <button
+                    onClick={() => setActiveTab('RECOMMENDED')}
+                    className={`px-4 py-2 text-xs font-bold rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${activeTab === 'RECOMMENDED' ? 'border-pink-600 text-pink-600 bg-pink-50' : 'border-transparent text-slate-500 hover:bg-slate-50'}`}
+                >
+                    <Sparkles size={14} className="inline mr-1 mb-0.5" /> Recommended
+                </button>
                 <button 
                     onClick={() => setActiveTab('MARKSHEET_1')}
                     className={`px-4 py-2 text-xs font-bold rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${activeTab === 'MARKSHEET_1' ? 'border-indigo-600 text-indigo-600 bg-indigo-50' : 'border-transparent text-slate-500 hover:bg-slate-50'}`}
@@ -1135,89 +813,8 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
                     </div>
                 )}
                 
-                {/* 4. AI ANALYSIS SECTION */}
-                {activeTab === 'AI' && (
-                    <div className="animate-in slide-in-from-bottom-4">
-                        <div className="flex justify-between items-center mb-3 px-2">
-                            <div className="flex items-center gap-2">
-                                <BrainCircuit className="text-violet-600" size={20} />
-                                <h3 className="font-black text-slate-800 text-lg">AI Performance Analysis</h3>
-                            </div>
-                            {ultraAnalysisResult && (
-                                <div className="flex items-center gap-2">
-                                    {/* VOICE SELECTOR */}
-                                    <select 
-                                        className="text-[10px] p-1.5 border rounded-lg bg-white max-w-[120px] truncate"
-                                        value={selectedVoice?.name || ''}
-                                        onChange={(e) => {
-                                            const v = [...voices.hindi, ...voices.indianEnglish, ...voices.others].find(voice => voice.name === e.target.value);
-                                            if(v) setSelectedVoice(v);
-                                        }}
-                                    >
-                                        <optgroup label="Hindi">
-                                            {voices.hindi.map(v => <option key={v.name} value={v.name}>{v.name}</option>)}
-                                        </optgroup>
-                                        <optgroup label="Indian English">
-                                            {voices.indianEnglish.map(v => <option key={v.name} value={v.name}>{v.name}</option>)}
-                                        </optgroup>
-                                        <optgroup label="Others">
-                                            {voices.others.slice(0, 5).map(v => <option key={v.name} value={v.name}>{v.name}</option>)}
-                                        </optgroup>
-                                    </select>
-
-                                    {/* SPEED SELECTOR */}
-                                    <select 
-                                        className="text-[10px] p-1.5 border rounded-lg bg-white font-bold"
-                                        value={speechRate}
-                                        onChange={(e) => setSpeechRate(parseFloat(e.target.value))}
-                                    >
-                                        <option value={0.75}>0.75x</option>
-                                        <option value={1.0}>1x</option>
-                                        <option value={1.25}>1.25x</option>
-                                        <option value={1.5}>1.5x</option>
-                                        <option value={2.0}>2x</option>
-                                    </select>
-
-                                    <button 
-                                        onClick={() => toggleSpeech(getAnalysisTextForSpeech())} 
-                                        className={`p-2 rounded-full transition-colors ${isSpeaking ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-white text-slate-600 shadow-sm border'}`}
-                                        title="Listen (20 Coins)"
-                                    >
-                                        {isSpeaking ? <StopCircle size={18} /> : <Play size={18} />}
-                                    </button>
-                                    {/* DOWNLOAD AUDIO PLACEHOLDER */}
-                                    <button 
-                                        onClick={() => alert("Audio Download is currently disabled on Web. Use App for offline listening.")}
-                                        className="p-2 rounded-full bg-white text-slate-600 shadow-sm border hover:bg-slate-50 transition-colors opacity-50"
-                                        title="Download Audio (App Only)"
-                                    >
-                                        <Download size={18} />
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-
-                        {!ultraAnalysisResult ? (
-                            <div className="bg-gradient-to-br from-violet-600 to-indigo-700 rounded-3xl p-6 text-center text-white shadow-lg">
-                                <BrainCircuit size={48} className="mx-auto mb-4 opacity-80" />
-                                <h4 className="text-xl font-black mb-2">Unlock Topic Breakdown</h4>
-                                <p className="text-indigo-100 text-sm mb-6 max-w-xs mx-auto">
-                                    Get AI-powered insights on your weak areas, study plan, and topic-wise performance graph.
-                                </p>
-                                <button 
-                                    onClick={() => handleUltraAnalysis()} 
-                                    disabled={isLoadingUltra}
-                                    className="bg-white text-indigo-600 px-6 py-3 rounded-xl font-black shadow-xl hover:scale-105 transition-transform flex items-center justify-center gap-2 mx-auto disabled:opacity-80"
-                                >
-                                    {isLoadingUltra ? <span className="animate-spin">⏳</span> : <UnlockIcon />}
-                                    {isLoadingUltra ? 'Analyzing...' : `Unlock Analysis (${settings?.mcqAnalysisCostUltra ?? 20} Coins)`}
-                                </button>
-                            </div>
-                        ) : (
-                            renderAnalysisContent()
-                        )}
-                    </div>
-                )}
+                {/* 4. TOPIC ANALYSIS SECTION (Replaces AI) */}
+                {activeTab === 'TOPIC_ANALYSIS' && renderTopicAnalysisSection()}
 
                 {/* 5. RECOMMENDED SECTION */}
                 {activeTab === 'RECOMMENDED' && (
@@ -1287,11 +884,11 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
                     </div>
                 )}
 
-                {/* 3. AI ANALYSIS */}
-                {ultraAnalysisResult && (
+                {/* 3. TOPIC ANALYSIS */}
+                {topicBreakdown.length > 0 && (
                     <div>
-                        <h2 className="text-2xl font-black text-slate-800 mb-4 border-l-8 border-violet-600 pl-3 uppercase">3. AI Deep Analysis</h2>
-                        {renderAnalysisContent()}
+                        <h2 className="text-2xl font-black text-slate-800 mb-4 border-l-8 border-violet-600 pl-3 uppercase">3. Topic Breakdown</h2>
+                        {renderTopicAnalysisSection()}
                     </div>
                 )}
 
@@ -1312,10 +909,3 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
     </div>
   );
 };
-
-const UnlockIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-    </svg>
-);
