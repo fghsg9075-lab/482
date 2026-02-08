@@ -10,3 +10,6 @@
 [BABEL] Note: The code generator has deoptimised the styling of /app/components/AdminDashboard.tsx as it exceeds the max of 500KB.
 10:46:30 AM [vite] (client) hmr update /components/MarksheetCard.tsx
 10:46:53 AM [vite] (client) hmr update /components/MarksheetCard.tsx
+1:37:32 PM [vite] (client) hmr update /components/AdminDashboard.tsx
+1:38:02 PM [vite] (client) hmr update /components/MarksheetCard.tsx
+1:39:39 PM [vite] (client) hmr update /components/MarksheetCard.tsx

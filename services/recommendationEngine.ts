@@ -21,53 +21,15 @@ export const getRecommendedContent = (
 
     // 1. Identify User Access Level
     const isPremium = user.isPremium && user.subscriptionEndDate && new Date(user.subscriptionEndDate) > new Date();
-    // const isFreeUser = !isPremium && user.role !== 'ADMIN'; // REMOVED AGGRESSIVE FILTER
 
-    let recommendations: RecommendedItem[] = [];
+    let candidates: RecommendedItem[] = [];
 
     // Helper to normalize string for fuzzy match
     const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-    // 2. Gather All Content Candidates based on Mode
-    let candidates: RecommendedItem[] = [];
+    // 2. Gather Notes Candidates ONLY (No Video/Audio)
 
-    // Videos
-    const videos = syllabusMode === 'SCHOOL'
-        ? (content.schoolVideoPlaylist || content.videoPlaylist || [])
-        : (content.competitionVideoPlaylist || []);
-
-    videos.forEach((v: any) => {
-        candidates.push({
-            id: `vid-${v.url}`,
-            title: v.title,
-            type: 'VIDEO',
-            url: v.url,
-            price: v.price || 0,
-            access: v.access || 'FREE',
-            isLocked: !isPremium && (v.access === 'BASIC' || v.access === 'ULTRA' || (v.price && v.price > 0))
-        });
-    });
-
-    // Audio
-    const audios = syllabusMode === 'SCHOOL'
-        ? (content.schoolAudioPlaylist || content.audioPlaylist || [])
-        : (content.competitionAudioPlaylist || []);
-
-    audios.forEach((a: any) => {
-        candidates.push({
-            id: `aud-${a.url}`,
-            title: a.title,
-            type: 'AUDIO',
-            url: a.url,
-            price: a.price || 0,
-            access: a.access || 'FREE',
-            isLocked: !isPremium && (a.access === 'BASIC' || a.access === 'ULTRA' || (a.price && a.price > 0))
-        });
-    });
-
-    // Notes (PDFs & Premium Slots)
-
-    // Main PDF
+    // A. Main PDF (Usually Free or Basic)
     const pdfLink = syllabusMode === 'SCHOOL' ? content.schoolPdfLink : content.competitionPdfLink;
     const pdfPrice = (syllabusMode === 'SCHOOL' ? content.schoolPdfPrice : content.competitionPdfPrice) || 0;
 
@@ -83,7 +45,7 @@ export const getRecommendedContent = (
         });
     }
 
-    // Premium Slots
+    // B. Premium Note Slots (Strictly Premium)
     const slots = syllabusMode === 'SCHOOL'
         ? (content.schoolPdfPremiumSlots || content.premiumNoteSlots || [])
         : (content.competitionPdfPremiumSlots || []);
@@ -103,11 +65,11 @@ export const getRecommendedContent = (
     // 3. Match Weak Topics (Fuzzy Search)
     let matchedItems: RecommendedItem[] = [];
 
-    // If no weak topics, return generic suggestions
+    // If no weak topics, return generic suggestions (Top Free + Top Premium)
     if (!weakTopics || weakTopics.length === 0) {
          // Return top 2 free and top 2 premium items
-         const free = candidates.filter(c => !c.isLocked).slice(0, 2);
-         const premium = candidates.filter(c => c.isLocked).slice(0, 2);
+         const free = candidates.filter(c => !c.isLocked).slice(0, 3);
+         const premium = candidates.filter(c => c.isLocked).slice(0, 3);
          return [...free, ...premium];
     }
 
@@ -132,7 +94,7 @@ export const getRecommendedContent = (
     if (matchedItems.length < 3) {
         const generals = candidates.filter(c => !matchedItems.some(m => m.id === c.id)).slice(0, 3 - matchedItems.length);
         generals.forEach(g => {
-            g.matchReason = "General Chapter Revision";
+            if(!g.matchReason) g.matchReason = "General Chapter Revision";
             matchedItems.push(g);
         });
     }

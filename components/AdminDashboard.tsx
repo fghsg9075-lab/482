@@ -9849,6 +9849,7 @@ Capital of India?       Mumbai  Delhi   Kolkata Chennai 2       Delhi is the cap
                           { key: 'mcqAnalysisCost', label: 'MCQ Analysis Unlock', default: 5 },
                           { key: 'mcqAnalysisCostUltra', label: 'MCQ Analysis Ultra', default: 20 },
                           { key: 'mcqHistoryCost', label: 'MCQ History View', default: 1 },
+                          { key: 'recommendationCost', label: 'Unlock Recommendations', default: 10 },
                           { key: 'defaultPdfCost', label: 'PDF Access', default: 5 },
                           { key: 'defaultVideoCost', label: 'Video Access', default: 5 },
                           { key: 'chatCost', label: 'Support Chat', default: 1 },

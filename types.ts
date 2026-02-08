@@ -266,6 +266,7 @@ export interface SystemSettings {
   mcqHistoryCost?: number;
   mcqTestCost?: number;
   mcqAnalysisCost?: number;
+  recommendationCost?: number; // NEW: Cost to view Recommendations
   appShortName?: string; // e.g. "IIC"
   playerBrandingText?: string; // NEW: Custom Video Player Overlay Text
   playerBlockShare?: boolean; // NEW: Block Share
