@@ -184,93 +184,17 @@ export const fetchLessonContent = async (
       return { id: Date.now().toString(), title: chapter.title, subtitle: "Content Unavailable", content: "", type: type, dateCreated: new Date().toISOString(), subjectName: subject.name, isComingSoon: true };
   }
 
-  // 3. RAG + 3-Pass AI Pipeline
+  // NO AI NOTES GENERATION ALLOWED (STRICT)
   if (type === 'NOTES_PREMIUM' || type === 'NOTES_SIMPLE' || type === 'NOTES_HTML_PREMIUM') {
-
-      // Step A: Web Research (RAG Layer)
-      let webContext = "";
-      if (settings?.isWebSearchEnabled && settings?.googleSearchApiKey && settings?.googleSearchCxId) {
-          if (onStream) onStream("🔍 Searching the web for latest curriculum...");
-          const query = `${chapter.title} class ${classLevel} ${subject.name} ${board} syllabus notes explanation`;
-          webContext = await searchWeb(query, settings.googleSearchApiKey, settings.googleSearchCxId);
-      }
-
-      // Step B: Pass 1 - Research Summarizer
-      if (onStream) onStream("📑 Analyzing research data...");
-      const pass1Prompt = `
-      CONTEXT: ${webContext}
-      TASK: Summarize key topics for ${chapter.title} (${board} Class ${classLevel}).
-      FOCUS: Core concepts, definitions, and key facts. Keep it raw and factual.
-      `;
-      const researchSummary = await executeCanonical({ canonicalModel: 'NOTES_ENGINE', prompt: pass1Prompt });
-
-      // Step C: Pass 2 - NCERT Structurer
-      if (onStream) onStream("🏗️ Structuring content...");
-      const pass2Prompt = `
-      SOURCE MATERIAL: ${researchSummary}
-      TASK: Structure this into a proper Chapter Layout.
-      SECTIONS REQUIRED:
-      1. Quick Overview
-      2. Core Theory (Subtopics with Headings)
-      3. Important Diagrams (Describe them)
-      4. Comparison Tables
-      `;
-      const structuredContent = await executeCanonical({ canonicalModel: 'NOTES_ENGINE', prompt: pass2Prompt });
-
-      // Step D: Pass 3 - Exam Optimizer (Final Output)
-      if (onStream) onStream("✨ Finalizing notes...");
-      const finalPrompt = `
-      CONTENT: ${structuredContent}
-      ROLE: Top Coaching Institute Teacher.
-      TASK: Convert this into FINAL STUDY MATERIAL.
-
-      MANDATORY LAYOUT (Use Markdown Headers):
-      # Quick Overview
-      (Summary + Exam Weightage)
-
-      # Core Theory
-      (Detailed explanation with Bullet points. Cover ALL subtopics from NCERT/BSEB)
-
-      # Visual Learning
-      (Flowcharts using text/arrows, Table of Differences)
-
-      # Real Life Example
-      (Connect topic to daily life)
-
-      # Board Questions
-      (5 Important subjective questions with model answers)
-
-      # MCQs
-      (5 Practice MCQs with answer key)
-
-      STYLE:
-      - Strict ${board} pattern.
-      - Use "Hinglish" if Board is BSEB.
-      - Make it engaging and premium.
-      `;
-
-      const finalContent = await executeCanonical({
-          canonicalModel: 'NOTES_ENGINE',
-          prompt: finalPrompt,
-          onStream // Stream the final pass to user
-      });
-
-      // Step E: Save to Cache
-      await saveChapterData(structuredKey, {
-          content: finalContent,
-          generatedAt: new Date().toISOString(),
-          source: "RAG + 3-Pass"
-      });
-
       return {
           id: Date.now().toString(),
           title: chapter.title,
-          subtitle: "AI Generated Notes",
-          content: finalContent,
+          subtitle: "Content Unavailable",
+          content: "AI Notes Generation is disabled.",
           type: type,
           dateCreated: new Date().toISOString(),
           subjectName: subject.name,
-          isComingSoon: false
+          isComingSoon: true
       };
   }
 
@@ -397,6 +321,73 @@ export const generateUltraAnalysis = async (data: any, settings?: SystemSettings
             topics: [],
             motivation: "Keep practicing!",
             nextSteps: {}
+        });
+    }
+};
+
+export const generateUniversalAnalysis = async (data: {
+    class: string | number,
+    subject: string,
+    chapter: string,
+    question: string,
+    student_answer: string,
+    correct_answer: string,
+    difficulty?: string
+}): Promise<string> => {
+
+    const subjectRules: Record<string, string> = {
+        science: "focus on concepts and reactions",
+        math: "focus on steps and formulas",
+        english: "focus on grammar and usage",
+        history: "focus on events and timelines",
+        civics: "focus on definitions and examples",
+        geography: "focus on locations and physical features",
+        hindi: "focus on grammar and vocabulary"
+    };
+
+    const subjectLower = data.subject.toLowerCase();
+    const rule = subjectRules[subjectLower] || "focus on clear explanation";
+
+    const prompt = `
+    You are an expert teacher for Indian boards.
+
+    Analyze the student's answer.
+
+    Return:
+    1. Why the answer is wrong.
+    2. Correct explanation.
+    3. Weak concept/topic.
+    4. What the student should revise.
+    5. One similar practice question.
+
+    Use simple student-friendly language.
+    Apply subject rules for: ${data.subject} (${rule})
+
+    Input Data:
+    ${JSON.stringify(data)}
+
+    OUTPUT JSON ONLY:
+    {
+      "mistake_reason": "...",
+      "correct_concept": "...",
+      "weak_topic": "...",
+      "study_plan": ["...","..."],
+      "practice_question": "..."
+    }
+    `;
+
+    try {
+        const result = await executeCanonical({ canonicalModel: 'ANALYSIS_ENGINE', prompt, jsonMode: true });
+        return cleanJson(result);
+    } catch (e) {
+        console.error("Universal Analysis Failed", e);
+        return JSON.stringify({
+            error: "Analysis failed.",
+            mistake_reason: "Could not analyze at this moment.",
+            correct_concept: "Please review the correct answer provided.",
+            weak_topic: "Review Chapter",
+            study_plan: ["Read textbook"],
+            practice_question: ""
         });
     }
 };

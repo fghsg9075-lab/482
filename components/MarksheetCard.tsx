@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MCQResult, User, SystemSettings } from '../types';
 import { X, Share2, ChevronLeft, ChevronRight, Download, FileSearch, Grid, CheckCircle, XCircle, Clock, Award, BrainCircuit, Play, StopCircle, BookOpen, Target, Zap, BarChart3, ListChecks, FileText, LayoutTemplate, TrendingUp, AlertTriangle, RefreshCw } from 'lucide-react';
 import html2canvas from 'html2canvas';
-import { generateUltraAnalysis } from '../services/groq';
+import { generateUltraAnalysis, generateUniversalAnalysis } from '../services/groq';
 import { saveUniversalAnalysis, saveUserToLive, saveAiInteraction } from '../firebase';
 import ReactMarkdown from 'react-markdown';
 import { speakText, stopSpeech, getCategorizedVoices } from '../utils/textToSpeech';
@@ -31,6 +31,10 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
   
+  // UNIVERSAL ANALYSIS STATE (PER QUESTION)
+  const [analyzingQuestionId, setAnalyzingQuestionId] = useState<string | null>(null);
+  const [universalAnalysisResults, setUniversalAnalysisResults] = useState<Record<string, any>>({});
+
   // TTS State
   const [voices, setVoices] = useState<{hindi: SpeechSynthesisVoice[], indianEnglish: SpeechSynthesisVoice[], others: SpeechSynthesisVoice[]}>({hindi: [], indianEnglish: [], others: []});
   const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
@@ -310,6 +314,33 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
         </div>
   );
 
+  const handleUniversalAnalysis = async (q: any) => {
+      const qId = `${result.id}-${q.qIndex}`;
+      if (universalAnalysisResults[qId]) return; // Already loaded
+
+      setAnalyzingQuestionId(qId);
+      try {
+          const analysisStr = await generateUniversalAnalysis({
+              class: result.classLevel || '10',
+              subject: result.subjectName,
+              chapter: result.chapterTitle,
+              question: q.question,
+              student_answer: "Wrong Answer Selected", // Since we don't have the text of selected answer easily available here without mapping, and status is WRONG.
+              correct_answer: q.correctAnswer ? q.correctAnswer.toString() : "Refer Answer Key",
+              difficulty: "Medium"
+          });
+
+          let analysisData = {};
+          try { analysisData = JSON.parse(analysisStr); } catch(e) {}
+
+          setUniversalAnalysisResults(prev => ({...prev, [qId]: analysisData}));
+      } catch (e) {
+          console.error("Universal Analysis Error", e);
+      } finally {
+          setAnalyzingQuestionId(null);
+      }
+  };
+
   const renderMistakesSection = () => (
         <>
         <div className="flex items-center gap-2 mb-3 px-2">
@@ -318,22 +349,85 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
         </div>
         {result.wrongQuestions && result.wrongQuestions.length > 0 ? (
             <div className="space-y-3">
-                {result.wrongQuestions.map((q, idx) => (
-                    <div key={idx} className="p-4 bg-white rounded-2xl border border-red-100 shadow-sm flex gap-3">
-                        <span className="w-6 h-6 flex-shrink-0 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs font-bold mt-0.5">
-                            {q.qIndex + 1}
-                        </span>
-                        <div className="flex-1">
-                            <p className="text-sm text-slate-700 font-medium leading-relaxed mb-1">
-                                {q.question}
-                            </p>
-                            <p className="text-xs text-green-600 font-bold">
-                                Correct Answer: <span className="text-slate-700">{q.correctAnswer}</span>
-                            </p>
-                            {q.explanation && <p className="text-xs text-slate-500 mt-1 italic">{q.explanation}</p>}
+                {result.wrongQuestions.map((q, idx) => {
+                    const qId = `${result.id}-${q.qIndex}`;
+                    const analysis = universalAnalysisResults[qId];
+                    const isAnalyzing = analyzingQuestionId === qId;
+
+                    return (
+                    <div key={idx} className="bg-white rounded-2xl border border-red-100 shadow-sm overflow-hidden">
+                        <div className="p-4 flex gap-3">
+                            <span className="w-6 h-6 flex-shrink-0 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs font-bold mt-0.5">
+                                {q.qIndex + 1}
+                            </span>
+                            <div className="flex-1">
+                                <p className="text-sm text-slate-700 font-medium leading-relaxed mb-1">
+                                    {q.question}
+                                </p>
+                                <p className="text-xs text-green-600 font-bold">
+                                    Correct Answer: <span className="text-slate-700">{q.correctAnswer}</span>
+                                </p>
+                                {q.explanation && <p className="text-xs text-slate-500 mt-1 italic">{q.explanation}</p>}
+
+                                {!analysis && (
+                                    <button
+                                        onClick={() => handleUniversalAnalysis(q)}
+                                        disabled={isAnalyzing}
+                                        className="mt-3 text-[10px] font-bold bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-1"
+                                    >
+                                        {isAnalyzing ? <span className="animate-spin">⏳</span> : <BrainCircuit size={12} />}
+                                        {isAnalyzing ? 'Analyzing...' : 'Analyze with AI'}
+                                    </button>
+                                )}
+                            </div>
                         </div>
+
+                        {/* UNIVERSAL ANALYSIS RESULT */}
+                        {analysis && (
+                            <div className="bg-slate-50 p-4 border-t border-slate-100 animate-in slide-in-from-top-2">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <BrainCircuit size={14} className="text-purple-600" />
+                                    <span className="text-xs font-black text-slate-700 uppercase">AI Diagnosis</span>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {analysis.mistake_reason && (
+                                        <div className="text-xs">
+                                            <span className="font-bold text-red-600 block mb-0.5">Why Wrong:</span>
+                                            <span className="text-slate-700">{analysis.mistake_reason}</span>
+                                        </div>
+                                    )}
+                                    {analysis.correct_concept && (
+                                        <div className="text-xs">
+                                            <span className="font-bold text-green-600 block mb-0.5">Correct Concept:</span>
+                                            <span className="text-slate-700">{analysis.correct_concept}</span>
+                                        </div>
+                                    )}
+                                    {analysis.weak_topic && (
+                                        <div className="flex gap-2 text-xs">
+                                            <span className="font-bold text-slate-500">Weak Topic:</span>
+                                            <span className="bg-red-100 text-red-700 px-2 rounded font-bold">{analysis.weak_topic}</span>
+                                        </div>
+                                    )}
+                                    {analysis.study_plan && (
+                                        <div className="text-xs bg-white p-2 rounded border border-slate-100">
+                                            <span className="font-bold text-blue-600 block mb-1">To Revise:</span>
+                                            <ul className="list-disc pl-4 space-y-0.5 text-slate-600">
+                                                {Array.isArray(analysis.study_plan) ? analysis.study_plan.map((s: string, i: number) => <li key={i}>{s}</li>) : <li>{analysis.study_plan}</li>}
+                                            </ul>
+                                        </div>
+                                    )}
+                                    {analysis.practice_question && (
+                                        <div className="text-xs bg-yellow-50 p-2 rounded border border-yellow-100">
+                                            <span className="font-bold text-yellow-800 block mb-1">Practice Question:</span>
+                                            <span className="text-slate-700 italic">"{analysis.practice_question}"</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
-                ))}
+                )})}
             </div>
         ) : (
             <div className="text-center py-10 bg-white rounded-2xl border border-dashed border-slate-200">

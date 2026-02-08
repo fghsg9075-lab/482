@@ -86,8 +86,18 @@ export const StudentAiAssistant: React.FC<Props> = ({ user, settings, isOpen: co
             };
             saveUserToLive(updatedUser);
 
-            const prompt = settings?.aiInstruction || "You are a helpful AI Tutor. Answer the student's question clearly and concisely.";
-            const responseText = await generateCustomNotes(userMsg, prompt, {
+            // FORCE SIMPLE LANGUAGE AS PER "DOUBT SOLVER" SPEC
+            const basePrompt = settings?.aiInstruction || "You are a helpful AI Tutor for Indian students.";
+            const strictPrompt = `${basePrompt}
+
+            IMPORTANT:
+            - Use simple language suitable for a student.
+            - Give real-world examples.
+            - Use "Board Style" explanation (Point-wise if needed).
+            - Keep it concise.
+            `;
+
+            const responseText = await generateCustomNotes(userMsg, strictPrompt, {
                 classLevel: user.classLevel || '10',
                 board: user.board || 'CBSE',
                 subject: 'General'
