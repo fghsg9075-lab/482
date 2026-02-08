@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Subject, StudentTab, SystemSettings, CreditPackage, WeeklyTest, Chapter, MCQItem, Challenge20 } from '../types';
-import { updateUserStatus, db, saveUserToLive, getChapterData, rtdb, saveAiInteraction } from '../firebase';
+import { updateUserStatus, db, saveUserToLive, getChapterData, rtdb, saveAiInteraction, saveSystemSettings } from '../firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { ref, query, limitToLast, onValue } from 'firebase/database';
 import { getSubjectsList, DEFAULT_APP_FEATURES, ALL_APP_FEATURES } from '../constants';
@@ -15,6 +15,7 @@ import { Layout, Gift, Sparkles, Megaphone, Lock, BookOpen, AlertCircle, Edit, S
 import { BannerCarousel } from './BannerCarousel';
 import { SubjectSelection } from './SubjectSelection';
 import { ChapterSelection } from './ChapterSelection'; // Imported for Video Flow
+import { ContentTypeSelection } from './ContentTypeSelection'; // New Component
 import { VideoPlaylistView } from './VideoPlaylistView'; // Imported for Video Flow
 import { AudioPlaylistView } from './AudioPlaylistView'; // Imported for Audio Flow
 import { PdfView } from './PdfView'; // Imported for PDF Flow
@@ -110,7 +111,8 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
   const [activeExternalApp, setActiveExternalApp] = useState<string | null>(null);
   const [pendingApp, setPendingApp] = useState<{app: any, cost: number} | null>(null);
   // GENERIC CONTENT FLOW STATE (Used for Video, PDF, MCQ)
-  const [contentViewStep, setContentViewStep] = useState<'SUBJECTS' | 'CHAPTERS' | 'PLAYER'>('SUBJECTS');
+  const [contentViewStep, setContentViewStep] = useState<'TYPES' | 'SUBJECTS' | 'CHAPTERS' | 'PLAYER'>('TYPES');
+  const [selectedContentType, setSelectedContentType] = useState<'VIDEO' | 'PDF' | 'MCQ' | 'AUDIO'>('PDF');
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -532,10 +534,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
       localStorage.setItem('nst_system_settings', JSON.stringify(newSettings));
 
       // Also update Firebase if connected (best effort)
-      saveUserToLive(user); // This saves USER, not settings.
-      // We need to use saveSystemSettings from firebase.ts but it's not imported.
-      // Let's just rely on LocalStorage for immediate effect and force a reload or assume AdminDashboard syncs it.
-      // Actually, we can just force a reload to see changes if we can't update props.
+      saveSystemSettings(newSettings);
       window.location.reload();
   };
 
@@ -937,7 +936,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                           handleContentChapterSelect(chapter);
                       }
                   }}
-                  onBack={() => { setContentViewStep('SUBJECTS'); onTabChange('COURSES'); }}
+                  onBack={() => { setContentViewStep('SUBJECTS'); }}
               />
           );
       }
@@ -1573,6 +1572,17 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
       }
       // 2. COURSES TAB (Schooling System)
       if (activeTab === 'COURSES') {
+          if (contentViewStep === 'TYPES') {
+              return (
+                  <ContentTypeSelection
+                      onSelect={(type) => {
+                          setSelectedContentType(type);
+                          setContentViewStep('SUBJECTS');
+                      }}
+                      onBack={() => onTabChange('HOME')}
+                  />
+              );
+          }
           if (contentViewStep === 'SUBJECTS') {
               return (
                   <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24">
@@ -1580,11 +1590,12 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                           classLevel={user.classLevel || '10'}
                           stream={user.stream || null}
                           onSelect={handleContentSubjectSelect}
+                          onBack={() => setContentViewStep('TYPES')}
                       />
                   </div>
               );
           }
-          return renderContentSection('PDF'); // Default to PDF/Notes view for chapter list
+          return renderContentSection(selectedContentType);
       }
 
       // 4. LEGACY TABS (Mapped to new structure or kept as sub-views)
@@ -2016,7 +2027,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                     <span className="text-[10px] font-bold mt-1">Videos</span>
                 </button>
 
-                <button onClick={() => { onTabChange('COURSES'); setContentViewStep('SUBJECTS'); }} className={`flex flex-col items-center justify-center w-full h-full ${activeTab === 'COURSES' ? 'text-blue-600' : 'text-slate-400'}`}>
+                <button onClick={() => { onTabChange('COURSES'); setContentViewStep('TYPES'); }} className={`flex flex-col items-center justify-center w-full h-full ${activeTab === 'COURSES' ? 'text-blue-600' : 'text-slate-400'}`}>
                     <Book size={24} fill={activeTab === 'COURSES' ? "currentColor" : "none"} />
                     <span className="text-[10px] font-bold mt-1">Courses</span>
                 </button>
