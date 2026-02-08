@@ -1084,36 +1084,6 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
              </button>
          </div>
 
-         {/* 4. DISCOVER & DEMAND GRID (NEW) */}
-         <div className="w-full px-4 grid grid-cols-2 gap-3 mb-6">
-             {/* Discover Button */}
-             <button onClick={() => {
-                 setAiTopic("Suggest 5 most important topics for my exam");
-                 setShowAiModal(true);
-             }} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-start gap-2 hover:bg-slate-50 transition-colors text-left group">
-                 <div className="p-2 bg-purple-100 rounded-lg text-purple-600 group-hover:bg-purple-200 transition-colors">
-                     <Compass size={18} />
-                 </div>
-                 <div>
-                     <p className="text-[10px] font-bold text-slate-400 uppercase">Discover</p>
-                     <p className="text-xs font-black text-slate-800 leading-tight">Surprise Me</p>
-                 </div>
-             </button>
-
-             {/* Demand Notes Button */}
-             <button onClick={() => {
-                 setAiTopic(""); // Clear for user input
-                 setShowAiModal(true);
-             }} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-start gap-2 hover:bg-slate-50 transition-colors text-left group">
-                 <div className="p-2 bg-green-100 rounded-lg text-green-600 group-hover:bg-green-200 transition-colors">
-                     <Edit size={18} />
-                 </div>
-                 <div>
-                     <p className="text-[10px] font-bold text-slate-400 uppercase">Demand Notes</p>
-                     <p className="text-xs font-black text-slate-800 leading-tight">Request Topic</p>
-                 </div>
-             </button>
-         </div>
 
       </div>
     );
@@ -1382,30 +1352,6 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                               </div>
                           </DashboardSectionWrapper>
 
-                          {/* 2. AI NOTES POSTER (If Enabled) */}
-                          {settings?.isAiEnabled && (
-                              <div
-                                  onClick={() => setShowAiModal(true)}
-                                  className="mx-1 h-48 relative overflow-hidden rounded-2xl shadow-lg cursor-pointer group flex flex-col justify-center"
-                              >
-                                  <div className="absolute inset-0 bg-gradient-to-r from-violet-600 to-indigo-600"></div>
-                                  <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20"></div>
-
-                                  <div className="relative p-5 flex items-center justify-between">
-                                      <div>
-                                          <div className="flex items-center gap-2 mb-1">
-                                              <BrainCircuit className="text-yellow-300" size={20} />
-                                              <span className="text-[10px] font-black bg-white/20 px-2 py-0.5 rounded text-white backdrop-blur-sm border border-white/20">NEW FEATURE</span>
-                                          </div>
-                                          <h3 className="text-xl font-black text-white italic tracking-wide">{settings?.aiName || 'AI ASSISTANT'}</h3>
-                                          <p className="text-xs text-indigo-100 font-medium mt-1 max-w-[200px]">Generate custom notes on any topic instantly using AI.</p>
-                                      </div>
-                                      <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-md border border-white/20 group-hover:scale-110 transition-transform">
-                                          <Sparkles className="text-white" size={24} />
-                                      </div>
-                                  </div>
-                              </div>
-                          )}
 
                           {/* 3. MORNING INSIGHT BANNER */}
                           {morningBanner && (
@@ -1793,80 +1739,6 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
             </div>
         )}
 
-        {/* AI NOTES MODAL */}
-        {showAiModal && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md animate-in fade-in">
-                <div className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-                    <div className="flex justify-between items-center mb-6">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600">
-                                <BrainCircuit size={20} />
-                            </div>
-                            <div>
-                                <h3 className="text-lg font-black text-slate-800">{settings?.aiName || 'AI Notes'}</h3>
-                                <p className="text-xs text-slate-500">Instant Note Generator</p>
-                            </div>
-                        </div>
-                        <button onClick={() => {setShowAiModal(false); setAiResult(null);}} className="p-2 hover:bg-slate-100 rounded-full"><X size={20} /></button>
-                    </div>
-
-                    {!aiResult ? (
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase block mb-2">What topic do you want notes for?</label>
-                                <textarea
-                                    value={aiTopic}
-                                    onChange={(e) => setAiTopic(e.target.value)}
-                                    placeholder="e.g. Newton's Laws of Motion, Photosynthesis process..."
-                                    className="w-full p-4 bg-slate-50 border-none rounded-2xl text-slate-800 focus:ring-2 focus:ring-indigo-100 h-32 resize-none"
-                                />
-                            </div>
-
-                            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-start gap-3">
-                                <AlertCircle size={16} className="text-blue-600 mt-0.5 shrink-0" />
-                                <div className="text-xs text-blue-800">
-                                    <span className="font-bold block mb-1">Usage Limit</span>
-                                    You can generate notes within your daily limit.
-                                    {user.isPremium ? (user.subscriptionLevel === 'ULTRA' ? ' (Ultra Plan: High Limit)' : ' (Basic Plan: Medium Limit)') : ' (Free Plan: Low Limit)'}
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={handleAiNotesGeneration}
-                                disabled={aiGenerating}
-                                className="w-full py-4 bg-indigo-600 text-white font-black rounded-xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all flex items-center justify-center gap-2"
-                            >
-                                {aiGenerating ? <Sparkles className="animate-spin" /> : <Sparkles />}
-                                {aiGenerating ? "Generating Magic..." : "Generate Notes"}
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="flex-1 overflow-hidden flex flex-col">
-                            <div className="flex-1 overflow-y-auto bg-slate-50 p-4 rounded-xl border border-slate-100 mb-4 prose prose-sm max-w-none">
-                                <div className="whitespace-pre-wrap">{aiResult}</div>
-                            </div>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => setAiResult(null)}
-                                    className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl"
-                                >
-                                    New Topic
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        navigator.clipboard.writeText(aiResult);
-                                        showAlert("Notes Copied!", "SUCCESS");
-                                    }}
-                                    className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg"
-                                >
-                                    Copy Text
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-        )}
 
         {/* REQUEST CONTENT MODAL */}
         {showRequestModal && (
