@@ -1526,6 +1526,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                           setContentViewStep('SUBJECTS');
                       }}
                       onBack={() => onTabChange('HOME')}
+                      settings={settings}
                   />
               );
           }
