@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MCQResult, User, SystemSettings } from '../types';
-import { X, Share2, ChevronLeft, ChevronRight, Download, FileSearch, Grid, CheckCircle, XCircle, Clock, Award, BrainCircuit, Play, StopCircle, BookOpen, Target, Zap, BarChart3, ListChecks, FileText, LayoutTemplate, TrendingUp } from 'lucide-react';
+import { X, Share2, ChevronLeft, ChevronRight, Download, FileSearch, Grid, CheckCircle, XCircle, Clock, Award, BrainCircuit, Play, StopCircle, BookOpen, Target, Zap, BarChart3, ListChecks, FileText, LayoutTemplate, TrendingUp, AlertTriangle, RefreshCw } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { generateUltraAnalysis } from '../services/groq';
 import { saveUniversalAnalysis, saveUserToLive, saveAiInteraction } from '../firebase';
@@ -400,6 +400,25 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
         isJson = true;
     } catch (e) {
         // Not JSON
+    }
+
+    // ERROR HANDLING
+    if (isJson && data.error) {
+        return (
+            <div className="bg-red-50 p-6 rounded-2xl border border-red-100 text-center animate-in fade-in">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <AlertTriangle size={32} className="text-red-500" />
+                </div>
+                <h3 className="font-black text-red-800 text-lg mb-2">Analysis Failed</h3>
+                <p className="text-sm text-red-600 mb-6 font-medium max-w-xs mx-auto">{data.error}</p>
+                <button
+                    onClick={() => handleUltraAnalysis(true)}
+                    className="bg-red-600 text-white px-6 py-3 rounded-xl font-bold text-xs shadow-lg hover:bg-red-700 transition-all flex items-center gap-2 mx-auto"
+                >
+                    <RefreshCw size={16} /> Retry Analysis
+                </button>
+            </div>
+        );
     }
 
     if (!isJson) {
