@@ -200,7 +200,9 @@ export const fetchLessonContent = async (
 
   // Fallback for MCQ generation (Single Pass for now)
   if (type === 'MCQ_ANALYSIS' || type === 'MCQ_SIMPLE') {
-      const prompt = `Generate 15 MCQs for ${chapter.title} (${board} Class ${classLevel}). JSON format: [{question, options[], correctAnswer, explanation}].`;
+      // Use targetQuestions if > 0, otherwise default to 30 for better coverage
+      const qCount = targetQuestions > 0 ? targetQuestions : 30;
+      const prompt = `Generate ${qCount} MCQs for ${chapter.title} (${board} Class ${classLevel}). Cover ALL subtopics. JSON format: [{question, options[], correctAnswer, explanation}].`;
       const text = await executeCanonical({ canonicalModel: 'MCQ_ENGINE', prompt, jsonMode: true });
       const data = JSON.parse(cleanJson(text));
 
@@ -258,9 +260,95 @@ export const generateCustomNotes = async (userTopic: string, adminPrompt: string
 };
 
 export const generateUltraAnalysis = async (data: any, settings?: SystemSettings): Promise<string> => {
-    // 1. Minify Data to prevent Token Limit Errors
+    // 0. CHECK FOR METADATA (DETERMINISTIC ANALYSIS)
+    // If questions have 'topic' and 'difficulty' fields, we can perform analysis locally without AI.
     const questions = data.questions || [];
     const userAnswers = data.userAnswers || {};
+
+    const hasMetadata = questions.some((q: any) => q.topic);
+
+    if (hasMetadata) {
+        console.log("Using Deterministic Analysis (Metadata Found)");
+        try {
+            const topicsMap: Record<string, { total: number, correct: number, wrong: number, questions: any[] }> = {};
+            const weakTopicsList: string[] = [];
+
+            questions.forEach((q: any, idx: number) => {
+                const topic = q.topic || 'General';
+                const isCorrect = userAnswers[idx] === q.correctAnswer;
+
+                if (!topicsMap[topic]) {
+                    topicsMap[topic] = { total: 0, correct: 0, wrong: 0, questions: [] };
+                }
+
+                topicsMap[topic].total++;
+                if (isCorrect) topicsMap[topic].correct++;
+                else topicsMap[topic].wrong++;
+
+                topicsMap[topic].questions.push({
+                    text: q.question.substring(0, 60) + "...",
+                    status: isCorrect ? "CORRECT" : "WRONG"
+                });
+            });
+
+            // Analyze Topics
+            const analyzedTopics = Object.keys(topicsMap).map(topic => {
+                const stats = topicsMap[topic];
+                const accuracy = (stats.correct / stats.total) * 100;
+                let status: "WEAK" | "STRONG" | "AVG" = "AVG";
+                let actionPlan = "Practice mixed questions.";
+                let studyMode: "DEEP_STUDY" | "REVISION" = "REVISION";
+
+                if (accuracy < 50) {
+                    status = "WEAK";
+                    actionPlan = "Read notes and focus on concepts.";
+                    studyMode = "DEEP_STUDY";
+                    weakTopicsList.push(topic);
+                } else if (accuracy >= 80) {
+                    status = "STRONG";
+                    actionPlan = "Great job! Try harder questions.";
+                }
+
+                return {
+                    name: topic,
+                    status,
+                    actionPlan,
+                    studyMode,
+                    questions: stats.questions.slice(0, 5) // Limit to 5 per topic in report
+                };
+            });
+
+            // Sort: WEAK first
+            analyzedTopics.sort((a, b) => {
+                if (a.status === "WEAK") return -1;
+                if (b.status === "WEAK") return 1;
+                return 0;
+            });
+
+            const result = {
+                weak_topics_list: weakTopicsList,
+                topics: analyzedTopics,
+                motivation: weakTopicsList.length > 0
+                    ? `Focus on ${weakTopicsList[0]} to improve your score fast!`
+                    : "Excellent performance across all topics!",
+                nextSteps: {
+                    focusTopics: weakTopicsList.slice(0, 3),
+                    action: weakTopicsList.length > 0 ? "Review the chapters listed above." : "Attempt a mock test."
+                },
+                weakToStrongPath: weakTopicsList.slice(0, 3).map((t, i) => ({
+                    step: i + 1,
+                    action: `Revise ${t} concepts.`
+                }))
+            };
+
+            return JSON.stringify(result);
+
+        } catch (localError) {
+            console.error("Local Analysis Failed, falling back to AI", localError);
+        }
+    }
+
+    // 1. Minify Data to prevent Token Limit Errors (Fallback to AI)
 
     const minifiedQuestions = questions.map((q: any, idx: number) => {
         const isCorrect = userAnswers[idx] === q.correctAnswer;
@@ -271,7 +359,7 @@ export const generateUltraAnalysis = async (data: any, settings?: SystemSettings
         };
     });
 
-    // Prioritize Wrong Answers + Limit to 40 items
+    // Prioritize Wrong Answers + Include All (Limit raised to 300 to prevent overflow but effectively unlimited)
     const wrong = minifiedQuestions.filter((q: any) => q.s === 'W');
     const correct = minifiedQuestions.filter((q: any) => q.s === 'C');
 
@@ -280,8 +368,8 @@ export const generateUltraAnalysis = async (data: any, settings?: SystemSettings
         chapter: data.chapter,
         score: data.score,
         total: data.total,
-        // Take all wrong answers (up to 30), fill rest with correct answers (up to 10)
-        items: [...wrong.slice(0, 30), ...correct.slice(0, 10)]
+        // Include ALL items (up to safety limit of 300)
+        items: [...wrong, ...correct].slice(0, 300)
     };
 
     const prompt = `
@@ -313,16 +401,37 @@ export const generateUltraAnalysis = async (data: any, settings?: SystemSettings
     `;
 
     try {
+        // Attempt 1: Standard Analysis Engine
         const result = await executeCanonical({ canonicalModel: 'ANALYSIS_ENGINE', prompt, jsonMode: true });
         return cleanJson(result);
     } catch (e) {
-        console.error("AI Analysis Failed", e);
-        return JSON.stringify({
-            error: "Analysis failed. Please try again.",
-            topics: [],
-            motivation: "Keep practicing!",
-            nextSteps: {}
-        });
+        console.error("Primary AI Analysis Failed", e);
+
+        // Attempt 2: Fallback to Notes Engine (Llama 3 8b usually) with simpler prompt
+        try {
+            console.log("Retrying with Fallback Engine...");
+            const fallbackPrompt = `
+            Analyze Test: ${data.subject} - ${data.chapter} (Score: ${data.score}/${data.total}).
+            identify weak topics from wrong answers.
+
+            Return JSON:
+            {
+              "topics": [{"name": "Topic", "status": "WEAK", "actionPlan": "Revise this."}],
+              "motivation": "Good effort!",
+              "nextSteps": {"focusTopics": ["Topic 1"], "action": "Review weak areas."}
+            }
+            `;
+            const result = await executeCanonical({ canonicalModel: 'NOTES_ENGINE', prompt: fallbackPrompt, jsonMode: true });
+            return cleanJson(result);
+        } catch (retryError) {
+            console.error("Fallback AI Analysis Failed", retryError);
+            return JSON.stringify({
+                error: "Analysis failed. Please check internet or try again later.",
+                topics: [],
+                motivation: "Keep practicing!",
+                nextSteps: {}
+            });
+        }
     }
 };
 

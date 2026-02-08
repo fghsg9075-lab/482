@@ -2170,8 +2170,63 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
               const rawText = importText.trim();
               let newQuestions: MCQItem[] = [];
 
+              // MODE NEW: Structured Text Block (Q1 [medium]: ...)
+              if (rawText.includes('Q1') && rawText.includes('Answer:')) {
+                  const blocks = rawText.split(/Q\d+\s*\[/i).filter(b => b.trim());
+                  // If split removes Q1, we might need to adjust or prepend logic.
+                  // Better regex to split but keep delimiter or just iterate line by line.
+                  // Let's try splitting by 'Q' followed by number at start of line?
+                  // Or simply regex match all blocks.
+
+                  // Strategy: Regex to find all questions
+                  const questionRegex = /Q\d+\s*\[(.*?)]:([\s\S]*?)(?=Q\d+\s*\[|$)/g;
+                  let match;
+                  // We need to loop over the rawText (which might have Q1 at start)
+                  // Prepend Q1 if it was consumed or just run regex on full text.
+                  // Ensure text starts with Q1
+
+                  let processingText = rawText;
+                  // Normalize newlines
+                  processingText = processingText.replace(/\r\n/g, '\n');
+
+                  while ((match = questionRegex.exec(processingText)) !== null) {
+                      const difficulty = match[1].trim().toLowerCase() as 'easy'|'medium'|'hard';
+                      const body = match[2].trim();
+
+                      // Extract parts from body
+                      // Body contains Question text, Options A-D, Answer, Exp, Topic
+
+                      const answerMatch = body.match(/Answer:\s*([A-D])/i);
+                      const expMatch = body.match(/Exp:\s*([\s\S]*?)(?=Topic:|$)/i);
+                      const topicMatch = body.match(/Topic:\s*([\s\S]*?)$/i);
+
+                      // Options are lines starting with A), B), C), D)
+                      const optA = body.match(/A\)\s*(.*)/);
+                      const optB = body.match(/B\)\s*(.*)/);
+                      const optC = body.match(/C\)\s*(.*)/);
+                      const optD = body.match(/D\)\s*(.*)/);
+
+                      // Question text is everything before A)
+                      const qTextMatch = body.split(/A\)/)[0].trim();
+
+                      if (qTextMatch && optA && optB && optC && optD && answerMatch) {
+                          const ansChar = answerMatch[1].toUpperCase();
+                          const ansIdx = ansChar === 'A' ? 0 : ansChar === 'B' ? 1 : ansChar === 'C' ? 2 : 3;
+
+                          newQuestions.push({
+                              question: qTextMatch,
+                              options: [optA[1].trim(), optB[1].trim(), optC[1].trim(), optD[1].trim()],
+                              correctAnswer: ansIdx,
+                              explanation: expMatch ? expMatch[1].trim() : '',
+                              topic: topicMatch ? topicMatch[1].trim() : undefined,
+                              difficulty: difficulty
+                          });
+                      }
+                  }
+
+              }
               // MODE A: Tab-Separated (Excel/Sheets/Copy-Paste) - PREFERRED
-              if (rawText.includes('\t')) {
+              else if (rawText.includes('\t')) {
                   const rows = rawText.split('\n').filter(r => r.trim());
                   newQuestions = rows.map((row, idx) => {
                       let cols = row.split('\t');
@@ -3023,6 +3078,87 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                                  </div>
                              );
                          })}
+                      </div>
+                  </div>
+
+                  {/* 1.5 EXPLORE TILES (BOTTLES) */}
+                  <div className="bg-orange-50 p-6 rounded-2xl border border-orange-100 mt-6">
+                      <div className="flex items-center gap-2 mb-4">
+                          <Layout size={20} className="text-orange-600" />
+                          <h4 className="font-bold text-orange-900">Explore Tiles (Buttons)</h4>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                         {[
+                             {id: 'tile_inbox', label: 'Inbox'},
+                             {id: 'tile_analytics', label: 'Analytics'},
+                             {id: 'tile_marksheet', label: 'Marksheet'},
+                             {id: 'tile_admin', label: 'Admin Panel (Admin Only)'},
+                             {id: 'tile_history', label: 'History'},
+                             {id: 'tile_ai_history', label: 'AI History'},
+                             {id: 'tile_premium', label: 'Premium Store'},
+                             {id: 'tile_my_plan', label: 'My Plan'},
+                             {id: 'tile_game', label: 'Game'},
+                             {id: 'tile_redeem', label: 'Redeem'},
+                             {id: 'tile_prizes', label: 'Prizes'},
+                             {id: 'tile_leaderboard', label: 'Leaderboard'}
+                         ].map(tile => {
+                             const isVisible = localSettings.dashboardLayout?.[tile.id]?.visible !== false;
+                             return (
+                                 <div key={tile.id} className="flex items-center justify-between bg-white p-3 rounded-xl border border-orange-100">
+                                     <span className="font-bold text-slate-700 text-sm">{tile.label}</span>
+                                     <button
+                                         onClick={() => {
+                                             const currentLayout = localSettings.dashboardLayout || {};
+                                             const currentConfig = currentLayout[tile.id] || { id: tile.id, visible: true };
+                                             const newLayout = { ...currentLayout, [tile.id]: { ...currentConfig, visible: !isVisible } };
+                                             setLocalSettings({ ...localSettings, dashboardLayout: newLayout });
+                                         }}
+                                         className={`w-12 h-6 rounded-full p-1 transition-colors ${isVisible ? 'bg-orange-600' : 'bg-slate-300'}`}
+                                     >
+                                         <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${isVisible ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                                     </button>
+                                 </div>
+                             );
+                         })}
+                      </div>
+                  </div>
+
+                  {/* 2. CONTENT TYPES (VIDEO, PDF, MCQ, AUDIO) */}
+                  <div className="bg-purple-50 p-6 rounded-2xl border border-purple-100 mt-6">
+                      <div className="flex items-center gap-2 mb-4">
+                          <BookOpen size={20} className="text-purple-600" />
+                          <h4 className="font-bold text-purple-900">Course Content Types</h4>
+                      </div>
+                      <p className="text-xs text-purple-700 mb-4">Control which content types are visible in the "Courses" tab.</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          {[
+                              { id: 'VIDEO', label: 'Video Lectures', icon: Video },
+                              { id: 'PDF', label: 'Notes & PDFs', icon: FileText },
+                              { id: 'MCQ', label: 'MCQ Tests', icon: CheckCircle },
+                              { id: 'AUDIO', label: 'Audio Learning', icon: Headphones }
+                          ].map(type => {
+                              // @ts-ignore
+                              const isVisible = localSettings.contentVisibility?.[type.id] !== false;
+                              return (
+                                  <div key={type.id} className="flex items-center justify-between bg-white p-3 rounded-xl border border-purple-100">
+                                      <div className="flex items-center gap-2">
+                                          <type.icon size={16} className="text-purple-500" />
+                                          <span className="font-bold text-slate-700 text-xs">{type.label}</span>
+                                      </div>
+                                      <button
+                                          onClick={() => {
+                                              const current = localSettings.contentVisibility || {};
+                                              // @ts-ignore
+                                              const updated = { ...current, [type.id]: !isVisible };
+                                              setLocalSettings({ ...localSettings, contentVisibility: updated });
+                                          }}
+                                          className={`w-10 h-5 rounded-full p-0.5 transition-colors ${isVisible ? 'bg-purple-600' : 'bg-slate-300'}`}
+                                      >
+                                          <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${isVisible ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                                      </button>
+                                  </div>
+                              );
+                          })}
                       </div>
                   </div>
 
