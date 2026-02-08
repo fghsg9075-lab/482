@@ -72,8 +72,14 @@ export const ClassSelection: React.FC<Props> = ({ selectedBoard, allowedClasses,
       
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-w-4xl mx-auto px-4">
         {classes.map((cls) => {
-            // Check if locked: if allowedClasses exists AND class is NOT in it
-            let isLocked = allowedClasses && allowedClasses.length > 0 && !allowedClasses.includes(cls);
+            // Check if locked by Admin (Global Switch)
+            // @ts-ignore
+            let isLocked = settings?.classAvailability?.[cls] === false;
+
+            // Fallback: Check if allowedClasses exists AND class is NOT in it (Legacy Logic)
+            if (!isLocked && allowedClasses && allowedClasses.length > 0 && !allowedClasses.includes(cls)) {
+                isLocked = true;
+            }
 
             // SPECIAL LOCK: Competition Mode (If not in allowedModes)
             if (cls === 'COMPETITION' && !allowedModes.includes('COMPETITION')) {

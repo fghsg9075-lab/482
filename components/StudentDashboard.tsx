@@ -567,6 +567,20 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
       return () => clearInterval(interval);
   }, [syllabusMode, user.isPremium, user.subscriptionEndDate, user.subscriptionTier, user.subscriptionLevel, settings?.themeColor]);
 
+  // --- CLASS LOCK CHECK ---
+  useEffect(() => {
+      if (user.role !== 'ADMIN' && user.classLevel) {
+          // @ts-ignore
+          const isLocked = settings?.classAvailability?.[user.classLevel] === false;
+          if (isLocked) {
+               // Force user to change class or show blocking screen
+               // For now, we will show a persistent alert and maybe redirect to Profile if possible,
+               // but best is to just block the view content.
+               showAlert(`Class ${user.classLevel} is currently locked by Admin. Please change your class in Profile or contact support.`, 'ERROR', 'Access Denied');
+          }
+      }
+  }, [user.classLevel, settings?.classAvailability]);
+
   useEffect(() => {
       // Load user's custom goal
       const storedGoal = localStorage.getItem(`nst_goal_${user.id}`);
@@ -779,6 +793,13 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
 
       if (!isPremium && user.credits < cost) {
           showAlert(`Profile update costs ${cost} NST Coins.\nYou have ${user.credits} coins.`, 'ERROR');
+          return;
+      }
+
+      // @ts-ignore
+      const isClassLocked = settings?.classAvailability?.[profileData.classLevel] === false;
+      if (isClassLocked) {
+          showAlert(`Class ${profileData.classLevel} is currently locked by Admin.`, 'ERROR');
           return;
       }
 
@@ -1089,73 +1110,27 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
     );
   };
 
-  const renderPowerZoneDrawer = () => {
-     if (!isDrawerOpen) return null;
-
-     return (
-        <div className="fixed inset-0 z-[60] flex animate-in fade-in duration-200">
-           {/* Backdrop */}
-           <div
-             className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
-             onClick={() => setIsDrawerOpen(false)}
-           ></div>
-
-           {/* Drawer Content */}
-           <div className="relative w-[85%] max-w-sm h-full bg-slate-50 overflow-y-auto shadow-2xl animate-in slide-in-from-left duration-300">
-              <div className="p-4 space-y-6 pb-24">
-                 <div className="flex items-center justify-between mb-2">
-                    <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                        <Layout size={24} className="text-blue-600" /> Power Zone
-                    </h2>
-                    <button onClick={() => setIsDrawerOpen(false)} className="p-2 bg-slate-200 rounded-full hover:bg-slate-300">
-                        <X size={20} className="text-slate-600" />
-                    </button>
-                 </div>
-
-                 {/* PROFILE HEADER (Moved from Home) */}
-                 <DashboardSectionWrapper id="section_profile_header" label="Profile Header">
-                    <div
-                        onClick={() => onTabChange('ANALYTICS')}
-                        className="bg-gradient-to-br from-slate-900 to-slate-800 p-4 rounded-3xl shadow-lg border border-white/10 relative overflow-hidden cursor-pointer"
-                    >
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl"></div>
-
-                        <div className="relative z-10">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
-                                    <UserIcon size={24} className="text-white" />
-                                </div>
-                                <div>
-                                    <h2 className="text-lg font-black text-white leading-tight">{user.name}</h2>
-                                    <p className="text-white/60 text-[10px] font-bold uppercase">{user.classLevel} • {user.board}</p>
-                                </div>
-                            </div>
-
-                            {/* Stats Summary */}
-                             <div className="grid grid-cols-2 gap-2">
-                                <div className="bg-white/5 p-2 rounded-xl border border-white/10">
-                                    <p className="text-[9px] text-white/50 uppercase font-bold">Credits</p>
-                                    <p className="text-lg font-mono font-bold text-yellow-400">{user.credits}</p>
-                                </div>
-                                <div className="bg-white/5 p-2 rounded-xl border border-white/10">
-                                    <p className="text-[9px] text-white/50 uppercase font-bold">Streak</p>
-                                    <p className="text-lg font-mono font-bold text-orange-400">{user.streak} Days</p>
-                                </div>
-                             </div>
-                        </div>
-                    </div>
-                 </DashboardSectionWrapper>
+  // RENDER EXPLORE PAGE (Replaces Drawer/Layer 2)
+  const renderExplorePage = () => {
+      return (
+          <div className="p-4 space-y-6 pb-24 animate-in fade-in">
+              <div className="flex items-center gap-4 mb-2">
+                  <div className="p-3 bg-slate-900 rounded-xl text-white shadow-lg">
+                      <Compass size={24} />
+                  </div>
+                  <div>
+                      <h2 className="text-2xl font-black text-slate-800">Explore</h2>
+                      <p className="text-slate-500 text-sm font-medium">Tools, Games & Analytics</p>
+                  </div>
+              </div>
 
                  {/* QUICK ACTIONS GRID */}
                  <DashboardSectionWrapper id="services_grid" label="Services Grid">
                       <div>
-                          <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                              <Layout size={18} /> Quick Actions
-                          </h3>
                           <div className="grid grid-cols-3 gap-3">
                               {/* Row 1 */}
                               <DashboardTileWrapper id="tile_inbox" label="Inbox">
-                              <button onClick={() => { setShowInbox(true); setIsDrawerOpen(false); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform relative group">
+                              <button onClick={() => { setShowInbox(true); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform relative group">
                                   <Mail size={20} style={{ color: 'var(--primary)' }} />
                                   <span className="text-[9px] font-black text-slate-700 uppercase tracking-wider">Inbox</span>
                                   {unreadCount > 0 && <span className="absolute top-2 right-2 w-4 h-4 bg-yellow-400 text-black text-[9px] font-bold flex items-center justify-center rounded-full shadow-sm animate-pulse">{unreadCount}</span>}
@@ -1163,14 +1138,14 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                               </DashboardTileWrapper>
 
                               <DashboardTileWrapper id="tile_analytics" label="Analytics">
-                              <button onClick={() => { onTabChange('ANALYTICS'); setIsDrawerOpen(false); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
+                              <button onClick={() => { onTabChange('ANALYTICS'); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
                                   <BarChart3 size={20} style={{ color: 'var(--primary)' }} />
                                   <span className="text-[9px] font-black text-slate-700 uppercase tracking-wider">Analytics</span>
                               </button>
                               </DashboardTileWrapper>
 
                               <DashboardTileWrapper id="tile_marksheet" label="Marksheet">
-                              <button onClick={() => { setShowMonthlyReport(true); setIsDrawerOpen(false); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
+                              <button onClick={() => { setShowMonthlyReport(true); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
                                   <FileText size={20} style={{ color: 'var(--primary)' }} />
                                   <span className="text-[9px] font-black text-slate-700 uppercase tracking-wider">Marksheet</span>
                               </button>
@@ -1178,7 +1153,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
 
                               {(user.role === 'ADMIN' || isImpersonating) && (
                                 <DashboardTileWrapper id="tile_admin" label="Admin App">
-                                <button onClick={() => { handleSwitchToAdmin(); setIsDrawerOpen(false); }} className="h-20 w-full bg-slate-900 border border-slate-800 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
+                                <button onClick={() => { handleSwitchToAdmin(); }} className="h-20 w-full bg-slate-900 border border-slate-800 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
                                     <Layout size={20} className="text-yellow-400" />
                                     <span className="text-[9px] font-black text-white uppercase tracking-wider">Admin</span>
                                 </button>
@@ -1186,14 +1161,14 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                               )}
 
                               <DashboardTileWrapper id="tile_history" label="History">
-                              <button onClick={() => { onTabChange('HISTORY'); setIsDrawerOpen(false); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
+                              <button onClick={() => { onTabChange('HISTORY'); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
                                   <History size={20} style={{ color: 'var(--primary)' }} />
                                   <span className="text-[9px] font-black text-slate-700 uppercase tracking-wider">History</span>
                               </button>
                               </DashboardTileWrapper>
 
                               <DashboardTileWrapper id="tile_ai_history" label="AI History">
-                              <button onClick={() => { onTabChange('AI_HISTORY'); setIsDrawerOpen(false); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
+                              <button onClick={() => { onTabChange('AI_HISTORY'); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
                                   <BrainCircuit size={20} style={{ color: 'var(--primary)' }} />
                                   <span className="text-[9px] font-black text-slate-700 uppercase tracking-wider">AI Logs</span>
                               </button>
@@ -1201,14 +1176,14 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
 
                               {/* Row 2 */}
                               <DashboardTileWrapper id="tile_premium" label="Store">
-                              <button onClick={() => { onTabChange('STORE'); setIsDrawerOpen(false); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
+                              <button onClick={() => { onTabChange('STORE'); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
                                   <Crown size={20} style={{ color: 'var(--primary)' }} />
                                   <span className="text-[9px] font-black text-slate-700 uppercase tracking-wider">Premium</span>
                               </button>
                               </DashboardTileWrapper>
 
                               <DashboardTileWrapper id="tile_my_plan" label="My Plan">
-                              <button onClick={() => { onTabChange('SUB_HISTORY' as any); setIsDrawerOpen(false); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
+                              <button onClick={() => { onTabChange('SUB_HISTORY' as any); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
                                   <CreditCard size={20} style={{ color: 'var(--primary)' }} />
                                   <span className="text-[9px] font-black text-slate-700 uppercase tracking-wider">My Plan</span>
                               </button>
@@ -1216,7 +1191,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
 
                               {isGameEnabled && (
                                 <DashboardTileWrapper id="tile_game" label="Game">
-                                <button onClick={() => { onTabChange('GAME'); setIsDrawerOpen(false); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
+                                <button onClick={() => { onTabChange('GAME'); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
                                     <Gamepad2 size={20} style={{ color: 'var(--primary)' }} />
                                     <span className="text-[9px] font-black text-slate-700 uppercase tracking-wider">Game</span>
                                 </button>
@@ -1225,21 +1200,21 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
 
                               {/* Row 3 */}
                               <DashboardTileWrapper id="tile_redeem" label="Redeem">
-                              <button onClick={() => { onTabChange('REDEEM'); setIsDrawerOpen(false); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
+                              <button onClick={() => { onTabChange('REDEEM'); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
                                   <Gift size={20} style={{ color: 'var(--primary)' }} />
                                   <span className="text-[9px] font-black text-slate-700 uppercase tracking-wider">Redeem</span>
                               </button>
                               </DashboardTileWrapper>
 
                               <DashboardTileWrapper id="tile_prizes" label="Prizes">
-                              <button onClick={() => { onTabChange('PRIZES'); setIsDrawerOpen(false); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
+                              <button onClick={() => { onTabChange('PRIZES'); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
                                   <Award size={20} style={{ color: 'var(--primary)' }} />
                                   <span className="text-[9px] font-black text-slate-700 uppercase tracking-wider">Prizes</span>
                               </button>
                               </DashboardTileWrapper>
 
                               <DashboardTileWrapper id="tile_leaderboard" label="Ranks">
-                              <button onClick={() => { onTabChange('LEADERBOARD'); setIsDrawerOpen(false); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
+                              <button onClick={() => { onTabChange('LEADERBOARD'); }} className="h-20 w-full bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 hover:scale-[1.02] transition-transform">
                                   <Trophy size={20} style={{ color: 'var(--primary)' }} />
                                   <span className="text-[9px] font-black text-slate-700 uppercase tracking-wider">Ranks</span>
                               </button>
@@ -1247,10 +1222,8 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                           </div>
                       </div>
                  </DashboardSectionWrapper>
-              </div>
-           </div>
-        </div>
-     );
+          </div>
+      );
   };
 
   // --- RENDER BASED ON ACTIVE TAB ---
@@ -1261,17 +1234,8 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
 
           return (
               <div className="space-y-6 pb-24 relative">
-                {/* 3-LAYER SYSTEM INTEGRATION */}
-
-                {/* Layer 3: Power Zone (Drawer) */}
-                {renderPowerZoneDrawer()}
-
-                {/* Layer 1 Header (Menu + Stats) */}
-                <div className="flex items-center justify-between px-2 pt-2">
-                    <button onClick={() => setIsDrawerOpen(true)} className="p-3 bg-white rounded-xl shadow-sm border border-slate-100 text-slate-700 hover:bg-slate-50">
-                        <Menu size={24} />
-                    </button>
-
+                {/* Layer 1 Header (Stats) */}
+                <div className="flex items-center justify-end px-2 pt-2">
                     <div className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-xl shadow-lg">
                         <Zap size={16} className="text-yellow-400 fill-yellow-400" />
                         <span className="font-mono font-bold text-sm">{user.streak} Day Streak</span>
@@ -1517,6 +1481,10 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
           );
       }
       // 2. COURSES TAB (Schooling System)
+      if (activeTab === 'EXPLORE') {
+          return renderExplorePage();
+      }
+
       if (activeTab === 'COURSES') {
           if (contentViewStep === 'TYPES') {
               return (
@@ -1905,8 +1873,8 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                     <span className="text-[10px] font-bold mt-1">Courses</span>
                 </button>
 
-                <button onClick={() => { onTabChange('AI_CHAT'); }} className={`flex flex-col items-center justify-center w-full h-full ${activeTab === 'AI_CHAT' ? 'text-blue-600' : 'text-slate-400'}`}>
-                    <Compass size={24} fill={activeTab === 'AI_CHAT' ? "currentColor" : "none"} />
+                <button onClick={() => { onTabChange('EXPLORE' as any); }} className={`flex flex-col items-center justify-center w-full h-full ${activeTab === 'EXPLORE' ? 'text-blue-600' : 'text-slate-400'}`}>
+                    <Compass size={24} fill={activeTab === 'EXPLORE' ? "currentColor" : "none"} />
                     <span className="text-[10px] font-bold mt-1">Explorer</span>
                 </button>
 
@@ -1979,7 +1947,16 @@ export const StudentDashboard: React.FC<Props> = ({ user, dailyStudySeconds, onS
                         <div><label className="text-xs font-bold text-slate-500 uppercase">New Password</label><input type="text" placeholder="Set new password (optional)" value={profileData.newPassword} onChange={e => setProfileData({...profileData, newPassword: e.target.value})} className="w-full p-2 border rounded-lg bg-yellow-50 border-yellow-200"/><p className="text-[9px] text-slate-400 mt-1">Leave blank to keep current password.</p></div>
                         <div className="h-px bg-slate-100 my-2"></div>
                         <div><label className="text-xs font-bold text-slate-500 uppercase">Board</label><select value={profileData.board} onChange={e => setProfileData({...profileData, board: e.target.value as any})} className="w-full p-2 border rounded-lg"><option value="CBSE">CBSE</option><option value="BSEB">BSEB</option></select></div>
-                        <div><label className="text-xs font-bold text-slate-500 uppercase">Class</label><select value={profileData.classLevel} onChange={e => setProfileData({...profileData, classLevel: e.target.value as any})} className="w-full p-2 border rounded-lg">{['6','7','8','9','10','11','12'].map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 uppercase">Class</label>
+                            <select value={profileData.classLevel} onChange={e => setProfileData({...profileData, classLevel: e.target.value as any})} className="w-full p-2 border rounded-lg">
+                                {['6','7','8','9','10','11','12'].map(c => {
+                                    // @ts-ignore
+                                    const isLocked = settings?.classAvailability?.[c] === false;
+                                    return <option key={c} value={c} disabled={isLocked}>{c} {isLocked ? '(Locked)' : ''}</option>;
+                                })}
+                            </select>
+                        </div>
                         {['11','12'].includes(profileData.classLevel) && (<div><label className="text-xs font-bold text-slate-500 uppercase">Stream</label><select value={profileData.stream} onChange={e => setProfileData({...profileData, stream: e.target.value as any})} className="w-full p-2 border rounded-lg"><option value="Science">Science</option><option value="Commerce">Commerce</option><option value="Arts">Arts</option></select></div>)}
 
                         {/* NAME CHANGE */}

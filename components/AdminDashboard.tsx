@@ -3097,8 +3097,59 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                       </div>
                   </div>
 
-                  {/* 3. SUBJECT VISIBILITY */}
+                  {/* 3. CLASS & SUBJECT VISIBILITY */}
                   <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+
+                      {/* CLASS LOCKING */}
+                      <div className="mb-8 border-b border-slate-200 pb-6">
+                          <div className="flex items-center gap-2 mb-4">
+                              <Lock size={20} className="text-slate-600" />
+                              <h4 className="font-bold text-slate-800">Class Availability (Lock/Unlock)</h4>
+                          </div>
+                          <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
+                              {['6','7','8','9','10','11','12','COMPETITION'].map(cls => {
+                                  // @ts-ignore
+                                  const isLocked = localSettings.classAvailability?.[cls] === false;
+                                  return (
+                                      <button
+                                          key={cls}
+                                          onClick={() => {
+                                              const current = localSettings.classAvailability || {};
+                                              const updated = { ...current, [cls]: !isLocked ? false : true }; // Toggle: if currently locked (false), make it open (true/undefined). But we want opposite of visible.
+                                              // Wait, classAvailability: true means AVAILABLE. false means LOCKED.
+                                              // If isLocked is true (value is false), we want to unlock (set true).
+                                              // If isLocked is false (value is true/undefined), we want to lock (set false).
+
+                                              // Using explicit logic:
+                                              // if available (undefined or true) -> make false (locked)
+                                              // if locked (false) -> make true (available)
+
+                                              // @ts-ignore
+                                              const isAvailable = localSettings.classAvailability?.[cls] !== false;
+                                              const newAvailability = !isAvailable;
+                                              // BUT: If I click "Open" (isAvailable=true), I want to Lock it (set false).
+                                              // If I click "Locked" (isAvailable=false), I want to Unlock it (set true).
+
+                                              const nextState = isAvailable ? false : true;
+
+                                              setLocalSettings({ ...localSettings, classAvailability: { ...localSettings.classAvailability, [cls]: nextState } });
+                                          }}
+                                          className={`p-2 rounded-xl border flex flex-col items-center gap-1 transition-all ${
+                                              // @ts-ignore
+                                              localSettings.classAvailability?.[cls] !== false
+                                              ? 'bg-green-100 border-green-300 text-green-700'
+                                              : 'bg-slate-100 border-slate-300 text-slate-400 grayscale'
+                                          }`}
+                                      >
+                                          {cls === 'COMPETITION' ? <Trophy size={16} /> : <span className="font-black text-lg">{cls}</span>}
+                                          {/* @ts-ignore */}
+                                          <span className="text-[9px] font-bold uppercase">{localSettings.classAvailability?.[cls] !== false ? 'OPEN' : 'LOCKED'}</span>
+                                      </button>
+                                  );
+                              })}
+                          </div>
+                      </div>
+
                       <div className="flex items-center gap-2 mb-4">
                           <Book size={20} className="text-slate-600" />
                           <h4 className="font-bold text-slate-800">Subject Visibility</h4>
@@ -3164,22 +3215,43 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
 
               <div className="space-y-6">
                   {/* ENABLE AI TOGGLE */}
-                  <div className="bg-indigo-50 p-6 rounded-2xl border border-indigo-100 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-lg">
-                              <BrainCircuit size={24} />
+                  <div className="bg-indigo-50 p-6 rounded-2xl border border-indigo-100 flex flex-col gap-6">
+                      <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                              <div className="w-12 h-12 bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-lg">
+                                  <BrainCircuit size={24} />
+                              </div>
+                              <div>
+                                  <h4 className="font-bold text-indigo-900 text-lg">Enable AI Assistant</h4>
+                                  <p className="text-xs text-indigo-700">Allow students to use AI features.</p>
+                              </div>
                           </div>
-                          <div>
-                              <h4 className="font-bold text-indigo-900 text-lg">Enable AI Assistant</h4>
-                              <p className="text-xs text-indigo-700">Allow students to use AI features.</p>
-                          </div>
+                          <button
+                              onClick={() => setLocalSettings({...localSettings, isAiEnabled: !localSettings.isAiEnabled})}
+                              className={`w-16 h-8 rounded-full transition-all relative ${localSettings.isAiEnabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                          >
+                              <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all shadow-sm ${localSettings.isAiEnabled ? 'left-9' : 'left-1'}`} />
+                          </button>
                       </div>
-                      <button 
-                          onClick={() => setLocalSettings({...localSettings, isAiEnabled: !localSettings.isAiEnabled})}
-                          className={`w-16 h-8 rounded-full transition-all relative ${localSettings.isAiEnabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                      >
-                          <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all shadow-sm ${localSettings.isAiEnabled ? 'left-9' : 'left-1'}`} />
-                      </button>
+
+                      {/* RECOMMENDED CONTENT TOGGLE */}
+                      <div className="flex items-center justify-between border-t border-indigo-200 pt-4">
+                          <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-pink-100 text-pink-600 rounded-xl flex items-center justify-center shadow-sm">
+                                  <Sparkles size={20} />
+                              </div>
+                              <div>
+                                  <h4 className="text-sm font-black text-indigo-900">AI Recommended Content</h4>
+                                  <p className="text-[10px] text-indigo-700 font-medium">Auto-suggest Videos & Notes after Test Analysis.</p>
+                              </div>
+                          </div>
+                          <button
+                              onClick={() => toggleSetting('isRecommendedEnabled')}
+                              className={`w-14 h-8 rounded-full transition-all relative ${localSettings.isRecommendedEnabled ? 'bg-pink-500' : 'bg-slate-300'}`}
+                          >
+                              <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all shadow-sm ${localSettings.isRecommendedEnabled ? 'left-7' : 'left-1'}`} />
+                          </button>
+                      </div>
                   </div>
 
                   {/* GROQ KEY MANAGEMENT (RECYCLE BIN SUPPORT) */}

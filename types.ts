@@ -460,6 +460,10 @@ export interface SystemSettings {
       contentTypes: ('NOTES' | 'MCQ')[];
       requireApproval?: boolean; // NEW: Admin Approval Flow
   };
+
+  isRecommendedEnabled?: boolean; // NEW: Toggle Recommended Content Feature
+  classAvailability?: Record<string, boolean>; // NEW: Lock specific classes (e.g. {'10': true, '11': false})
+
   tierPermissions?: {
       FREE: string[];
       BASIC: string[];
@@ -647,6 +651,7 @@ export interface MCQItem {
   explanation: string;
   mnemonic?: string; // Memory Trick
   concept?: string; // Full concept explanation
+  topic?: string; // NEW: Topic tag for analysis
 }
 
 // NEW: Performance Analytics
@@ -685,6 +690,15 @@ export interface MCQResult {
     qIndex: number;
   }[];
   ultraAnalysisReport?: string;
+  weakTopics?: string[]; // NEW: List of weak topics identified
+  recommendedContent?: { // NEW: Content recommended based on weak topics
+      id: string;
+      title: string;
+      type: 'VIDEO' | 'PDF' | 'AUDIO';
+      url: string;
+      price?: number;
+      access?: 'FREE' | 'BASIC' | 'ULTRA';
+  }[];
 }
 
 export interface UniversalAnalysisLog {
@@ -860,7 +874,7 @@ export interface StudentTestAttempt {
   answers: Record<number, number>; // question index -> selected answer index
 }
 
-export type StudentTab = 'HOME' | 'COURSES' | 'ROUTINE' | 'HISTORY' | 'REDEEM' | 'PREMIUM' | 'GAME' | 'WEEKLY_TEST' | 'PROFILE' | 'LEADERBOARD' | 'STORE' | 'VIDEO' | 'PDF' | 'MCQ' | 'ANALYTICS' | 'PRIZES' | 'REWARDS' | 'UPDATES' | 'SUB_HISTORY' | 'AUDIO' | 'AI_HISTORY' | 'DEEP_ANALYSIS' | 'CUSTOM_PAGE' | 'AI_CHAT' | 'SMART';
+export type StudentTab = 'HOME' | 'COURSES' | 'ROUTINE' | 'HISTORY' | 'REDEEM' | 'PREMIUM' | 'GAME' | 'WEEKLY_TEST' | 'PROFILE' | 'LEADERBOARD' | 'STORE' | 'VIDEO' | 'PDF' | 'MCQ' | 'ANALYTICS' | 'PRIZES' | 'REWARDS' | 'UPDATES' | 'SUB_HISTORY' | 'AUDIO' | 'AI_HISTORY' | 'DEEP_ANALYSIS' | 'CUSTOM_PAGE' | 'AI_CHAT' | 'SMART' | 'EXPLORE';
 
 export type Language = 'English' | 'Hindi';
 
