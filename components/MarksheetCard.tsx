@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { MCQResult, User, SystemSettings } from '../types';
-import { X, Share2, ChevronLeft, ChevronRight, Download, FileSearch, Grid, CheckCircle, XCircle, Clock, Award, BrainCircuit, Play, StopCircle, BookOpen, Target, Zap, BarChart3, ListChecks, FileText, LayoutTemplate, TrendingUp, AlertTriangle, RefreshCw } from 'lucide-react';
+import { X, Share2, ChevronLeft, ChevronRight, Download, FileSearch, Grid, CheckCircle, XCircle, Clock, Award, BrainCircuit, Play, StopCircle, BookOpen, Target, Zap, BarChart3, ListChecks, FileText, LayoutTemplate, TrendingUp, AlertTriangle, RefreshCw, Sparkles, Headphones } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { generateUltraAnalysis, generateUniversalAnalysis } from '../services/groq';
-import { saveUniversalAnalysis, saveUserToLive, saveAiInteraction } from '../firebase';
+import { saveUniversalAnalysis, saveUserToLive, saveAiInteraction, getChapterData } from '../firebase';
 import ReactMarkdown from 'react-markdown';
 import { speakText, stopSpeech, getCategorizedVoices } from '../utils/textToSpeech';
 import { CustomConfirm } from './CustomDialogs'; // Import CustomConfirm
+import { getRecommendedContent, RecommendedItem } from '../services/recommendationEngine'; // Import Recommendation Engine
 
 interface Props {
   result: MCQResult;
@@ -23,11 +24,12 @@ interface Props {
 export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose, onViewAnalysis, onPublish, questions, onUpdateUser, initialView }) => {
   const [page, setPage] = useState(1);
   // Replaced showOMR with activeTab logic
-  const [activeTab, setActiveTab] = useState<'OMR' | 'MISTAKES' | 'STATS' | 'AI' | 'MARKSHEET_1' | 'MARKSHEET_2'>('OMR');
+  const [activeTab, setActiveTab] = useState<'OMR' | 'MISTAKES' | 'STATS' | 'AI' | 'RECOMMENDED' | 'MARKSHEET_1' | 'MARKSHEET_2'>('OMR');
   
   // ULTRA ANALYSIS STATE
   const [ultraAnalysisResult, setUltraAnalysisResult] = useState('');
   const [isLoadingUltra, setIsLoadingUltra] = useState(false);
+  const [recommendations, setRecommendations] = useState<RecommendedItem[]>([]);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
   
@@ -67,9 +69,29 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
         // We still load data if needed.
         if (result.ultraAnalysisReport) {
              setUltraAnalysisResult(result.ultraAnalysisReport);
+
+             // Extract weak topics if result doesn't have them but report does
+             if ((!result.weakTopics || result.weakTopics.length === 0) && settings?.isRecommendedEnabled) {
+                 try {
+                     const json = JSON.parse(result.ultraAnalysisReport);
+                     const extractedWeak = json.weak_topics_list || json.nextSteps?.focusTopics || [];
+                     if (extractedWeak.length > 0) {
+                         // We just update local recommendations trigger, not result object (avoid prop mutation)
+                         // But we need result.weakTopics for the Tab condition?
+                         // Actually, we can check recommendations state or a local hasWeakTopics state.
+                         // Let's create recommendations here if empty
+                         getChapterData(`nst_content_${user.board || 'CBSE'}_${result.classLevel || user.classLevel || '10'}_${result.subjectName}_${result.chapterId}`).then(content => {
+                             if (content) {
+                                 const recs = getRecommendedContent(extractedWeak, content, user, 'SCHOOL');
+                                 setRecommendations(recs);
+                             }
+                         });
+                     }
+                 } catch(e) {}
+             }
         }
     }
-  }, [initialView, result.ultraAnalysisReport]);
+  }, [initialView, result.ultraAnalysisReport, settings?.isRecommendedEnabled]);
 
   useEffect(() => {
       getCategorizedVoices().then(v => {
@@ -177,8 +199,37 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
 
           setUltraAnalysisResult(analysisText);
 
-          // 2. DEDUCT CREDITS & SAVE REPORT (Only if not skipping cost or if it was free, but logic implies we save if generated)
-          const updatedResult = { ...result, ultraAnalysisReport: analysisText };
+          // 2. GENERATE RECOMMENDATIONS (If Enabled)
+          let recs: RecommendedItem[] = [];
+          if (settings?.isRecommendedEnabled) {
+              try {
+                  const json = JSON.parse(analysisText);
+                  const weakTopics = json.weak_topics_list || json.nextSteps?.focusTopics || [];
+
+                  if (weakTopics.length > 0) {
+                      // Fetch Chapter Content
+                      const board = user.board || 'CBSE';
+                      const classLevel = result.classLevel || user.classLevel || '10';
+                      const stream = user.stream || null;
+                      const streamKey = (classLevel === '11' || classLevel === '12') && stream ? `-${stream}` : '';
+                      const key = `nst_content_${board}_${classLevel}${streamKey}_${result.subjectName}_${result.chapterId}`;
+
+                      const chapterContent = await getChapterData(key);
+                      if (chapterContent) {
+                          recs = getRecommendedContent(weakTopics, chapterContent, user, 'SCHOOL');
+                          setRecommendations(recs);
+                      }
+                  }
+              } catch(e) { console.error("Recs Error", e); }
+          }
+
+          // 3. DEDUCT CREDITS & SAVE REPORT
+          const updatedResult = {
+              ...result,
+              ultraAnalysisReport: analysisText,
+              weakTopics: recs.map(r => r.matchReason || '').filter(Boolean),
+              recommendedContent: recs
+          };
           
           // Update History (Find and replace the result in history)
           const updatedHistory = (user.mcqHistory || []).map(r => r.id === result.id ? updatedResult : r);
@@ -436,6 +487,74 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
             </div>
         )}
         </>
+  );
+
+  const renderRecommendedSection = () => (
+      <div className="space-y-4">
+          <div className="bg-pink-50 p-4 rounded-xl border border-pink-100 mb-4">
+              <h3 className="font-black text-pink-800 flex items-center gap-2 mb-2">
+                  <Sparkles size={18} /> Recommended for You
+              </h3>
+              <p className="text-xs text-pink-700">
+                  Based on your analysis, we found these resources to help you improve your weak topics.
+              </p>
+          </div>
+
+          {recommendations.length === 0 ? (
+              <div className="text-center py-10 text-slate-400">
+                  <FileSearch size={48} className="mx-auto mb-2 opacity-50"/>
+                  <p>No specific recommendations found.</p>
+                  <p className="text-xs">Try analyzing again or check the chapter library.</p>
+              </div>
+          ) : (
+              <div className="grid gap-3">
+                  {recommendations.map((item, idx) => (
+                      <div key={idx} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                  item.type === 'VIDEO' ? 'bg-blue-100 text-blue-600' :
+                                  item.type === 'PDF' ? 'bg-orange-100 text-orange-600' :
+                                  'bg-pink-100 text-pink-600'
+                              }`}>
+                                  {item.type === 'VIDEO' ? <Play size={20} /> : item.type === 'PDF' ? <FileText size={20} /> : <Headphones size={20} />}
+                              </div>
+                              <div>
+                                  <h4 className="font-bold text-slate-800 text-sm">{item.title}</h4>
+                                  <div className="flex items-center gap-2 mt-1">
+                                      <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded uppercase font-bold">{item.type}</span>
+                                      {item.matchReason && (
+                                          <span className="text-[10px] text-red-500 font-medium flex items-center gap-1">
+                                              <Target size={10} /> Focus: {item.matchReason}
+                                          </span>
+                                      )}
+                                  </div>
+                              </div>
+                          </div>
+
+                          <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={(e) => {
+                                  // Simple link for now, ideally handle internal navigation/unlock
+                                  // For demo/MVP, direct link is okay, or we can use window.open
+                                  if (item.type !== 'VIDEO' && item.type !== 'PDF' && item.type !== 'AUDIO') return;
+
+                                  // Credit Check (Mock)
+                                  if (item.price > 0 && user.credits < item.price && !user.isPremium) {
+                                      e.preventDefault();
+                                      alert("Insufficient Credits!");
+                                  }
+                              }}
+                              className="px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800"
+                          >
+                              Open
+                          </a>
+                      </div>
+                  ))}
+              </div>
+          )}
+      </div>
   );
 
   const renderStatsSection = () => (
@@ -942,6 +1061,14 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
                 >
                     <BrainCircuit size={14} className="inline mr-1 mb-0.5" /> AI Analysis
                 </button>
+                {settings?.isRecommendedEnabled && ((result.weakTopics && result.weakTopics.length > 0) || (ultraAnalysisResult && JSON.parse(ultraAnalysisResult).weak_topics_list?.length > 0)) && (
+                    <button
+                        onClick={() => setActiveTab('RECOMMENDED')}
+                        className={`px-4 py-2 text-xs font-bold rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${activeTab === 'RECOMMENDED' ? 'border-pink-600 text-pink-600 bg-pink-50' : 'border-transparent text-slate-500 hover:bg-slate-50'}`}
+                    >
+                        <Sparkles size={14} className="inline mr-1 mb-0.5" /> Recommended
+                    </button>
+                )}
                 <button 
                     onClick={() => setActiveTab('MARKSHEET_1')}
                     className={`px-4 py-2 text-xs font-bold rounded-t-lg border-b-2 transition-colors whitespace-nowrap ${activeTab === 'MARKSHEET_1' ? 'border-indigo-600 text-indigo-600 bg-indigo-50' : 'border-transparent text-slate-500 hover:bg-slate-50'}`}
@@ -1055,6 +1182,13 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
                         ) : (
                             renderAnalysisContent()
                         )}
+                    </div>
+                )}
+
+                {/* 5. RECOMMENDED SECTION */}
+                {activeTab === 'RECOMMENDED' && (
+                    <div className="animate-in slide-in-from-bottom-4">
+                        {renderRecommendedSection()}
                     </div>
                 )}
 

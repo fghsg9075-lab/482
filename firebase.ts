@@ -85,6 +85,8 @@ export const saveUserToLive = async (user: any) => {
 };
 
 export const subscribeToUsers = (callback: (users: any[]) => void) => {
+  if (localStorage.getItem('nst_test_mode') === 'true') return () => {};
+
   // Prefer Firestore for Admin List (More Reliable)
   const q = collection(db, "users");
   return onSnapshot(q, (snapshot) => {
@@ -155,6 +157,8 @@ export const saveSystemSettings = async (settings: any) => {
 };
 
 export const subscribeToSettings = (callback: (settings: any) => void) => {
+  if (localStorage.getItem('nst_test_mode') === 'true') return () => {};
+
   // Listen to Firestore
   return onSnapshot(doc(db, "config", "system_settings"), (docSnap) => {
       if (docSnap.exists()) {

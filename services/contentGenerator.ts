@@ -296,6 +296,7 @@ export const generateUltraAnalysis = async (data: any, settings?: SystemSettings
 
     OUTPUT JSON ONLY:
     {
+      "weak_topics_list": ["Topic 1", "Topic 2"],
       "topics": [
         {"name": "Topic Name", "status": "WEAK" | "STRONG" | "AVG", "actionPlan": "Specific advice", "studyMode": "DEEP_STUDY" | "REVISION", "questions": [{"text": "Question snippet", "status": "CORRECT" | "WRONG"}]}
       ],

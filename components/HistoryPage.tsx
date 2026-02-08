@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { LessonContent, User, SystemSettings, UsageHistoryEntry } from '../types';
+import { LessonContent, User, SystemSettings, UsageHistoryEntry, MCQResult } from '../types';
 import { BookOpen, Calendar, ChevronDown, ChevronUp, Trash2, Search, FileText, CheckCircle2, Lock, AlertCircle, Folder } from 'lucide-react';
 import { LessonView } from './LessonView';
+import { MarksheetCard } from './MarksheetCard';
 import { saveUserToLive } from '../firebase';
 import { CustomAlert, CustomConfirm } from './CustomDialogs';
 
@@ -18,6 +19,7 @@ export const HistoryPage: React.FC<Props> = ({ user, onUpdateUser, settings }) =
   const [history, setHistory] = useState<LessonContent[]>([]);
   const [search, setSearch] = useState('');
   const [selectedLesson, setSelectedLesson] = useState<LessonContent | null>(null);
+  const [selectedMarksheet, setSelectedMarksheet] = useState<MCQResult | null>(null);
   
   // USAGE HISTORY STATE (ACTIVITY LOG)
   const [usageLog, setUsageLog] = useState<UsageHistoryEntry[]>([]);
@@ -160,6 +162,15 @@ export const HistoryPage: React.FC<Props> = ({ user, onUpdateUser, settings }) =
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+        {selectedMarksheet && (
+            <MarksheetCard
+                result={selectedMarksheet}
+                user={user}
+                settings={settings}
+                onClose={() => setSelectedMarksheet(null)}
+            />
+        )}
+
         <CustomAlert 
             isOpen={alertConfig.isOpen} 
             message={alertConfig.message} 
@@ -231,6 +242,34 @@ export const HistoryPage: React.FC<Props> = ({ user, onUpdateUser, settings }) =
                                                 <div 
                                                     key={i} 
                                                     onClick={() => {
+                                                        // CHECK IF MCQ RESULT
+                                                        if (log.type === 'MCQ' || log.type === 'MCQ_RESULT') {
+                                                            const result: MCQResult = {
+                                                                id: log.id,
+                                                                userId: user.id,
+                                                                chapterId: log.itemId,
+                                                                subjectId: 'hist', // placeholder
+                                                                subjectName: log.subject,
+                                                                chapterTitle: log.itemTitle,
+                                                                date: log.timestamp,
+                                                                totalQuestions: log.totalQuestions || 0,
+                                                                correctCount: log.score || 0,
+                                                                wrongCount: (log.totalQuestions || 0) - (log.score || 0),
+                                                                score: log.score || 0,
+                                                                totalTimeSeconds: log.timeTaken || 0,
+                                                                userAnswers: log.userAnswers || {},
+                                                                omrData: Object.entries(log.userAnswers || {}).map(([qIdx, ans]) => ({
+                                                                    qIndex: parseInt(qIdx),
+                                                                    selected: Number(ans),
+                                                                    correct: 0 // We might not have correct answers here easily without fetching content, but Marksheet handles incomplete data gracefully or we assume standard
+                                                                })),
+                                                                // If we have actual mcqData, we can reconstruct better
+                                                                ultraAnalysisReport: log.ultraAnalysisReport
+                                                            };
+                                                            setSelectedMarksheet(result);
+                                                            return;
+                                                        }
+
                                                         // Create a pseudo-item to trigger navigation logic
                                                         // Find real data from settings to ensure content is available
                                                         let pseudoItem: LessonContent = {
