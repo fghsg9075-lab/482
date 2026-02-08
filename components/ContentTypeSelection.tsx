@@ -1,19 +1,27 @@
 import React from 'react';
 import { Video, FileText, CheckSquare, Headphones, ArrowLeft } from 'lucide-react';
-import { ContentType } from '../types';
+import { ContentType, SystemSettings } from '../types';
 
 interface Props {
   onSelect: (type: 'VIDEO' | 'PDF' | 'MCQ' | 'AUDIO') => void;
   onBack: () => void;
+  settings?: SystemSettings;
 }
 
-export const ContentTypeSelection: React.FC<Props> = ({ onSelect, onBack }) => {
+export const ContentTypeSelection: React.FC<Props> = ({ onSelect, onBack, settings }) => {
   const options = [
     { id: 'VIDEO', label: 'Video Lectures', icon: Video, color: 'text-blue-600', bg: 'bg-blue-100', border: 'hover:border-blue-400' },
     { id: 'PDF', label: 'Notes & PDFs', icon: FileText, color: 'text-orange-600', bg: 'bg-orange-100', border: 'hover:border-orange-400' },
     { id: 'MCQ', label: 'MCQ Practice', icon: CheckSquare, color: 'text-purple-600', bg: 'bg-purple-100', border: 'hover:border-purple-400' },
     { id: 'AUDIO', label: 'Audio Learning', icon: Headphones, color: 'text-pink-600', bg: 'bg-pink-100', border: 'hover:border-pink-400' }
   ] as const;
+
+  // Filter based on settings (if available)
+  const visibleOptions = options.filter(opt => {
+      if (!settings?.contentVisibility) return true; // Default to visible if no config
+      // @ts-ignore
+      return settings.contentVisibility[opt.id] !== false;
+  });
 
   return (
     <div className="animate-in fade-in slide-in-from-right-8 duration-500 pb-24">
@@ -30,7 +38,7 @@ export const ContentTypeSelection: React.FC<Props> = ({ onSelect, onBack }) => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {options.map((opt) => (
+        {visibleOptions.map((opt) => (
           <button
             key={opt.id}
             onClick={() => onSelect(opt.id)}
@@ -46,6 +54,13 @@ export const ContentTypeSelection: React.FC<Props> = ({ onSelect, onBack }) => {
           </button>
         ))}
       </div>
+
+      {visibleOptions.length === 0 && (
+          <div className="text-center py-20 bg-slate-50 rounded-3xl border border-slate-100">
+              <p className="text-slate-400 font-bold">No content types available.</p>
+              <p className="text-xs text-slate-400 mt-2">Please contact Admin to enable content.</p>
+          </div>
+      )}
     </div>
   );
 };
