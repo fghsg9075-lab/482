@@ -334,6 +334,69 @@ export const generateCustomNotes = async (userTopic: string, adminPrompt: string
 };
 
 export const generateUltraAnalysis = async (data: any, settings?: SystemSettings): Promise<string> => {
-    const prompt = `Analyze performance: ${JSON.stringify(data)}. Return JSON {topics:[], motivation:"", nextSteps:{}}`;
-    return await executeCanonical({ canonicalModel: 'ANALYSIS_ENGINE', prompt, jsonMode: true });
+    // 1. Minify Data to prevent Token Limit Errors
+    const questions = data.questions || [];
+    const userAnswers = data.userAnswers || {};
+
+    const minifiedQuestions = questions.map((q: any, idx: number) => {
+        const isCorrect = userAnswers[idx] === q.correctAnswer;
+        return {
+            q: q.question.substring(0, 100), // Truncate question text
+            s: isCorrect ? 'C' : 'W', // C = Correct, W = Wrong
+            t: q.topic || '' // Pass topic if available
+        };
+    });
+
+    // Prioritize Wrong Answers + Limit to 40 items
+    const wrong = minifiedQuestions.filter((q: any) => q.s === 'W');
+    const correct = minifiedQuestions.filter((q: any) => q.s === 'C');
+
+    const finalData = {
+        subject: data.subject,
+        chapter: data.chapter,
+        score: data.score,
+        total: data.total,
+        // Take all wrong answers (up to 30), fill rest with correct answers (up to 10)
+        items: [...wrong.slice(0, 30), ...correct.slice(0, 10)]
+    };
+
+    const prompt = `
+    Analyze Student Performance for ${data.subject} - ${data.chapter}.
+    Score: ${data.score}/${data.total}.
+
+    DATA (C=Correct, W=Wrong):
+    ${JSON.stringify(finalData)}
+
+    TASK:
+    Identify weak topics based on 'W' items.
+
+    OUTPUT JSON ONLY:
+    {
+      "topics": [
+        {"name": "Topic Name", "status": "WEAK" | "STRONG" | "AVG", "actionPlan": "Specific advice", "studyMode": "DEEP_STUDY" | "REVISION", "questions": [{"text": "Question snippet", "status": "CORRECT" | "WRONG"}]}
+      ],
+      "motivation": "Encouraging remark (max 20 words)",
+      "nextSteps": {
+        "focusTopics": ["Topic 1", "Topic 2"],
+        "action": "Brief study plan"
+      },
+      "weakToStrongPath": [
+         {"step": 1, "action": "Step 1 action"},
+         {"step": 2, "action": "Step 2 action"}
+      ]
+    }
+    `;
+
+    try {
+        const result = await executeCanonical({ canonicalModel: 'ANALYSIS_ENGINE', prompt, jsonMode: true });
+        return cleanJson(result);
+    } catch (e) {
+        console.error("AI Analysis Failed", e);
+        return JSON.stringify({
+            error: "Analysis failed. Please try again.",
+            topics: [],
+            motivation: "Keep practicing!",
+            nextSteps: {}
+        });
+    }
 };
