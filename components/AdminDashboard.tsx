@@ -56,9 +56,9 @@ type AdminTab =
   | 'CONTENT_PDF' 
   | 'CONTENT_VIDEO'
   | 'CONTENT_AUDIO'
+  | 'CONTENT_TOPIC_NOTES' // NEW: Topic-Wise Notes Manager
   | 'CONTENT_MCQ' 
   | 'CONTENT_TEST' 
-      /* | 'CONTENT_NOTES' - REMOVED */
   | 'BULK_UPLOAD'    
   | 'CONFIG_GENERAL' 
   | 'CONFIG_SECURITY' 
@@ -582,6 +582,10 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
   const [editConfig, setEditConfig] = useState<ContentConfig>({ freeLink: '', premiumLink: '', price: 0 });
   const [videoPlaylist, setVideoPlaylist] = useState<{title: string, url: string, price?: number, access?: 'FREE' | 'BASIC' | 'ULTRA'}[]>([]);
   const [audioPlaylist, setAudioPlaylist] = useState<{title: string, url: string, price?: number, access?: 'FREE' | 'BASIC' | 'ULTRA'}[]>([]);
+  const [topicNotes, setTopicNotes] = useState<{id: string, topic: string, content: string, type: 'FREE' | 'PREMIUM'}[]>([]);
+  const [newTopicTitle, setNewTopicTitle] = useState('');
+  const [newTopicContent, setNewTopicContent] = useState('');
+  const [newTopicType, setNewTopicType] = useState<'FREE' | 'PREMIUM'>('FREE');
   const [premiumNoteSlots, setPremiumNoteSlots] = useState<PremiumNoteSlot[]>([]);
   const [editingMcqs, setEditingMcqs] = useState<MCQItem[]>([]);
   const [editingTestMcqs, setEditingTestMcqs] = useState<MCQItem[]>([]);
@@ -755,6 +759,7 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
           
           manualMcqData: editingMcqs,
           weeklyTestMcqData: editingTestMcqs,
+          topicNotes: topicNotes, // NEW: Save Topic Notes
           type: aiGenType,
           content: finalContent
       };
@@ -961,9 +966,37 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
       }
   }, [activeTab, dbKey]);
 
+  // --- FACTORY RESET ---
+  const handleFactoryReset = async () => {
+      const confirmation = prompt("⚠️ DANGER: FACTORY RESET ⚠️\n\nThis will PERMANENTLY DELETE ALL DATA from Firebase (Users, Content, Settings).\n\nType 'DELETE ALL DATA' to confirm:");
+
+      if (confirmation === 'DELETE ALL DATA') {
+          try {
+              setIsContentLoading(true);
+
+              // 1. Wipe RTDB
+              await set(ref(rtdb, '/'), null);
+
+              // 2. Wipe LocalStorage (Critical Keys)
+              localStorage.clear();
+
+              alert("✅ SYSTEM RESET COMPLETE.\nThe application will now reload.");
+              window.location.reload();
+
+          } catch (e: any) {
+              console.error("Reset Failed:", e);
+              alert("Reset Failed: " + e.message);
+          } finally {
+              setIsContentLoading(false);
+          }
+      } else {
+          alert("Reset Cancelled. Input did not match.");
+      }
+  };
+
   // Clear selections when switching main tabs
   useEffect(() => {
-      if (!['SYLLABUS_MANAGER', 'CONTENT_PDF', 'CONTENT_VIDEO', 'CONTENT_MCQ', 'CONTENT_TEST', 'CONTENT_NOTES', 'CONTENT_HTML', 'BULK_UPLOAD'].includes(activeTab)) {
+      if (!['SYLLABUS_MANAGER', 'CONTENT_PDF', 'CONTENT_VIDEO', 'CONTENT_TOPIC_NOTES', 'CONTENT_MCQ', 'CONTENT_TEST', 'CONTENT_NOTES', 'CONTENT_HTML', 'BULK_UPLOAD'].includes(activeTab)) {
           setSelSubject(null);
           setEditingChapterId(null);
       }
@@ -1892,6 +1925,9 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
           setAudioPlaylist(data.competitionAudioPlaylist || []); // No fallback
           setPremiumNoteSlots(data.competitionPdfPremiumSlots || []); // No fallback
       }
+      // Topic Notes are currently shared or need mode splitting if required.
+      // For now, we load from the main field.
+      setTopicNotes(data.topicNotes || []);
   };
 
 
@@ -3233,7 +3269,36 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
                       </div>
                   </div>
 
-                  {/* 3. CLASS & SUBJECT VISIBILITY */}
+                  {/* 2. CONTENT TYPE VISIBILITY (NEW) */}
+                  <div className="bg-green-50 p-6 rounded-2xl border border-green-100 mt-6">
+                      <div className="flex items-center gap-2 mb-4">
+                          <Eye size={20} className="text-green-600" />
+                          <h4 className="font-bold text-green-900">Content Access Control</h4>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                         {['VIDEO', 'PDF', 'MCQ', 'AUDIO'].map(type => {
+                             // @ts-ignore
+                             const isVisible = localSettings.contentVisibility?.[type] !== false;
+                             return (
+                                 <div key={type} className="flex items-center justify-between bg-white p-3 rounded-xl border border-green-100">
+                                     <span className="font-bold text-slate-700 text-sm">{type} Access</span>
+                                     <button
+                                         onClick={() => {
+                                             const currentVis = localSettings.contentVisibility || {};
+                                             const newVis = { ...currentVis, [type]: !isVisible };
+                                             setLocalSettings({ ...localSettings, contentVisibility: newVis as any });
+                                         }}
+                                         className={`w-12 h-6 rounded-full p-1 transition-colors ${isVisible ? 'bg-green-600' : 'bg-slate-300'}`}
+                                     >
+                                         <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${isVisible ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                                     </button>
+                                 </div>
+                             );
+                         })}
+                      </div>
+                  </div>
+
+                  {/* 3. CLASS VISIBILITY */}
                   <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
 
                       {/* CLASS LOCKING */}
@@ -3954,6 +4019,154 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
               <button onClick={handleSaveSettings} className="w-full bg-green-600 text-white font-black py-4 rounded-2xl shadow-lg hover:bg-green-700 transition-all flex items-center justify-center gap-2">
                   <Save size={20} /> Save Configuration
               </button>
+          </div>
+      )}
+
+      {activeTab === 'CONTENT_TOPIC_NOTES' && (
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 animate-in slide-in-from-right">
+              <div className="flex items-center gap-4 mb-6 border-b pb-4">
+                  <button onClick={() => setActiveTab('DASHBOARD')} className="bg-slate-100 p-2 rounded-full hover:bg-slate-200"><ArrowLeft size={20} /></button>
+                  <h3 className="text-xl font-black text-slate-800">Topic Notes Manager</h3>
+              </div>
+
+              {!selSubject ? (
+                  <SubjectSelector />
+              ) : !editingChapterId ? (
+                  <div className="space-y-4">
+                      <button onClick={() => setSelSubject(null)} className="flex items-center gap-2 text-slate-500 hover:text-blue-600 font-bold text-xs mb-2">
+                          <ArrowLeft size={16} /> Back to Subjects
+                      </button>
+                      <h4 className="font-bold text-slate-800 text-lg mb-4">Select Chapter in {selSubject.name}</h4>
+                      {isLoadingChapters ? <p className="text-slate-400 animate-pulse">Loading...</p> : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                              {selChapters.map(ch => (
+                                  <button
+                                      key={ch.id}
+                                      onClick={() => loadChapterContent(ch.id)}
+                                      className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-left hover:bg-blue-50 hover:border-blue-200 transition-all group"
+                                  >
+                                      <p className="font-bold text-slate-700 group-hover:text-blue-700">{ch.title}</p>
+                                      <p className="text-xs text-slate-400 mt-1">{ch.description || 'No description'}</p>
+                                  </button>
+                              ))}
+                          </div>
+                      )}
+                  </div>
+              ) : (
+                  <div className="space-y-6">
+                      <button onClick={() => setEditingChapterId(null)} className="flex items-center gap-2 text-slate-500 hover:text-blue-600 font-bold text-xs mb-2">
+                          <ArrowLeft size={16} /> Back to Chapters
+                      </button>
+
+                      <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 mb-6">
+                          <h4 className="font-bold text-blue-800 mb-4 flex items-center gap-2"><FileText size={20}/> Add New Topic Note</h4>
+
+                          <div className="space-y-4">
+                              <div>
+                                  <label className="text-xs font-bold text-slate-500 uppercase">Topic Name</label>
+                                  <input
+                                      type="text"
+                                      value={newTopicTitle}
+                                      onChange={e => setNewTopicTitle(e.target.value)}
+                                      className="w-full p-3 rounded-xl border border-blue-200 font-bold"
+                                      placeholder="e.g. Ohm's Law Explanation"
+                                  />
+                              </div>
+
+                              <div>
+                                  <label className="text-xs font-bold text-slate-500 uppercase">Content (HTML Supported)</label>
+                                  <SimpleRichTextEditor
+                                      value={newTopicContent}
+                                      onChange={setNewTopicContent}
+                                      placeholder="Write detailed notes here..."
+                                  />
+                              </div>
+
+                              <div className="flex items-center justify-between">
+                                  <div>
+                                      <label className="text-xs font-bold text-slate-500 uppercase">Access Type</label>
+                                      <div className="flex gap-2 mt-1">
+                                          <button
+                                              onClick={() => setNewTopicType('FREE')}
+                                              className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${newTopicType === 'FREE' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-slate-500 border-slate-200'}`}
+                                          >
+                                              FREE
+                                          </button>
+                                          <button
+                                              onClick={() => setNewTopicType('PREMIUM')}
+                                              className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${newTopicType === 'PREMIUM' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-slate-500 border-slate-200'}`}
+                                          >
+                                              PREMIUM
+                                          </button>
+                                      </div>
+                                  </div>
+
+                                  <button
+                                      onClick={() => {
+                                          if(!newTopicTitle || !newTopicContent) return alert("Title and Content are required!");
+                                          const newNote = {
+                                              id: Date.now().toString(),
+                                              topic: newTopicTitle,
+                                              content: newTopicContent,
+                                              type: newTopicType
+                                          };
+                                          setTopicNotes([...topicNotes, newNote]);
+                                          setNewTopicTitle('');
+                                          setNewTopicContent('');
+                                          alert("Topic Note Added!");
+                                      }}
+                                      className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 flex items-center gap-2"
+                                  >
+                                      <Plus size={18} /> Add Note
+                                  </button>
+                              </div>
+                          </div>
+                      </div>
+
+                      <div className="space-y-4">
+                          <h4 className="font-bold text-slate-800 mb-2">Existing Topic Notes ({topicNotes.length})</h4>
+                          {topicNotes.length === 0 && <p className="text-slate-400 italic">No notes added yet.</p>}
+
+                          {topicNotes.map((note, idx) => (
+                              <div key={note.id} className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all">
+                                  <div className="flex justify-between items-start mb-2">
+                                      <div>
+                                          <h5 className="font-bold text-slate-800 text-lg">{note.topic}</h5>
+                                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${note.type === 'FREE' ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'}`}>
+                                              {note.type}
+                                          </span>
+                                      </div>
+                                      <button
+                                          onClick={() => {
+                                              if(confirm("Delete this note?")) {
+                                                  setTopicNotes(topicNotes.filter((_, i) => i !== idx));
+                                              }
+                                          }}
+                                          className="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-lg"
+                                      >
+                                          <Trash2 size={18} />
+                                      </button>
+                                  </div>
+                                  <div className="max-h-32 overflow-hidden text-xs text-slate-500 relative">
+                                      <div dangerouslySetInnerHTML={{__html: note.content}} />
+                                      <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-white to-transparent"></div>
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+
+                      <div className="sticky bottom-6 flex justify-end">
+                          <button
+                              onClick={saveChapterContent}
+                              disabled={isContentLoading}
+                              className="bg-green-600 text-white px-8 py-4 rounded-2xl font-black shadow-xl hover:bg-green-700 hover:scale-105 transition-transform flex items-center gap-2"
+                          >
+                              {isContentLoading ? <RefreshCw className="animate-spin"/> : <Save size={24}/>}
+                              SAVE ALL NOTES
+                          </button>
+                      </div>
+                  </div>
+              )}
           </div>
       )}
 
@@ -8800,6 +9013,25 @@ Capital of India?       Mumbai  Delhi   Kolkata Chennai 2       Delhi is the cap
                   </div>
                   <textarea value={dbContent} onChange={e => setDbContent(e.target.value)} className="w-full h-96 bg-slate-950 text-green-400 font-mono text-xs p-4 rounded-lg focus:outline-none border border-slate-800 resize-none" spellCheck={false} />
                   <button onClick={() => { localStorage.setItem(dbKey, dbContent); alert("Database Updated Forcefully!"); }} className="mt-4 bg-red-600 text-white px-6 py-3 rounded-lg font-bold w-full hover:bg-red-700">⚠️ SAVE CHANGES (DANGEROUS)</button>
+              </div>
+
+              <div className="border-t pt-8 mt-8">
+                  <h4 className="font-black text-red-600 mb-4 flex items-center gap-2"><AlertTriangle size={24}/> DANGER ZONE</h4>
+                  <div className="p-6 bg-red-50 border-2 border-red-200 rounded-2xl flex items-center justify-between">
+                      <div>
+                          <p className="font-bold text-red-800">Factory Reset Application</p>
+                          <p className="text-xs text-red-600 max-w-md mt-1">
+                              This will permanently delete ALL users, content, logs, and settings from Firebase.
+                              This action cannot be undone.
+                          </p>
+                      </div>
+                      <button
+                          onClick={handleFactoryReset}
+                          className="px-6 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg hover:bg-red-700 hover:scale-105 transition-all flex items-center gap-2"
+                      >
+                          <Trash2 size={18} /> DELETE ALL DATA
+                      </button>
+                  </div>
               </div>
           </div>
       )}
