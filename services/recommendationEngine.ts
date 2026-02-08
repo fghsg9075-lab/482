@@ -1,5 +1,5 @@
 
-import { LessonContent, User } from '../types';
+import { Chapter, User } from '../types';
 
 export interface RecommendedItem {
     id: string;
@@ -9,18 +9,19 @@ export interface RecommendedItem {
     price: number;
     access: 'FREE' | 'BASIC' | 'ULTRA';
     matchReason?: string; // e.g. "Weak Topic: Newton's Law"
+    isLocked?: boolean;
 }
 
 export const getRecommendedContent = (
     weakTopics: string[],
-    content: LessonContent,
+    content: any, // Using 'any' to avoid strict type issues with large objects, but ideally use Chapter/LessonContent type
     user: User,
     syllabusMode: 'SCHOOL' | 'COMPETITION' = 'SCHOOL'
 ): RecommendedItem[] => {
 
     // 1. Identify User Access Level
     const isPremium = user.isPremium && user.subscriptionEndDate && new Date(user.subscriptionEndDate) > new Date();
-    const isFreeUser = !isPremium && user.role !== 'ADMIN';
+    // const isFreeUser = !isPremium && user.role !== 'ADMIN'; // REMOVED AGGRESSIVE FILTER
 
     let recommendations: RecommendedItem[] = [];
 
@@ -35,14 +36,15 @@ export const getRecommendedContent = (
         ? (content.schoolVideoPlaylist || content.videoPlaylist || [])
         : (content.competitionVideoPlaylist || []);
 
-    videos.forEach(v => {
+    videos.forEach((v: any) => {
         candidates.push({
             id: `vid-${v.url}`,
             title: v.title,
             type: 'VIDEO',
             url: v.url,
             price: v.price || 0,
-            access: v.access || 'FREE'
+            access: v.access || 'FREE',
+            isLocked: !isPremium && (v.access === 'BASIC' || v.access === 'ULTRA' || (v.price && v.price > 0))
         });
     });
 
@@ -51,31 +53,33 @@ export const getRecommendedContent = (
         ? (content.schoolAudioPlaylist || content.audioPlaylist || [])
         : (content.competitionAudioPlaylist || []);
 
-    audios.forEach(a => {
+    audios.forEach((a: any) => {
         candidates.push({
             id: `aud-${a.url}`,
             title: a.title,
             type: 'AUDIO',
             url: a.url,
             price: a.price || 0,
-            access: a.access || 'FREE'
+            access: a.access || 'FREE',
+            isLocked: !isPremium && (a.access === 'BASIC' || a.access === 'ULTRA' || (a.price && a.price > 0))
         });
     });
 
     // Notes (PDFs & Premium Slots)
-    // Note: HTML content is single block, so we can't easily recommend "part" of it unless we parse it.
-    // For now, we recommend PDF links or specific slots.
 
     // Main PDF
     const pdfLink = syllabusMode === 'SCHOOL' ? content.schoolPdfLink : content.competitionPdfLink;
+    const pdfPrice = (syllabusMode === 'SCHOOL' ? content.schoolPdfPrice : content.competitionPdfPrice) || 0;
+
     if (pdfLink) {
         candidates.push({
             id: 'main-pdf',
-            title: 'Chapter Notes (PDF)',
+            title: 'Chapter Notes (Main)',
             type: 'PDF',
             url: pdfLink,
-            price: (syllabusMode === 'SCHOOL' ? content.schoolPdfPrice : content.competitionPdfPrice) || 0,
-            access: 'BASIC'
+            price: pdfPrice,
+            access: pdfPrice > 0 ? 'BASIC' : 'FREE',
+            isLocked: !isPremium && pdfPrice > 0
         });
     }
 
@@ -84,26 +88,28 @@ export const getRecommendedContent = (
         ? (content.schoolPdfPremiumSlots || content.premiumNoteSlots || [])
         : (content.competitionPdfPremiumSlots || []);
 
-    slots.forEach(s => {
+    slots.forEach((s: any) => {
         candidates.push({
             id: s.id,
             title: s.title,
             type: 'PDF',
             url: s.url,
             price: 5, // Default slot price
-            access: s.access || 'BASIC'
+            access: s.access || 'BASIC',
+            isLocked: !isPremium // Slots are generally premium
         });
     });
 
-    // 3. Match Weak Topics
-    let matchedVideos: RecommendedItem[] = [];
-    let matchedNotes: RecommendedItem[] = [];
-    let matchedAudios: RecommendedItem[] = [];
+    // 3. Match Weak Topics (Fuzzy Search)
+    let matchedItems: RecommendedItem[] = [];
 
-    // If no weak topics, maybe return generic top items?
-    // User implies recommendations happen AFTER analysis finding weak topics.
-    // If weakTopics is empty, return empty? Or return "General Revision"?
-    // Let's strictly match first.
+    // If no weak topics, return generic suggestions
+    if (!weakTopics || weakTopics.length === 0) {
+         // Return top 2 free and top 2 premium items
+         const free = candidates.filter(c => !c.isLocked).slice(0, 2);
+         const premium = candidates.filter(c => c.isLocked).slice(0, 2);
+         return [...free, ...premium];
+    }
 
     weakTopics.forEach(topic => {
         const normTopic = normalize(topic);
@@ -113,48 +119,24 @@ export const getRecommendedContent = (
             // Check if Item Title contains Topic
             if (normalize(item.title).includes(normTopic)) {
                 // Avoid duplicates
-                const isAlreadyAdded = [...matchedVideos, ...matchedNotes, ...matchedAudios].some(x => x.id === item.id);
+                const isAlreadyAdded = matchedItems.some(x => x.id === item.id);
                 if (!isAlreadyAdded) {
-                    // Add Match Reason
                     item.matchReason = topic;
-
-                    if (item.type === 'VIDEO') matchedVideos.push(item);
-                    else if (item.type === 'PDF') matchedNotes.push(item);
-                    else if (item.type === 'AUDIO') matchedAudios.push(item);
+                    matchedItems.push(item);
                 }
             }
         });
     });
 
-    // 4. Apply Limits & User Restrictions
-
-    // Filter for Free Users (Notes Only)
-    // User said: "free user ko bas notes hi dikhega na video na audio"
-    if (isFreeUser) {
-        matchedVideos = []; // Remove videos
-        matchedAudios = []; // Remove audios
-        // Notes are kept
+    // If exact matches are few, add general chapter resources as fallback
+    if (matchedItems.length < 3) {
+        const generals = candidates.filter(c => !matchedItems.some(m => m.id === c.id)).slice(0, 3 - matchedItems.length);
+        generals.forEach(g => {
+            g.matchReason = "General Chapter Revision";
+            matchedItems.push(g);
+        });
     }
 
-    // Limits: 2 Video, 2 Notes, 1 Audio
-    const finalVideos = matchedVideos.slice(0, 2);
-    const finalNotes = matchedNotes.slice(0, 2);
-    const finalAudios = matchedAudios.slice(0, 1);
-
-    recommendations = [...finalVideos, ...finalNotes, ...finalAudios];
-
-    // Fallback: If no matches found but we have weak topics, maybe suggest the MAIN PDF or MAIN VIDEO if available?
-    if (recommendations.length === 0 && weakTopics.length > 0) {
-        // Suggest Main PDF if exists
-        const mainPdf = candidates.find(c => c.id === 'main-pdf');
-        if (mainPdf) recommendations.push({ ...mainPdf, matchReason: 'General Revision' });
-
-        // Suggest 1 Video if allowed
-        if (!isFreeUser) {
-            const firstVideo = candidates.find(c => c.type === 'VIDEO');
-            if (firstVideo) recommendations.push({ ...firstVideo, matchReason: 'General Revision' });
-        }
-    }
-
-    return recommendations;
+    // Sort: Free first, then Premium
+    return matchedItems.sort((a, b) => (a.isLocked === b.isLocked) ? 0 : a.isLocked ? 1 : -1);
 };

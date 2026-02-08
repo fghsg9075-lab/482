@@ -489,73 +489,107 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
         </>
   );
 
-  const renderRecommendedSection = () => (
-      <div className="space-y-4">
-          <div className="bg-pink-50 p-4 rounded-xl border border-pink-100 mb-4">
-              <h3 className="font-black text-pink-800 flex items-center gap-2 mb-2">
-                  <Sparkles size={18} /> Recommended for You
-              </h3>
-              <p className="text-xs text-pink-700">
-                  Based on your analysis, we found these resources to help you improve your weak topics.
-              </p>
-          </div>
+  const renderRecommendedSection = () => {
+      // 1. Split into Free and Premium
+      const freeItems = recommendations.filter(r => !r.isLocked);
+      const premiumItems = recommendations.filter(r => r.isLocked);
 
-          {recommendations.length === 0 ? (
-              <div className="text-center py-10 text-slate-400">
-                  <FileSearch size={48} className="mx-auto mb-2 opacity-50"/>
-                  <p>No specific recommendations found.</p>
-                  <p className="text-xs">Try analyzing again or check the chapter library.</p>
+      const renderItem = (item: RecommendedItem, isLocked: boolean) => (
+          <div key={item.id} className={`bg-white p-4 rounded-xl border shadow-sm flex items-center justify-between ${isLocked ? 'border-purple-200 bg-purple-50/50' : 'border-slate-200'}`}>
+              <div className="flex items-center gap-4">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      item.type === 'VIDEO' ? 'bg-blue-100 text-blue-600' :
+                      item.type === 'PDF' ? 'bg-orange-100 text-orange-600' :
+                      'bg-pink-100 text-pink-600'
+                  }`}>
+                      {item.type === 'VIDEO' ? <Play size={20} /> : item.type === 'PDF' ? <FileText size={20} /> : <Headphones size={20} />}
+                  </div>
+                  <div>
+                      <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                          {item.title}
+                          {isLocked && <Lock size={12} className="text-purple-600" />}
+                      </h4>
+                      <div className="flex items-center gap-2 mt-1">
+                          <span className={`text-[10px] px-2 py-0.5 rounded uppercase font-bold ${isLocked ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}`}>
+                              {isLocked ? 'PREMIUM' : 'FREE'}
+                          </span>
+                          <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded uppercase font-bold">{item.type}</span>
+                          {item.matchReason && (
+                              <span className="text-[10px] text-red-500 font-medium flex items-center gap-1">
+                                  <Target size={10} /> Focus: {item.matchReason}
+                              </span>
+                          )}
+                      </div>
+                  </div>
               </div>
-          ) : (
-              <div className="grid gap-3">
-                  {recommendations.map((item, idx) => (
-                      <div key={idx} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                                  item.type === 'VIDEO' ? 'bg-blue-100 text-blue-600' :
-                                  item.type === 'PDF' ? 'bg-orange-100 text-orange-600' :
-                                  'bg-pink-100 text-pink-600'
-                              }`}>
-                                  {item.type === 'VIDEO' ? <Play size={20} /> : item.type === 'PDF' ? <FileText size={20} /> : <Headphones size={20} />}
-                              </div>
-                              <div>
-                                  <h4 className="font-bold text-slate-800 text-sm">{item.title}</h4>
-                                  <div className="flex items-center gap-2 mt-1">
-                                      <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded uppercase font-bold">{item.type}</span>
-                                      {item.matchReason && (
-                                          <span className="text-[10px] text-red-500 font-medium flex items-center gap-1">
-                                              <Target size={10} /> Focus: {item.matchReason}
-                                          </span>
-                                      )}
-                                  </div>
+
+              {isLocked ? (
+                  <button
+                      onClick={() => alert("This content is locked for Premium Users. Please upgrade your plan!")}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg text-xs font-bold hover:bg-purple-700 flex items-center gap-1 shadow-lg shadow-purple-200"
+                  >
+                      <Lock size={12} /> Unlock
+                  </button>
+              ) : (
+                  <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 flex items-center gap-1 shadow-lg"
+                  >
+                      Open
+                  </a>
+              )}
+          </div>
+      );
+
+      return (
+          <div className="space-y-6">
+              <div className="bg-pink-50 p-4 rounded-xl border border-pink-100 mb-4">
+                  <h3 className="font-black text-pink-800 flex items-center gap-2 mb-2">
+                      <Sparkles size={18} /> Smart Recommendations
+                  </h3>
+                  <p className="text-xs text-pink-700">
+                      We found tailored resources to boost your weak topics. Start with free content!
+                  </p>
+              </div>
+
+              {recommendations.length === 0 ? (
+                  <div className="text-center py-10 text-slate-400">
+                      <FileSearch size={48} className="mx-auto mb-2 opacity-50"/>
+                      <p>No specific recommendations found yet.</p>
+                      <p className="text-xs">Complete more tests to generate accurate suggestions.</p>
+                  </div>
+              ) : (
+                  <>
+                      {/* FREE SECTION */}
+                      {freeItems.length > 0 && (
+                          <div>
+                              <h4 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
+                                  <CheckCircle size={14} className="text-green-500" /> Free Resources
+                              </h4>
+                              <div className="grid gap-3">
+                                  {freeItems.map(item => renderItem(item, false))}
                               </div>
                           </div>
+                      )}
 
-                          <a
-                              href={item.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              onClick={(e) => {
-                                  // Simple link for now, ideally handle internal navigation/unlock
-                                  // For demo/MVP, direct link is okay, or we can use window.open
-                                  if (item.type !== 'VIDEO' && item.type !== 'PDF' && item.type !== 'AUDIO') return;
-
-                                  // Credit Check (Mock)
-                                  if (item.price > 0 && user.credits < item.price && !user.isPremium) {
-                                      e.preventDefault();
-                                      alert("Insufficient Credits!");
-                                  }
-                              }}
-                              className="px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800"
-                          >
-                              Open
-                          </a>
-                      </div>
-                  ))}
-              </div>
-          )}
-      </div>
-  );
+                      {/* PREMIUM SECTION */}
+                      {premiumItems.length > 0 && (
+                          <div>
+                              <h4 className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2 mt-2">
+                                  <Crown size={14} className="text-purple-500" /> Premium Picks (High Yield)
+                              </h4>
+                              <div className="grid gap-3 opacity-90">
+                                  {premiumItems.map(item => renderItem(item, true))}
+                              </div>
+                          </div>
+                      )}
+                  </>
+              )}
+          </div>
+      );
+  };
 
   const renderStatsSection = () => (
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200 relative overflow-hidden">

@@ -652,6 +652,7 @@ export interface MCQItem {
   mnemonic?: string; // Memory Trick
   concept?: string; // Full concept explanation
   topic?: string; // NEW: Topic tag for analysis
+  difficulty?: 'easy' | 'medium' | 'hard'; // NEW: Difficulty tag for analysis
 }
 
 // NEW: Performance Analytics

@@ -1,0 +1,12 @@
+
+> students@0.0.0 dev
+> vite --port 5173
+
+
+  VITE v6.4.1  ready in 619 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: http://192.168.0.2:5173/
+[BABEL] Note: The code generator has deoptimised the styling of /app/components/AdminDashboard.tsx as it exceeds the max of 500KB.
+10:46:30 AM [vite] (client) hmr update /components/MarksheetCard.tsx
+10:46:53 AM [vite] (client) hmr update /components/MarksheetCard.tsx
