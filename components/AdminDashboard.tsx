@@ -10350,6 +10350,55 @@ Capital of India?       Mumbai  Delhi   Kolkata Chennai 2       Delhi is the cap
                   <h3 className="text-xl font-black text-slate-800">Global App Modes & Automation</h3>
               </div>
 
+              {/* CONTENT VISIBILITY CONTROL */}
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 mb-8">
+                  <div className="flex items-center gap-4 mb-6">
+                      <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
+                          <Layout size={32} />
+                      </div>
+                      <div>
+                          <h4 className="text-xl font-black text-slate-800">Student Dashboard Content</h4>
+                          <p className="text-sm text-slate-500 font-medium">Control which content types are visible to students.</p>
+                      </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                      {['VIDEO', 'PDF', 'MCQ', 'AUDIO'].map((type) => {
+                          // @ts-ignore
+                          const isVisible = localSettings.contentVisibility?.[type] !== false; // Default true
+                          return (
+                              <div key={type} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                  <div className="flex items-center gap-3">
+                                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                          type === 'VIDEO' ? 'bg-rose-100 text-rose-600' :
+                                          type === 'PDF' ? 'bg-orange-100 text-orange-600' :
+                                          type === 'MCQ' ? 'bg-blue-100 text-blue-600' :
+                                          'bg-purple-100 text-purple-600'
+                                      }`}>
+                                          {type === 'VIDEO' && <Youtube size={16} />}
+                                          {type === 'PDF' && <FileText size={16} />}
+                                          {type === 'MCQ' && <ListChecks size={16} />}
+                                          {type === 'AUDIO' && <Headphones size={16} />}
+                                      </div>
+                                      <span className="font-bold text-slate-700">{type}</span>
+                                  </div>
+                                  <button
+                                      onClick={() => {
+                                          const current = localSettings.contentVisibility || {};
+                                          // @ts-ignore
+                                          const updated = { ...current, [type]: !isVisible };
+                                          setLocalSettings({ ...localSettings, contentVisibility: updated });
+                                      }}
+                                      className={`w-12 h-7 rounded-full transition-all relative ${isVisible ? 'bg-green-500' : 'bg-slate-200'}`}
+                                  >
+                                      <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-sm ${isVisible ? 'left-6' : 'left-1'}`} />
+                                  </button>
+                              </div>
+                          );
+                      })}
+                  </div>
+              </div>
+
               {/* STUDENT AI TUTOR SECTION (NEW) */}
               <div className="bg-white p-6 rounded-3xl border border-slate-200 mb-8">
                   <div className="flex items-center justify-between">
