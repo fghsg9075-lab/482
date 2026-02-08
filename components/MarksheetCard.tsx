@@ -32,6 +32,7 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
   const [recommendations, setRecommendations] = useState<RecommendedItem[]>([]);
   const [isRecommendationsUnlocked, setIsRecommendationsUnlocked] = useState(false);
   const [isLoadingRecs, setIsLoadingRecs] = useState(false);
+  const [viewingNote, setViewingNote] = useState<RecommendedItem | null>(null); // NEW: To view HTML notes
 
   // UNIVERSAL ANALYSIS STATE (PER QUESTION)
   const [analyzingQuestionId, setAnalyzingQuestionId] = useState<string | null>(null);
@@ -462,6 +463,13 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
                   >
                       <Lock size={12} /> Unlock
                   </button>
+              ) : item.type === 'NOTE' ? (
+                  <button
+                      onClick={() => setViewingNote(item)}
+                      className="px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 flex items-center gap-1 shadow-lg"
+                  >
+                      <BookOpen size={12} /> Read
+                  </button>
               ) : (
                   <a
                       href={item.url}
@@ -477,6 +485,29 @@ export const MarksheetCard: React.FC<Props> = ({ result, user, settings, onClose
 
       return (
           <div className="space-y-6 animate-in slide-in-from-bottom-4">
+              {/* NOTE VIEWER MODAL */}
+              {viewingNote && (
+                  <div className="fixed inset-0 z-[300] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+                      <div className="bg-white w-full max-w-3xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95">
+                          <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                              <div>
+                                  <h3 className="font-black text-slate-800">{viewingNote.title}</h3>
+                                  <p className="text-xs text-slate-500">{viewingNote.matchReason}</p>
+                              </div>
+                              <button onClick={() => setViewingNote(null)} className="p-2 bg-white rounded-full hover:bg-slate-200">
+                                  <X size={20} />
+                              </button>
+                          </div>
+                          <div className="p-6 overflow-y-auto">
+                              <div
+                                  className="prose prose-sm max-w-none prose-headings:font-black prose-p:text-slate-600"
+                                  dangerouslySetInnerHTML={{__html: viewingNote.content || '<p>No content available.</p>'}}
+                              />
+                          </div>
+                      </div>
+                  </div>
+              )}
+
               <div className="bg-pink-50 p-4 rounded-xl border border-pink-100 mb-4">
                   <h3 className="font-black text-pink-800 flex items-center gap-2 mb-2">
                       <Sparkles size={18} /> Recommended Notes

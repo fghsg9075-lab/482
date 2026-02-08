@@ -821,6 +821,14 @@ export interface LessonContent {
   schoolPremiumNotesHtml?: string;
   competitionFreeNotesHtml?: string;
   competitionPremiumNotesHtml?: string;
+
+  // NEW: Topic-Based Notes for Recommendations
+  topicNotes?: {
+      id: string;
+      topic: string;
+      content: string;
+      type: 'FREE' | 'PREMIUM';
+  }[];
 }
 
 export type ViewState = 'BOARDS' | 'CLASSES' | 'STREAMS' | 'SUBJECTS' | 'CHAPTERS' | 'LESSON' | 'ADMIN_DASHBOARD' | 'AUDIO_STUDIO' | 'STUDENT_DASHBOARD' | 'UNIVERSAL_CHAT' | 'RULES' | 'IIC' | 'LEADERBOARD';
