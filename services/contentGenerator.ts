@@ -57,8 +57,7 @@ const getAdminContent = async (
     const key = `nst_content_${board}_${classLevel}${streamKey}_${subject.name}_${chapterId}`;
 
     try {
-        let parsed = await getChapterData(key);
-        if (!parsed) parsed = await storage.getItem(key);
+        const parsed = await getChapterData(key);
 
         if (parsed) {
             if (type === 'PDF_FREE' || type === 'NOTES_SIMPLE') {
