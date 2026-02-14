@@ -1,0 +1,40 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || root.child('users').child(auth.uid).child('role').val() == 'ADMIN')",
+        ".write": "auth != null && (auth.uid == $uid || root.child('users').child(auth.uid).child('role').val() == 'ADMIN')",
+
+        "role": {
+          // Force 'STUDENT' role on creation if not admin
+          // Prevent role modification by the user themselves
+          ".validate": "newData.val() == 'STUDENT' || root.child('users').child(auth.uid).child('role').val() == 'ADMIN'"
+        }
+      }
+    },
+    "system_settings": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'ADMIN'"
+    },
+    "content_data": {
+      ".read": "auth != null",
+      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() == 'ADMIN' || root.child('users').child(auth.uid).child('role').val() == 'SUB_ADMIN')"
+    },
+    "secure_keys": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'ADMIN'",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'ADMIN'"
+    },
+    "recovery_requests": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'ADMIN'",
+      ".write": "auth != null"
+    },
+    "public_activity": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "universal_updates": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'ADMIN'"
+    }
+  }
+}

@@ -21,6 +21,11 @@ const BLOCKED_DOMAINS = [
     'dispostable.com', 'grr.la', 'mailnesia.com', 'temp-mail.org', 'fake-email.com'
 ];
 
+// SECURITY NOTE: In a production environment, roles should be assigned
+// via Cloud Functions or enforced via Database Security Rules.
+// Client-side assignment is only a default and can be bypassed by malicious users.
+const DEFAULT_USER_ROLE = 'STUDENT';
+
 export const Auth: React.FC<Props> = ({ onLogin, logActivity }) => {
   const [view, setView] = useState<AuthView>('LOGIN');
   const [generatedId, setGeneratedId] = useState<string>('');
@@ -99,7 +104,8 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity }) => {
             name: formData.name,
             mobile: formData.mobile,
             email: formData.email,
-            role: 'STUDENT',
+            // SECURITY: Defaulting to STUDENT. This must be validated by Security Rules.
+            role: DEFAULT_USER_ROLE,
             createdAt: new Date().toISOString(),
             credits: settings?.signupBonus || 2,
             streak: 0,
@@ -197,7 +203,8 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity }) => {
                     email: loginEmail,
                     password: '',
                     mobile: '',
-                    role: 'STUDENT',
+                    // SECURITY: Defaulting to STUDENT. This must be validated by Security Rules.
+                    role: DEFAULT_USER_ROLE,
                     createdAt: new Date().toISOString(),
                     credits: 0,
                     streak: 0,
@@ -269,6 +276,9 @@ export const Auth: React.FC<Props> = ({ onLogin, logActivity }) => {
                     if (adminUser && adminUser.role === 'ADMIN') {
                         adminUser = { ...adminUser, id: cred.user.uid, lastLoginDate: new Date().toISOString(), isPremium: true, subscriptionTier: 'LIFETIME', subscriptionLevel: 'ULTRA' };
                     } else {
+                        // SECURITY NOTE: This login path should be strictly protected by Security Rules.
+                        // Ideally, ADMIN roles should only be assigned manually in the Firebase Console
+                        // or via a separate secure admin tool.
                         adminUser = {
                             id: cred.user.uid, displayId: 'IIC-ADMIN', name: 'Administrator', email: formData.email, password: '', mobile: 'ADMIN', role: 'ADMIN',
                             createdAt: new Date().toISOString(), credits: 99999, streak: 999, lastLoginDate: new Date().toISOString(),

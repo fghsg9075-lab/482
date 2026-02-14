@@ -65,6 +65,17 @@ export const subscribeToAuth = (callback: (user: any) => void) => {
 export const saveUserToLive = async (user: any) => {
   try {
     if (!user || !user.id) return;
+
+    /**
+     * SECURITY NOTE:
+     * In a production Firebase environment, sensitive fields like 'role'
+     * MUST be protected by server-side Security Rules.
+     * Client-side code can be manipulated, so rules are the only
+     * reliable way to prevent privilege escalation.
+     *
+     * Example Rule:
+     * allow update: if request.auth.uid == userId && request.resource.data.role == resource.data.role;
+     */
     
     // Sanitize data before saving
     const sanitizedUser = sanitizeForFirestore(user);

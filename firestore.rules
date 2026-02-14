@@ -1,0 +1,54 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper to check if the user is an admin
+    function isAdmin() {
+      return request.auth != null &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN';
+    }
+
+    // Helper to check if the user is a sub-admin
+    function isSubAdmin() {
+      return request.auth != null &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'SUB_ADMIN';
+    }
+
+    match /users/{userId} {
+      // Users can read their own data
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin() || isSubAdmin());
+
+      // Allow creation of new users
+      // SECURITY: Force the role to be 'STUDENT' on registration
+      allow create: if request.auth != null && request.auth.uid == userId
+                    && request.resource.data.role == 'STUDENT';
+
+      // Allow users to update their own non-sensitive fields
+      allow update: if request.auth != null && request.auth.uid == userId
+                    && request.resource.data.role == resource.data.role // Cannot change role
+                    && request.resource.data.email == resource.data.email // Cannot change email (if using Firebase Auth)
+                    && (isAdmin() == false); // Normal users follow this
+
+      // Admins have full control over user documents (including role assignment)
+      allow write: if isAdmin();
+    }
+
+    match /config/{document=**} {
+      // System settings should be read-only for normal users
+      allow read: if request.auth != null;
+      // Only admins can update system settings
+      allow write: if isAdmin();
+    }
+
+    match /content_data/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin() || isSubAdmin();
+    }
+
+    // Default: Deny all other writes
+    match /{document=**} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+  }
+}

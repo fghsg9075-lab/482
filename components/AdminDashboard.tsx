@@ -2381,6 +2381,8 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
           return;
       }
       
+      // SECURITY NOTE: This update will only succeed if the caller is an ADMIN
+      // as enforced by Database Security Rules.
       const updatedUser: User = { 
           ...user, 
           role: 'SUB_ADMIN', 
@@ -2407,6 +2409,8 @@ const AdminDashboardInner: React.FC<Props> = ({ onNavigate, settings, onUpdateSe
       
       if (!confirm(`Are you sure you want to remove Sub-Admin rights from ${user.name}?`)) return;
 
+      // SECURITY NOTE: This update will only succeed if the caller is an ADMIN
+      // as enforced by Database Security Rules.
       const updatedUser: User = { 
           ...user, 
           role: 'STUDENT', 
