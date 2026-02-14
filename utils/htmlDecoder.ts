@@ -34,7 +34,7 @@ export const decodeHtml = (content: string | undefined | null): string => {
 
   // 3. Unescape HTML Entities (The likely cause of "showing HTML code")
   // e.g. "&lt;h1&gt;" -> "<h1>"
-  if (processed.includes('&lt;') || processed.includes('&gt;') || processed.includes('&amp;') || processed.includes('&quot;')) {
+  if (processed.includes('&lt;') || processed.includes('&gt;') || processed.includes('&amp;') || processed.includes('&quot;') || processed.includes('&#39;')) {
       try {
           const textarea = document.createElement('textarea');
           textarea.innerHTML = processed;
